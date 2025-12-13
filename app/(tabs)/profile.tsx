@@ -187,21 +187,13 @@ export default function ProfileTab() {
   };
 
   /* ================= LOGOUT (FIXED) ================= */
-  const logout = () => {
-    Alert.alert('Logout', 'Are you sure you want to logout?', [
-      { text: 'Cancel', style: 'cancel' },
-      {
-        text: 'Logout',
-        style: 'destructive',
-        onPress: async () => {
-          await supabase.auth.signOut();
+  const logout = async () => {
+  await supabase.auth.signOut();
 
-          // ✅ FORCE redirect (important for Expo Web)
-          router.replace('/(auth)/login');
-        },
-      },
-    ]);
-  };
+  // 🔥 required for Expo Web
+  router.replace('/(auth)/login');
+};
+
   /* ================================================= */
 
   if (authLoading || loading) {
