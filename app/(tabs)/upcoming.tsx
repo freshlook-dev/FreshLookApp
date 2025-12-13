@@ -15,10 +15,6 @@ import { router } from 'expo-router';
 import { supabase } from '../../context/supabase';
 import { useAuth } from '../../context/AuthContext';
 
-import { Colors, Spacing } from '../../constants/theme';
-import { Card } from '../../components/Card';
-import { SectionTitle } from '../../components/SectionTitle';
-
 type Role = 'owner' | 'manager' | 'staff';
 
 type Appointment = {
@@ -95,7 +91,6 @@ export default function UpcomingAppointments() {
               target_id: appointmentId,
             });
 
-            // ✅ Notifications are created automatically by DB trigger
             loadData();
           },
         },
@@ -106,15 +101,16 @@ export default function UpcomingAppointments() {
   if (loading) {
     return (
       <View style={styles.center}>
-        <ActivityIndicator size="large" />
-        <Text style={{ marginTop: Spacing.sm }}>Loading...</Text>
+        <ActivityIndicator size="large" color="#C9A24D" />
+        <Text style={styles.loadingText}>Loading appointments…</Text>
       </View>
     );
   }
 
   return (
     <View style={styles.container}>
-      <SectionTitle>Upcoming Appointments</SectionTitle>
+      {/* Header */}
+      <Text style={styles.title}>Upcoming Appointments</Text>
 
       {appointments.length === 0 ? (
         <Text style={styles.empty}>No appointments found</Text>
@@ -122,8 +118,10 @@ export default function UpcomingAppointments() {
         <FlatList
           data={appointments}
           keyExtractor={(item) => item.id}
+          showsVerticalScrollIndicator={false}
+          contentContainerStyle={styles.listContent}
           renderItem={({ item }) => (
-            <Card>
+            <View style={styles.card}>
               <Text style={styles.client}>{item.client_name}</Text>
               <Text style={styles.service}>{item.service}</Text>
 
@@ -149,7 +147,7 @@ export default function UpcomingAppointments() {
                   </Pressable>
                 </View>
               )}
-            </Card>
+            </View>
           )}
         />
       )}
@@ -158,13 +156,85 @@ export default function UpcomingAppointments() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, padding: Spacing.lg, backgroundColor: Colors.background },
-  center: { flex: 1, justifyContent: 'center', alignItems: 'center' },
-  empty: { textAlign: 'center', color: Colors.textSecondary, marginTop: Spacing.lg },
-  client: { fontSize: 16, fontWeight: '700', color: Colors.textPrimary },
-  service: { fontSize: 14, marginTop: 2, color: Colors.textSecondary },
-  datetime: { fontSize: 13, marginTop: Spacing.xs, color: Colors.textSecondary },
-  actions: { flexDirection: 'row', marginTop: Spacing.sm },
-  edit: { marginRight: Spacing.md, fontWeight: '700', color: Colors.accent },
-  delete: { fontWeight: '700', color: Colors.danger },
+  container: {
+    flex: 1,
+    backgroundColor: '#FAF8F4',
+    paddingHorizontal: 20,
+    paddingTop: 24,
+  },
+
+  title: {
+    fontSize: 26,
+    fontWeight: '800',
+    color: '#2B2B2B',
+    marginBottom: 16,
+  },
+
+  listContent: {
+    paddingBottom: 40,
+  },
+
+  center: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#FAF8F4',
+  },
+
+  loadingText: {
+    marginTop: 10,
+    color: '#7A7A7A',
+  },
+
+  empty: {
+    textAlign: 'center',
+    marginTop: 40,
+    color: '#7A7A7A',
+    fontSize: 15,
+  },
+
+  card: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 16,
+    padding: 18,
+    marginBottom: 14,
+    shadowColor: '#000',
+    shadowOpacity: 0.05,
+    shadowRadius: 10,
+    elevation: 2,
+  },
+
+  client: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#2B2B2B',
+  },
+
+  service: {
+    fontSize: 14,
+    marginTop: 2,
+    color: '#7A7A7A',
+  },
+
+  datetime: {
+    fontSize: 13,
+    marginTop: 6,
+    color: '#7A7A7A',
+  },
+
+  actions: {
+    flexDirection: 'row',
+    marginTop: 12,
+  },
+
+  edit: {
+    marginRight: 20,
+    fontWeight: '700',
+    color: '#C9A24D',
+  },
+
+  delete: {
+    fontWeight: '700',
+    color: '#D64545',
+  },
 });

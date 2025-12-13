@@ -9,11 +9,13 @@ import {
   Pressable,
   Alert,
   ActivityIndicator,
+  ScrollView,
+  KeyboardAvoidingView,
+  Platform,
+  Image,
 } from 'react-native';
 import { router } from 'expo-router';
-
 import { supabase } from '../../context/supabase';
-import { Colors, Spacing } from '../../constants/theme';
 
 export default function SignUpScreen() {
   const [email, setEmail] = useState('');
@@ -60,7 +62,7 @@ export default function SignUpScreen() {
 
       const userId = signUpData.user.id;
 
-      // 3️⃣ Save profile data (role + full name)
+      // 3️⃣ Save profile data
       await supabase
         .from('profiles')
         .update({
@@ -91,7 +93,7 @@ export default function SignUpScreen() {
       );
 
       router.replace('/(auth)/login');
-    } catch (e) {
+    } catch {
       Alert.alert('Error', 'Something went wrong');
     } finally {
       setLoading(false);
@@ -99,99 +101,163 @@ export default function SignUpScreen() {
   };
 
   return (
-    <View style={styles.container}>
-      <Text style={styles.title}>Create Account</Text>
-
-      <TextInput
-        placeholder="Full Name"
-        value={fullName}
-        onChangeText={setFullName}
-        style={styles.input}
-      />
-
-      <TextInput
-        placeholder="Email"
-        autoCapitalize="none"
-        keyboardType="email-address"
-        value={email}
-        onChangeText={setEmail}
-        style={styles.input}
-      />
-
-      <TextInput
-        placeholder="Password"
-        secureTextEntry
-        value={password}
-        onChangeText={setPassword}
-        style={styles.input}
-      />
-
-      <TextInput
-        placeholder="5-digit Access Code"
-        keyboardType="number-pad"
-        maxLength={5}
-        value={accessCode}
-        onChangeText={setAccessCode}
-        style={styles.input}
-      />
-
-      <Pressable
-        onPress={handleSignUp}
-        disabled={loading}
-        style={styles.button}
+    <KeyboardAvoidingView
+      style={{ flex: 1 }}
+      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+    >
+      <ScrollView
+        contentContainerStyle={styles.container}
+        keyboardShouldPersistTaps="handled"
+        showsVerticalScrollIndicator={false}
       >
-        {loading ? (
-          <ActivityIndicator color="#fff" />
-        ) : (
-          <Text style={styles.buttonText}>Sign Up</Text>
-        )}
-      </Pressable>
+        {/* Header */}
+        <View style={styles.header}>
+          <Image
+            source={require('../../assets/images/logo.png')}
+            style={styles.logo}
+            resizeMode="contain"
+          />
 
-      <Pressable onPress={() => router.replace('/(auth)/login')}>
-        <Text style={styles.link}>Already have an account? Log in</Text>
-      </Pressable>
-    </View>
+          <Text style={styles.title}>Create Account</Text>
+          <Text style={styles.subtitle}>
+            Join Fresh Look internal platform
+          </Text>
+        </View>
+
+        {/* Form */}
+        <View style={styles.card}>
+          <TextInput
+            placeholder="Full Name"
+            placeholderTextColor="#999"
+            value={fullName}
+            onChangeText={setFullName}
+            style={styles.input}
+          />
+
+          <TextInput
+            placeholder="Email address"
+            placeholderTextColor="#999"
+            autoCapitalize="none"
+            keyboardType="email-address"
+            value={email}
+            onChangeText={setEmail}
+            style={styles.input}
+          />
+
+          <TextInput
+            placeholder="Password"
+            placeholderTextColor="#999"
+            secureTextEntry
+            value={password}
+            onChangeText={setPassword}
+            style={styles.input}
+          />
+
+          <TextInput
+            placeholder="5-digit Access Code"
+            placeholderTextColor="#999"
+            keyboardType="number-pad"
+            maxLength={5}
+            value={accessCode}
+            onChangeText={setAccessCode}
+            style={styles.input}
+          />
+
+          <Pressable
+            onPress={handleSignUp}
+            disabled={loading}
+            style={[styles.button, loading && { opacity: 0.7 }]}
+          >
+            {loading ? (
+              <ActivityIndicator color="#fff" />
+            ) : (
+              <Text style={styles.buttonText}>Sign Up</Text>
+            )}
+          </Pressable>
+        </View>
+
+        {/* Footer */}
+        <Pressable onPress={() => router.replace('/(auth)/login')}>
+          <Text style={styles.link}>
+            Already have an account? Log in
+          </Text>
+        </Pressable>
+      </ScrollView>
+    </KeyboardAvoidingView>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
-    flex: 1,
-    padding: Spacing.lg,
+    flexGrow: 1,
+    padding: 24,
+    backgroundColor: '#FAF8F4',
     justifyContent: 'center',
-    backgroundColor: Colors.background,
   },
+
+  header: {
+    alignItems: 'center',
+    marginBottom: 32,
+  },
+
+  logo: {
+    width: 120,
+    height: 120,
+    marginBottom: 16,
+  },
+
   title: {
     fontSize: 28,
     fontWeight: '800',
-    marginBottom: Spacing.lg,
-    textAlign: 'center',
-    color: Colors.textPrimary,
+    color: '#2B2B2B',
   },
+
+  subtitle: {
+    marginTop: 6,
+    fontSize: 14,
+    color: '#7A7A7A',
+  },
+
+  card: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 18,
+    padding: 22,
+    shadowColor: '#000',
+    shadowOpacity: 0.05,
+    shadowRadius: 12,
+    elevation: 3,
+  },
+
   input: {
     borderWidth: 1,
-    borderColor: Colors.textSecondary,
-    borderRadius: 10,
-    padding: Spacing.md,
-    marginBottom: Spacing.md,
-    fontSize: 16,
+    borderColor: '#E6D3A3',
+    borderRadius: 14,
+    paddingVertical: 14,
+    paddingHorizontal: 16,
+    fontSize: 15,
+    marginBottom: 14,
+    backgroundColor: '#FAF8F4',
+    color: '#2B2B2B',
   },
+
   button: {
-    backgroundColor: Colors.primary,
-    padding: Spacing.md,
-    borderRadius: 10,
-    alignItems: 'center',
-    marginTop: Spacing.sm,
+    backgroundColor: '#C9A24D',
+    paddingVertical: 16,
+    borderRadius: 14,
+    marginTop: 6,
   },
+
   buttonText: {
-    color: '#fff',
+    color: '#FFFFFF',
     fontSize: 16,
     fontWeight: '700',
-  },
-  link: {
-    marginTop: Spacing.lg,
     textAlign: 'center',
-    color: Colors.accent,
+  },
+
+  link: {
+    marginTop: 26,
+    textAlign: 'center',
+    color: '#C9A24D',
     fontWeight: '600',
   },
 });

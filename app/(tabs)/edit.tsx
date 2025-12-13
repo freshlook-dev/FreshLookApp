@@ -10,6 +10,7 @@ import {
   Alert,
   ActivityIndicator,
   Platform,
+  ScrollView,
 } from 'react-native';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { useLocalSearchParams, router } from 'expo-router';
@@ -17,19 +18,34 @@ import { useLocalSearchParams, router } from 'expo-router';
 import { supabase } from '../../context/supabase';
 import { useAuth } from '../../context/AuthContext';
 
-import { Colors, Spacing } from '../../constants/theme';
-import { Card } from '../../components/Card';
-import { SectionTitle } from '../../components/SectionTitle';
+/* ---------------- OPTIONS ---------------- */
+
+const TREATMENTS = [
+  'Pastrimi i fytyrës',
+  'Carbon Peeling',
+  'Depilim me Laser',
+  'Largim i Tatuazhit',
+  'Plasma Pen',
+];
+
+const LOCATIONS = ['Prishtinë', 'Fushë Kosovë'];
+
+const generateTimeSlots = () => {
+  const slots: string[] = [];
+  for (let h = 9; h <= 21; h++) {
+    for (let m of [0, 30]) {
+      if (h === 21 && m === 30) continue;
+      slots.push(
+        `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`
+      );
+    }
+  }
+  return slots;
+};
+
+const TIME_SLOTS = generateTimeSlots();
 
 type Role = 'owner' | 'manager' | 'staff';
-
-type Appointment = {
-  id: string;
-  client_name: string;
-  service: string;
-  appointment_date: string;
-  appointment_time: string;
-};
 
 export default function EditAppointment() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -37,22 +53,20 @@ export default function EditAppointment() {
 
   const [loading, setLoading] = useState(true);
 
-  const [clientName, setClientName] = useState('');
-  const [service, setService] = useState('');
-
-  const [date, setDate] = useState<Date>(new Date());
-  const [time, setTime] = useState<Date>(new Date());
+  const [fullName, setFullName] = useState('');
+  const [phone, setPhone] = useState('');
+  const [treatment, setTreatment] = useState<string | null>(null);
+  const [location, setLocation] = useState<string | null>(null);
+  const [date, setDate] = useState(new Date());
+  const [time, setTime] = useState<string | null>(null);
 
   const [showDatePicker, setShowDatePicker] = useState(false);
-  const [showTimePicker, setShowTimePicker] = useState(false);
 
   useEffect(() => {
     if (user && id) loadData();
   }, [user, id]);
 
   const loadData = async () => {
-    setLoading(true);
-
     const { data: profile } = await supabase
       .from('profiles')
       .select('role')
@@ -77,23 +91,21 @@ export default function EditAppointment() {
       return;
     }
 
-    const appt = data as Appointment;
-
-    setClientName(appt.client_name);
-    setService(appt.service);
-
-    setDate(new Date(appt.appointment_date));
-    setTime(new Date(`1970-01-01T${appt.appointment_time}`));
+    setFullName(data.client_name);
+    setPhone(data.phone);
+    setTreatment(data.service);
+    setLocation(data.location);
+    setDate(new Date(data.appointment_date));
+    setTime(data.appointment_time);
 
     setLoading(false);
   };
 
   const formatDate = (d: Date) => d.toISOString().split('T')[0];
-  const formatTime = (d: Date) => d.toTimeString().slice(0, 5);
 
   const handleSave = async () => {
-    if (!clientName || !service) {
-      Alert.alert('Error', 'All fields are required');
+    if (!fullName || !phone || !treatment || !location || !time) {
+      Alert.alert('Gabim', 'Ju lutem plotësoni të gjitha fushat');
       return;
     }
 
@@ -102,15 +114,17 @@ export default function EditAppointment() {
     const { error } = await supabase
       .from('appointments')
       .update({
-        client_name: clientName,
-        service,
+        client_name: fullName,
+        phone,
+        service: treatment,
         appointment_date: formatDate(date),
-        appointment_time: formatTime(time),
+        appointment_time: time,
+        location,
       })
       .eq('id', id);
 
     if (error) {
-      Alert.alert('Error', error.message);
+      Alert.alert('Gabim', error.message);
       setLoading(false);
       return;
     }
@@ -121,38 +135,73 @@ export default function EditAppointment() {
       target_id: id,
     });
 
-    // ✅ Notifications are created automatically by DB trigger
-    Alert.alert('Success', 'Appointment updated');
+    Alert.alert('Sukses', 'Termini u përditësua');
     router.replace('/(tabs)/upcoming');
   };
 
   if (loading) {
     return (
       <View style={styles.center}>
-        <ActivityIndicator size="large" />
-        <Text style={{ marginTop: Spacing.sm }}>Loading...</Text>
+        <ActivityIndicator size="large" color="#C9A24D" />
+        <Text style={styles.loadingText}>Duke u ngarkuar…</Text>
       </View>
     );
   }
 
   return (
-    <View style={styles.container}>
-      <SectionTitle>Edit Appointment</SectionTitle>
+    <ScrollView
+      contentContainerStyle={styles.container}
+      keyboardShouldPersistTaps="handled"
+      showsVerticalScrollIndicator={false}
+    >
+      <Text style={styles.title}>Edito Termin</Text>
 
-      <Card>
-        <Text style={styles.label}>Client Name</Text>
-        <TextInput value={clientName} onChangeText={setClientName} style={styles.input} />
-      </Card>
+      {/* Name */}
+      <View style={styles.card}>
+        <Text style={styles.label}>Emri dhe Mbiemri</Text>
+        <TextInput value={fullName} onChangeText={setFullName} style={styles.input} />
+      </View>
 
-      <Card>
-        <Text style={styles.label}>Service</Text>
-        <TextInput value={service} onChangeText={setService} style={styles.input} />
-      </Card>
+      {/* Phone */}
+      <View style={styles.card}>
+        <Text style={styles.label}>Numri kontaktues</Text>
+        <TextInput
+          value={phone}
+          onChangeText={setPhone}
+          keyboardType="phone-pad"
+          style={styles.input}
+        />
+      </View>
 
-      <Card>
-        <Text style={styles.label}>Date</Text>
-        <Pressable onPress={() => setShowDatePicker(true)} style={styles.pickerButton}>
-          <Text style={styles.pickerText}>{formatDate(date)}</Text>
+      {/* Treatment */}
+      <View style={styles.card}>
+        <Text style={styles.label}>Tretmani</Text>
+        {TREATMENTS.map((item) => (
+          <Pressable
+            key={item}
+            style={[
+              styles.option,
+              treatment === item && styles.optionActive,
+            ]}
+            onPress={() => setTreatment(item)}
+          >
+            <Text
+              style={[
+                styles.optionText,
+                treatment === item && styles.optionTextActive,
+              ]}
+            >
+              {item}
+            </Text>
+          </Pressable>
+        ))}
+      </View>
+
+      {/* Date */}
+      <View style={styles.card}>
+        <Text style={styles.label}>Data</Text>
+        <Pressable onPress={() => setShowDatePicker(true)} style={styles.input}>
+          <Text style={styles.valueText}>{formatDate(date)}</Text>
         </Pressable>
 
         {showDatePicker && (
@@ -166,41 +215,189 @@ export default function EditAppointment() {
             }}
           />
         )}
-      </Card>
+      </View>
 
-      <Card>
-        <Text style={styles.label}>Time</Text>
-        <Pressable onPress={() => setShowTimePicker(true)} style={styles.pickerButton}>
-          <Text style={styles.pickerText}>{formatTime(time)}</Text>
-        </Pressable>
+      {/* Time */}
+      <View style={styles.card}>
+        <Text style={styles.label}>Ora</Text>
+        <View style={styles.timeGrid}>
+          {TIME_SLOTS.map((slot) => (
+            <Pressable
+              key={slot}
+              onPress={() => setTime(slot)}
+              style={[
+                styles.timeSlot,
+                time === slot && styles.timeSlotActive,
+              ]}
+            >
+              <Text
+                style={[
+                  styles.timeText,
+                  time === slot && styles.timeTextActive,
+                ]}
+              >
+                {slot}
+              </Text>
+            </Pressable>
+          ))}
+        </View>
+      </View>
 
-        {showTimePicker && (
-          <DateTimePicker
-            value={time}
-            mode="time"
-            display={Platform.OS === 'ios' ? 'spinner' : 'default'}
-            onChange={(e, t) => {
-              setShowTimePicker(false);
-              if (t) setTime(t);
-            }}
-          />
-        )}
-      </Card>
+      {/* Location */}
+      <View style={styles.card}>
+        <Text style={styles.label}>Lokacioni</Text>
+        {LOCATIONS.map((loc) => (
+          <Pressable
+            key={loc}
+            style={[
+              styles.option,
+              location === loc && styles.optionActive,
+            ]}
+            onPress={() => setLocation(loc)}
+          >
+            <Text
+              style={[
+                styles.optionText,
+                location === loc && styles.optionTextActive,
+              ]}
+            >
+              {loc}
+            </Text>
+          </Pressable>
+        ))}
+      </View>
 
-      <Pressable onPress={handleSave} style={styles.saveButton}>
-        <Text style={styles.saveButtonText}>Save Changes</Text>
+      <Pressable style={styles.button} onPress={handleSave}>
+        <Text style={styles.buttonText}>Ruaj Ndryshimet</Text>
       </Pressable>
-    </View>
+    </ScrollView>
   );
 }
 
+/* ---------------- STYLES ---------------- */
+
 const styles = StyleSheet.create({
-  container: { flex: 1, padding: Spacing.lg, backgroundColor: Colors.background },
-  center: { flex: 1, justifyContent: 'center', alignItems: 'center' },
-  label: { fontSize: 13, color: Colors.textSecondary, marginBottom: 4 },
-  input: { borderWidth: 1, borderColor: Colors.textSecondary, borderRadius: 10, padding: Spacing.md, fontSize: 16 },
-  pickerButton: { borderWidth: 1, borderColor: Colors.textSecondary, borderRadius: 10, padding: Spacing.md, alignItems: 'center' },
-  pickerText: { fontSize: 16, fontWeight: '600', color: Colors.textPrimary },
-  saveButton: { marginTop: Spacing.lg, backgroundColor: Colors.primary, padding: Spacing.md, borderRadius: 12, alignItems: 'center' },
-  saveButtonText: { color: '#fff', fontSize: 16, fontWeight: '800' },
+  container: {
+    flexGrow: 1,
+    backgroundColor: '#FAF8F4',
+    padding: 20,
+    paddingBottom: 40,
+  },
+
+  title: {
+    fontSize: 26,
+    fontWeight: '800',
+    color: '#2B2B2B',
+    marginBottom: 20,
+  },
+
+  card: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 16,
+    padding: 16,
+    marginBottom: 16,
+    shadowColor: '#000',
+    shadowOpacity: 0.05,
+    shadowRadius: 10,
+    elevation: 2,
+  },
+
+  label: {
+    fontSize: 13,
+    color: '#7A7A7A',
+    marginBottom: 6,
+    fontWeight: '600',
+  },
+
+  input: {
+    borderWidth: 1,
+    borderColor: '#E6D3A3',
+    borderRadius: 12,
+    padding: 14,
+    fontSize: 15,
+    backgroundColor: '#FAF8F4',
+  },
+
+  valueText: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: '#2B2B2B',
+  },
+
+  option: {
+    padding: 12,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: '#E6D3A3',
+    marginBottom: 8,
+  },
+
+  optionActive: {
+    backgroundColor: '#C9A24D',
+  },
+
+  optionText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#2B2B2B',
+  },
+
+  optionTextActive: {
+    color: '#FFFFFF',
+  },
+
+  timeGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+  },
+
+  timeSlot: {
+    width: '30%',
+    paddingVertical: 10,
+    margin: '1.5%',
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: '#E6D3A3',
+    alignItems: 'center',
+  },
+
+  timeSlotActive: {
+    backgroundColor: '#C9A24D',
+  },
+
+  timeText: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#2B2B2B',
+  },
+
+  timeTextActive: {
+    color: '#FFFFFF',
+  },
+
+  button: {
+    backgroundColor: '#C9A24D',
+    paddingVertical: 18,
+    borderRadius: 16,
+    alignItems: 'center',
+    marginTop: 8,
+  },
+
+  buttonText: {
+    color: '#FFFFFF',
+    fontSize: 16,
+    fontWeight: '800',
+  },
+
+  center: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#FAF8F4',
+  },
+
+  loadingText: {
+    marginTop: 10,
+    color: '#7A7A7A',
+  },
 });

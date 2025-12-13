@@ -1,26 +1,37 @@
 'use client';
 
-import { View, Text, Pressable } from 'react-native';
+import { View, Text, StyleSheet } from 'react-native';
 import { useAuth } from '../../context/AuthContext';
-import { supabase } from '../../context/supabase';
 
 export default function HomeTab() {
   const { user } = useAuth();
 
   return (
-    <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
-      <Text style={{ fontSize: 20 }}>
-        Welcome {user?.email}
-      </Text>
-
-      <Pressable
-        onPress={() => supabase.auth.signOut()}
-        style={{ marginTop: 20 }}
-      >
-        <Text style={{ color: 'red', fontWeight: '600' }}>
-          Logout
-        </Text>
-      </Pressable>
+    <View style={styles.container}>
+      <Text style={styles.title}>Welcome</Text>
+      <Text style={styles.email}>{user?.email}</Text>
     </View>
   );
 }
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: '#FAF8F4',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
+  },
+
+  title: {
+    fontSize: 26,
+    fontWeight: '800',
+    color: '#2B2B2B',
+    marginBottom: 6,
+  },
+
+  email: {
+    fontSize: 14,
+    color: '#7A7A7A',
+  },
+});

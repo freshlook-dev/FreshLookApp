@@ -7,14 +7,11 @@ import {
   StyleSheet,
   ActivityIndicator,
   FlatList,
+  ScrollView,
 } from 'react-native';
 
 import { supabase } from '../../context/supabase';
 import { useAuth } from '../../context/AuthContext';
-
-import { Colors, Spacing } from '../../constants/theme';
-import { Card } from '../../components/Card';
-import { SectionTitle } from '../../components/SectionTitle';
 
 type NotificationItem = {
   id: string;
@@ -37,12 +34,6 @@ export default function NotificationsTab() {
   const loadNotifications = async () => {
     setLoading(true);
 
-    /**
-     * We:
-     * - get notifications for logged-in user
-     * - only type = 'custom'
-     * - join profiles to get author full name
-     */
     const { data, error } = await supabase
       .from('notifications')
       .select(`
@@ -82,32 +73,41 @@ export default function NotificationsTab() {
   if (loading) {
     return (
       <View style={styles.center}>
-        <ActivityIndicator size="large" />
-        <Text style={{ marginTop: Spacing.sm }}>Loading...</Text>
+        <ActivityIndicator size="large" color="#C9A24D" />
+        <Text style={styles.loadingText}>Loading announcements…</Text>
       </View>
     );
   }
 
   return (
     <View style={styles.container}>
-      <SectionTitle>Announcements</SectionTitle>
+      <Text style={styles.pageTitle}>Announcements</Text>
 
       {notifications.length === 0 ? (
-        <Text style={styles.empty}>No announcements yet</Text>
+        <View style={styles.emptyBox}>
+          <Text style={styles.emptyTitle}>No announcements yet</Text>
+          <Text style={styles.emptyText}>
+            When the owner sends a notification, it will appear here.
+          </Text>
+        </View>
       ) : (
         <FlatList
           data={notifications}
           keyExtractor={(item) => item.id}
+          showsVerticalScrollIndicator={false}
+          contentContainerStyle={{ paddingBottom: 30 }}
           renderItem={({ item }) => (
-            <Card>
+            <View style={styles.card}>
               <Text style={styles.title}>{item.title}</Text>
               <Text style={styles.message}>{item.message}</Text>
 
               <View style={styles.meta}>
                 <Text style={styles.author}>{item.author_name}</Text>
-                <Text style={styles.time}>{formatDateTime(item.created_at)}</Text>
+                <Text style={styles.time}>
+                  {formatDateTime(item.created_at)}
+                </Text>
               </View>
-            </Card>
+            </View>
           )}
         />
       )}
@@ -115,44 +115,92 @@ export default function NotificationsTab() {
   );
 }
 
+/* ---------------- STYLES ---------------- */
+
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    padding: Spacing.lg,
-    backgroundColor: Colors.background,
+    backgroundColor: '#FAF8F4',
+    padding: 20,
   },
+
+  pageTitle: {
+    fontSize: 26,
+    fontWeight: '800',
+    color: '#2B2B2B',
+    marginBottom: 16,
+  },
+
   center: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
+    backgroundColor: '#FAF8F4',
   },
-  empty: {
+
+  loadingText: {
+    marginTop: 10,
+    color: '#7A7A7A',
+  },
+
+  emptyBox: {
+    marginTop: 60,
+    alignItems: 'center',
+    paddingHorizontal: 20,
+  },
+
+  emptyTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: '#2B2B2B',
+    marginBottom: 6,
+  },
+
+  emptyText: {
+    fontSize: 14,
+    color: '#7A7A7A',
     textAlign: 'center',
-    marginTop: Spacing.lg,
-    color: Colors.textSecondary,
   },
+
+  card: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 16,
+    padding: 16,
+    marginBottom: 14,
+    shadowColor: '#000',
+    shadowOpacity: 0.05,
+    shadowRadius: 10,
+    elevation: 2,
+  },
+
   title: {
     fontSize: 16,
     fontWeight: '800',
-    color: Colors.textPrimary,
+    color: '#2B2B2B',
   },
+
   message: {
     fontSize: 14,
-    marginTop: Spacing.xs,
-    color: Colors.textPrimary,
+    marginTop: 6,
+    color: '#2B2B2B',
+    lineHeight: 20,
   },
+
   meta: {
-    marginTop: Spacing.sm,
+    marginTop: 12,
     flexDirection: 'row',
     justifyContent: 'space-between',
+    alignItems: 'center',
   },
+
   author: {
     fontSize: 12,
-    fontWeight: '600',
-    color: Colors.primary,
+    fontWeight: '700',
+    color: '#C9A24D',
   },
+
   time: {
     fontSize: 12,
-    color: Colors.textSecondary,
+    color: '#7A7A7A',
   },
 });

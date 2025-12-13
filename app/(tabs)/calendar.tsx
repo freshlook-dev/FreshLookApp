@@ -14,10 +14,6 @@ import { Calendar } from 'react-native-calendars';
 import { supabase } from '../../context/supabase';
 import { useAuth } from '../../context/AuthContext';
 
-import { Colors, Spacing } from '../../constants/theme';
-import { Card } from '../../components/Card';
-import { SectionTitle } from '../../components/SectionTitle';
-
 type Appointment = {
   id: string;
   client_name: string;
@@ -34,9 +30,7 @@ export default function CalendarTab() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    if (user) {
-      loadAppointments();
-    }
+    if (user) loadAppointments();
   }, [user]);
 
   const loadAppointments = async () => {
@@ -46,10 +40,7 @@ export default function CalendarTab() {
       .from('appointments')
       .select('*');
 
-    if (!error) {
-      setAppointments(data ?? []);
-    }
-
+    if (!error) setAppointments(data ?? []);
     setLoading(false);
   };
 
@@ -57,7 +48,7 @@ export default function CalendarTab() {
   const markedDates = appointments.reduce((acc: any, appt) => {
     acc[appt.appointment_date] = {
       marked: true,
-      dotColor: Colors.primary,
+      dotColor: '#C9A24D',
     };
     return acc;
   }, {});
@@ -72,44 +63,54 @@ export default function CalendarTab() {
   if (loading) {
     return (
       <View style={styles.center}>
-        <ActivityIndicator size="large" />
-        <Text style={{ marginTop: Spacing.sm }}>Loading...</Text>
+        <ActivityIndicator size="large" color="#C9A24D" />
+        <Text style={styles.loadingText}>Loading calendar…</Text>
       </View>
     );
   }
 
   return (
     <View style={styles.container}>
-      <SectionTitle>Calendar</SectionTitle>
+      {/* Header */}
+      <Text style={styles.title}>Calendar</Text>
 
-      <Calendar
-        markedDates={{
-          ...markedDates,
-          ...(selectedDate
-            ? {
-                [selectedDate]: {
-                  selected: true,
-                  selectedColor: Colors.primary,
-                  marked: true,
-                },
-              }
-            : {}),
-        }}
-        onDayPress={(day) => setSelectedDate(day.dateString)}
-        theme={{
-          selectedDayBackgroundColor: Colors.primary,
-          todayTextColor: Colors.primary,
-          arrowColor: Colors.primary,
-          dotColor: Colors.primary,
-        }}
-      />
+      {/* Calendar */}
+      <View style={styles.calendarWrapper}>
+        <Calendar
+          markedDates={{
+            ...markedDates,
+            ...(selectedDate
+              ? {
+                  [selectedDate]: {
+                    selected: true,
+                    selectedColor: '#C9A24D',
+                    marked: true,
+                  },
+                }
+              : {}),
+          }}
+          onDayPress={(day) => setSelectedDate(day.dateString)}
+          theme={{
+            backgroundColor: '#FFFFFF',
+            calendarBackground: '#FFFFFF',
+            selectedDayBackgroundColor: '#C9A24D',
+            todayTextColor: '#C9A24D',
+            arrowColor: '#C9A24D',
+            dotColor: '#C9A24D',
+            textDayFontWeight: '500',
+            textMonthFontWeight: '700',
+            textDayHeaderFontWeight: '600',
+          }}
+        />
+      </View>
 
+      {/* Appointments list */}
       <View style={styles.listContainer}>
-        <SectionTitle>
+        <Text style={styles.subTitle}>
           {selectedDate
             ? `Appointments on ${selectedDate}`
             : 'Select a date'}
-        </SectionTitle>
+        </Text>
 
         {selectedDate && dailyAppointments.length === 0 && (
           <Text style={styles.empty}>
@@ -120,12 +121,14 @@ export default function CalendarTab() {
         <FlatList
           data={dailyAppointments}
           keyExtractor={(item) => item.id}
+          showsVerticalScrollIndicator={false}
+          contentContainerStyle={styles.listContent}
           renderItem={({ item }) => (
-            <Card>
+            <View style={styles.card}>
               <Text style={styles.client}>{item.client_name}</Text>
               <Text style={styles.service}>{item.service}</Text>
               <Text style={styles.time}>{item.appointment_time}</Text>
-            </Card>
+            </View>
           )}
         />
       </View>
@@ -136,35 +139,87 @@ export default function CalendarTab() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    padding: Spacing.lg,
-    backgroundColor: Colors.background,
+    backgroundColor: '#FAF8F4',
+    paddingHorizontal: 20,
+    paddingTop: 24,
   },
+
+  title: {
+    fontSize: 26,
+    fontWeight: '800',
+    color: '#2B2B2B',
+    marginBottom: 12,
+  },
+
+  calendarWrapper: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 16,
+    padding: 8,
+    shadowColor: '#000',
+    shadowOpacity: 0.05,
+    shadowRadius: 10,
+    elevation: 2,
+  },
+
+  listContainer: {
+    flex: 1,
+    marginTop: 20,
+  },
+
+  subTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: '#2B2B2B',
+    marginBottom: 8,
+  },
+
+  listContent: {
+    paddingBottom: 40,
+  },
+
+  card: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 14,
+    padding: 16,
+    marginBottom: 12,
+    shadowColor: '#000',
+    shadowOpacity: 0.04,
+    shadowRadius: 8,
+    elevation: 1,
+  },
+
+  client: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#2B2B2B',
+  },
+
+  service: {
+    fontSize: 14,
+    marginTop: 2,
+    color: '#7A7A7A',
+  },
+
+  time: {
+    fontSize: 13,
+    marginTop: 6,
+    color: '#7A7A7A',
+  },
+
+  empty: {
+    marginTop: 12,
+    color: '#7A7A7A',
+  },
+
   center: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
+    backgroundColor: '#FAF8F4',
   },
-  listContainer: {
-    marginTop: Spacing.lg,
-    flex: 1,
-  },
-  empty: {
-    color: Colors.textSecondary,
-    marginTop: Spacing.sm,
-  },
-  client: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: Colors.textPrimary,
-  },
-  service: {
-    fontSize: 14,
-    color: Colors.textSecondary,
-    marginTop: 2,
-  },
-  time: {
-    fontSize: 13,
-    marginTop: Spacing.xs,
-    color: Colors.textSecondary,
+
+  loadingText: {
+    marginTop: 10,
+    color: '#7A7A7A',
   },
 });

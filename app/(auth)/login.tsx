@@ -1,7 +1,17 @@
 'use client';
 
 import { useState } from 'react';
-import { View, Text, TextInput, Pressable, StyleSheet } from 'react-native';
+import {
+  View,
+  Text,
+  TextInput,
+  Pressable,
+  StyleSheet,
+  ScrollView,
+  KeyboardAvoidingView,
+  Platform,
+  Image,
+} from 'react-native';
 import { supabase } from '../../context/supabase';
 import { router } from 'expo-router';
 
@@ -30,72 +40,141 @@ export default function Login() {
   };
 
   return (
-    <View style={styles.container}>
-      <Text style={styles.title}>Welcome back</Text>
+    <KeyboardAvoidingView
+      style={{ flex: 1 }}
+      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+    >
+      <ScrollView
+        contentContainerStyle={styles.container}
+        keyboardShouldPersistTaps="handled"
+        showsVerticalScrollIndicator={false}
+      >
+        {/* Header */}
+        <View style={styles.header}>
+          <Image
+            source={require('../../assets/images/logo.png')}
+            style={styles.logo}
+            resizeMode="contain"
+          />
 
-      <TextInput
-        placeholder="Email"
-        autoCapitalize="none"
-        keyboardType="email-address"
-        value={email}
-        onChangeText={setEmail}
-        style={styles.input}
-      />
+          <Text style={styles.title}>Welcome Back</Text>
+          <Text style={styles.subtitle}>
+            Sign in to continue to Fresh Look
+          </Text>
+        </View>
 
-      <TextInput
-        placeholder="Password"
-        secureTextEntry
-        value={password}
-        onChangeText={setPassword}
-        style={styles.input}
-      />
+        {/* Form */}
+        <View style={styles.card}>
+          <TextInput
+            placeholder="Email address"
+            placeholderTextColor="#999"
+            autoCapitalize="none"
+            keyboardType="email-address"
+            value={email}
+            onChangeText={setEmail}
+            style={styles.input}
+          />
 
-      <Pressable style={styles.button} onPress={handleLogin}>
-        <Text style={styles.buttonText}>
-          {loading ? 'Signing in...' : 'Log in'}
-        </Text>
-      </Pressable>
+          <TextInput
+            placeholder="Password"
+            placeholderTextColor="#999"
+            secureTextEntry
+            value={password}
+            onChangeText={setPassword}
+            style={styles.input}
+          />
 
-      <Pressable onPress={() => router.replace('/(auth)/signup')}>
-        <Text style={styles.link}>Create new account</Text>
-      </Pressable>
-    </View>
+          <Pressable
+            style={[styles.button, loading && { opacity: 0.7 }]}
+            onPress={handleLogin}
+            disabled={loading}
+          >
+            <Text style={styles.buttonText}>
+              {loading ? 'Signing in…' : 'Log In'}
+            </Text>
+          </Pressable>
+        </View>
+
+        {/* Footer */}
+        <Pressable onPress={() => router.replace('/(auth)/signup')}>
+          <Text style={styles.link}>Create new account</Text>
+        </Pressable>
+      </ScrollView>
+    </KeyboardAvoidingView>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
-    flex: 1,
+    flexGrow: 1,
     padding: 24,
+    backgroundColor: '#FAF8F4',
     justifyContent: 'center',
   },
-  title: {
-    fontSize: 26,
-    fontWeight: '700',
-    marginBottom: 24,
-    textAlign: 'center',
+
+  header: {
+    alignItems: 'center',
+    marginBottom: 32,
   },
+
+  logo: {
+    width: 120,
+    height: 120,
+    marginBottom: 16,
+  },
+
+  title: {
+    fontSize: 28,
+    fontWeight: '700',
+    color: '#2B2B2B',
+  },
+
+  subtitle: {
+    marginTop: 6,
+    fontSize: 14,
+    color: '#7A7A7A',
+  },
+
+  card: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 16,
+    padding: 20,
+    shadowColor: '#000',
+    shadowOpacity: 0.05,
+    shadowRadius: 10,
+    elevation: 2,
+  },
+
   input: {
     borderWidth: 1,
-    borderColor: '#ccc',
-    borderRadius: 8,
-    padding: 14,
+    borderColor: '#E6D3A3',
+    borderRadius: 12,
+    paddingVertical: 14,
+    paddingHorizontal: 16,
+    fontSize: 15,
     marginBottom: 14,
+    backgroundColor: '#FAF8F4',
+    color: '#2B2B2B',
   },
+
   button: {
-    backgroundColor: '#000',
-    padding: 16,
-    borderRadius: 8,
+    backgroundColor: '#C9A24D',
+    paddingVertical: 16,
+    borderRadius: 14,
     marginTop: 8,
   },
+
   buttonText: {
-    color: '#fff',
+    color: '#FFFFFF',
     textAlign: 'center',
-    fontWeight: '600',
+    fontWeight: '700',
+    fontSize: 16,
   },
+
   link: {
-    marginTop: 16,
+    marginTop: 24,
     textAlign: 'center',
-    color: '#007aff',
+    color: '#C9A24D',
+    fontWeight: '600',
   },
 });
