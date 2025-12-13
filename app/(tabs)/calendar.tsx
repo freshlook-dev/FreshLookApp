@@ -8,7 +8,6 @@ import {
   FlatList,
   ActivityIndicator,
 } from 'react-native';
-
 import { Calendar } from 'react-native-calendars';
 
 import { supabase } from '../../context/supabase';
@@ -57,7 +56,7 @@ export default function CalendarTab() {
       `);
 
     if (error) {
-      console.error(error);
+      console.error('Calendar error:', error);
       setLoading(false);
       return;
     }
@@ -77,13 +76,16 @@ export default function CalendarTab() {
   };
 
   const markedDates = appointments.reduce((acc: any, a) => {
-    acc[a.appointment_date] = { marked: true, dotColor: Colors.primary };
+    acc[a.appointment_date] = {
+      marked: true,
+      dotColor: Colors.primary,
+    };
     return acc;
   }, {});
 
-  const dailyAppointments = appointments.filter(
-    (a) => a.appointment_date === selectedDate
-  );
+  const dailyAppointments = appointments
+    .filter((a) => a.appointment_date === selectedDate)
+    .sort((a, b) => a.appointment_time.localeCompare(b.appointment_time));
 
   if (loading) {
     return (
@@ -98,8 +100,25 @@ export default function CalendarTab() {
       <SectionTitle>Calendar</SectionTitle>
 
       <Calendar
-        markedDates={markedDates}
+        markedDates={{
+          ...markedDates,
+          ...(selectedDate
+            ? {
+                [selectedDate]: {
+                  selected: true,
+                  selectedColor: Colors.primary,
+                  marked: true,
+                },
+              }
+            : {}),
+        }}
         onDayPress={(day) => setSelectedDate(day.dateString)}
+        theme={{
+          selectedDayBackgroundColor: Colors.primary,
+          todayTextColor: Colors.primary,
+          arrowColor: Colors.primary,
+          dotColor: Colors.primary,
+        }}
       />
 
       <FlatList
@@ -111,7 +130,11 @@ export default function CalendarTab() {
             <Text style={styles.client}>{item.client_name}</Text>
             <Text style={styles.service}>{item.service}</Text>
             <Text style={styles.time}>{item.appointment_time}</Text>
-            <Text style={styles.creator}>👤 {item.creator_name}</Text>
+
+            <Text style={styles.creator}>
+              👤 {item.creator_name}
+            </Text>
+
             {item.comment && (
               <Text style={styles.comment}>📝 {item.comment}</Text>
             )}

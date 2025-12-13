@@ -77,7 +77,7 @@ export default function UpcomingAppointments() {
       .order('appointment_time', { ascending: true });
 
     if (error) {
-      console.error(error);
+      console.error('Upcoming error:', error);
       setLoading(false);
       return;
     }
@@ -133,6 +133,7 @@ export default function UpcomingAppointments() {
           <Card>
             <Text style={styles.client}>{item.client_name}</Text>
             <Text style={styles.service}>{item.service}</Text>
+
             <Text style={styles.datetime}>
               {item.appointment_date} • {item.appointment_time}
             </Text>
