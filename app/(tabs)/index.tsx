@@ -1,7 +1,13 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { View, Text, StyleSheet } from 'react-native';
+import {
+  View,
+  Text,
+  StyleSheet,
+  ActivityIndicator,
+  FlatList,
+} from 'react-native';
 
 import { useAuth } from '../../context/AuthContext';
 import { supabase } from '../../context/supabase';
@@ -9,78 +15,157 @@ import { supabase } from '../../context/supabase';
 import { Card } from '../../components/Card';
 import { Colors, Spacing } from '../../constants/theme';
 
-type Stats = {
-  totalAppointments: number;
-  upcomingAppointments: number;
+/* ---------- TYPES ---------- */
+
+type StaffStat = {
+  user_id: string;
+  full_name: string;
+  count: number;
 };
+
+/* ---------- SCREEN ---------- */
 
 export default function HomeTab() {
   const { user } = useAuth();
 
   const [fullName, setFullName] = useState<string>('User');
-  const [stats, setStats] = useState<Stats>({
-    totalAppointments: 0,
-    upcomingAppointments: 0,
-  });
+  const [totalCount, setTotalCount] = useState(0);
+  const [upcomingCount, setUpcomingCount] = useState(0);
+  const [staffStats, setStaffStats] = useState<StaffStat[]>([]);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    if (user) {
-      loadProfile();
-      loadStats();
-    }
+    if (user) loadStats();
   }, [user]);
 
-  const loadProfile = async () => {
-    const { data } = await supabase
+  const loadStats = async () => {
+    setLoading(true);
+
+    /* 👤 USER FULL NAME */
+    const { data: profile } = await supabase
       .from('profiles')
       .select('full_name')
       .eq('id', user!.id)
       .single();
 
-    if (data?.full_name) {
-      setFullName(data.full_name);
-    }
-  };
+    setFullName(profile?.full_name ?? 'User');
 
-  const loadStats = async () => {
-    const today = new Date().toISOString().split('T')[0];
-
+    /* 📊 TOTAL APPOINTMENTS CREATED BY USER */
     const { count: total } = await supabase
       .from('appointments')
-      .select('*', { count: 'exact', head: true });
+      .select('*', { count: 'exact', head: true })
+      .eq('created_by', user!.id);
+
+    setTotalCount(total ?? 0);
+
+    /* ⏰ UPCOMING APPOINTMENTS */
+    const today = new Date().toISOString().split('T')[0];
 
     const { count: upcoming } = await supabase
       .from('appointments')
       .select('*', { count: 'exact', head: true })
+      .eq('created_by', user!.id)
       .gte('appointment_date', today);
 
-    setStats({
-      totalAppointments: total ?? 0,
-      upcomingAppointments: upcoming ?? 0,
-    });
+    setUpcomingCount(upcoming ?? 0);
+
+    /* 📅 MONTHLY STAFF STATS */
+    const firstDayOfMonth = new Date(
+      new Date().getFullYear(),
+      new Date().getMonth(),
+      1
+    )
+      .toISOString()
+      .split('T')[0];
+
+    const { data: monthlyAppointments, error } = await supabase
+      .from('appointments')
+      .select(
+        `
+        created_by,
+        profiles:created_by (
+          full_name
+        )
+      `
+      )
+      .gte('created_at', firstDayOfMonth);
+
+    if (!error && monthlyAppointments) {
+      const map: Record<string, StaffStat> = {};
+
+      monthlyAppointments.forEach((a: any) => {
+        const id = a.created_by;
+        const name = a.profiles?.full_name ?? 'Unknown';
+
+        if (!map[id]) {
+          map[id] = {
+            user_id: id,
+            full_name: name,
+            count: 0,
+          };
+        }
+
+        map[id].count += 1;
+      });
+
+      setStaffStats(Object.values(map));
+    }
+
+    setLoading(false);
   };
+
+  if (loading) {
+    return (
+      <View style={styles.center}>
+        <ActivityIndicator size="large" />
+      </View>
+    );
+  }
 
   return (
     <View style={styles.container}>
-      {/* Welcome */}
-      <Text style={styles.welcome}>Welcome back</Text>
+      {/* HEADER */}
+      <Text style={styles.welcome}>Mirë se vini!</Text>
       <Text style={styles.name}>{fullName}</Text>
 
-      {/* Stats */}
+      {/* USER STATS */}
       <View style={styles.statsRow}>
-        <Card style={styles.statCard}>
-          <Text style={styles.statNumber}>{stats.upcomingAppointments}</Text>
-          <Text style={styles.statLabel}>Upcoming</Text>
+        <Card>
+          <View style={styles.statContent}>
+            <Text style={styles.statNumber}>{upcomingCount}</Text>
+            <Text style={styles.statLabel}>Në ardhje</Text>
+          </View>
         </Card>
 
-        <Card style={styles.statCard}>
-          <Text style={styles.statNumber}>{stats.totalAppointments}</Text>
-          <Text style={styles.statLabel}>Total</Text>
+        <Card>
+          <View style={styles.statContent}>
+            <Text style={styles.statNumber}>{totalCount}</Text>
+            <Text style={styles.statLabel}>Terminet e krijuara nga ju</Text>
+          </View>
         </Card>
       </View>
+
+      {/* MONTHLY STAFF STATS */}
+      <Text style={styles.sectionTitle}>📊 Statistika mujore (stafi)</Text>
+
+      <FlatList
+        data={staffStats}
+        keyExtractor={(item) => item.user_id}
+        showsVerticalScrollIndicator={false}
+        renderItem={({ item }) => (
+          <Card>
+            <View style={styles.staffRow}>
+              <Text style={styles.staffName}>{item.full_name}</Text>
+              <Text style={styles.staffCount}>{item.count}</Text>
+            </View>
+          </Card>
+        )}
+      />
     </View>
   );
 }
+
+/* ---------- STYLES ---------- */
 
 const styles = StyleSheet.create({
   container: {
@@ -88,41 +173,62 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.background,
     padding: Spacing.lg,
   },
-
+  center: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
   welcome: {
-    fontSize: 16,
+    fontSize: 14,
     color: Colors.textSecondary,
   },
-
   name: {
     fontSize: 26,
     fontWeight: '800',
     color: Colors.textPrimary,
     marginBottom: Spacing.lg,
   },
-
   statsRow: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
+    gap: Spacing.md,
+    marginBottom: Spacing.lg,
   },
-
-  statCard: {
-    flex: 1,
+  statContent: {
     alignItems: 'center',
-    paddingVertical: Spacing.lg,
-    marginRight: Spacing.sm,
+    paddingVertical: Spacing.md,
+    width: 140,
   },
-
   statNumber: {
-    fontSize: 28,
+    fontSize: 26,
     fontWeight: '800',
     color: Colors.primary,
   },
-
   statLabel: {
     marginTop: 4,
     fontSize: 13,
     color: Colors.textSecondary,
     fontWeight: '600',
+    textAlign: 'center',
+  },
+  sectionTitle: {
+    marginBottom: Spacing.sm,
+    fontSize: 16,
+    fontWeight: '700',
+    color: Colors.textPrimary,
+  },
+  staffRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  staffName: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: Colors.textPrimary,
+  },
+  staffCount: {
+    fontSize: 18,
+    fontWeight: '800',
+    color: Colors.primary,
   },
 });
