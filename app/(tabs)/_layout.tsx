@@ -17,10 +17,14 @@ export default function TabsLayout() {
           borderTopWidth: 0.5,
           borderTopColor: '#EEE',
 
-          // ✅ IMPORTANT FIX
-          height: Platform.OS === 'ios' ? 78 : 64,
+          // ✅ HEIGHT
+          height: Platform.OS === 'ios' ? 88 : 64,
+
+          // ✅ PADDING
           paddingTop: 6,
-          paddingBottom: Platform.OS === 'ios' ? 24 : 10,
+
+          // ✅ THIS IS THE KEY FIX
+          paddingBottom: Platform.OS === 'ios' ? 34 : 10,
         },
 
         tabBarLabelStyle: {
