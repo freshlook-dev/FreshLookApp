@@ -1,6 +1,5 @@
 import { Tabs } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import { Platform } from 'react-native';
 
 export default function TabsLayout() {
   return (
@@ -12,28 +11,25 @@ export default function TabsLayout() {
         tabBarActiveTintColor: '#C9A24D',
         tabBarInactiveTintColor: '#9A9A9A',
 
+        // ✅ SAFE AREA FRIENDLY
         tabBarStyle: {
           backgroundColor: '#FFFFFF',
           borderTopWidth: 0.5,
           borderTopColor: '#EEE',
-
-          // ✅ HEIGHT
-          height: Platform.OS === 'ios' ? 88 : 64,
-
-          // ✅ PADDING
-          paddingTop: 6,
-
-          // ✅ THIS IS THE KEY FIX
-          paddingBottom: Platform.OS === 'ios' ? 34 : 10,
+          paddingBottom: 8, // 👈 SAFE for iOS + Android + Web
         },
 
         tabBarLabelStyle: {
           fontSize: 12,
           fontWeight: '600',
+          marginBottom: 4,
+        },
+
+        tabBarItemStyle: {
+          paddingTop: 6,
         },
       }}
     >
-      {/* HOME */}
       <Tabs.Screen
         name="index"
         options={{
@@ -48,7 +44,6 @@ export default function TabsLayout() {
         }}
       />
 
-      {/* UPCOMING */}
       <Tabs.Screen
         name="upcoming"
         options={{
@@ -63,7 +58,6 @@ export default function TabsLayout() {
         }}
       />
 
-      {/* CALENDAR */}
       <Tabs.Screen
         name="calendar"
         options={{
@@ -78,7 +72,6 @@ export default function TabsLayout() {
         }}
       />
 
-      {/* CREATE */}
       <Tabs.Screen
         name="create"
         options={{
@@ -93,7 +86,6 @@ export default function TabsLayout() {
         }}
       />
 
-      {/* NOTIFICATIONS */}
       <Tabs.Screen
         name="notifications"
         options={{
@@ -108,7 +100,6 @@ export default function TabsLayout() {
         }}
       />
 
-      {/* PROFILE */}
       <Tabs.Screen
         name="profile"
         options={{
@@ -123,7 +114,7 @@ export default function TabsLayout() {
         }}
       />
 
-      {/* HIDDEN EDIT */}
+      {/* Hidden edit screen */}
       <Tabs.Screen
         name="edit"
         options={{
