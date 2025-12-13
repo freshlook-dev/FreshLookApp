@@ -27,9 +27,9 @@ type Appointment = {
   service: string;
   appointment_date: string;
   appointment_time: string;
-  comment?: string | null;
+  comment: string | null;
   created_by: string;
-  creator_name?: string | null;
+  creator_name: string | null;
 };
 
 type Profile = {
@@ -69,57 +69,54 @@ export default function UpcomingAppointments() {
         appointment_time,
         comment,
         created_by,
-        creator:profiles!appointments_created_by_fkey(full_name)
+        profiles:created_by (
+          full_name
+        )
       `)
       .order('appointment_date', { ascending: true })
       .order('appointment_time', { ascending: true });
 
-    if (!error && data) {
-      const mapped = data.map((a: any) => ({
-        ...a,
-        creator_name: a.creator?.full_name ?? 'Unknown',
-      }));
-      setAppointments(mapped);
+    if (error) {
+      console.error(error);
+      setLoading(false);
+      return;
     }
 
+    const mapped: Appointment[] = (data ?? []).map((a: any) => ({
+      id: a.id,
+      client_name: a.client_name,
+      service: a.service,
+      appointment_date: a.appointment_date,
+      appointment_time: a.appointment_time,
+      comment: a.comment,
+      created_by: a.created_by,
+      creator_name: a.profiles?.full_name ?? 'Unknown',
+    }));
+
+    setAppointments(mapped);
     setLoading(false);
   };
 
   const canEdit = profile?.role === 'owner' || profile?.role === 'manager';
 
-  const handleDelete = async (appointmentId: string) => {
-    Alert.alert(
-      'Delete Appointment',
-      'Are you sure you want to delete this appointment?',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Delete',
-          style: 'destructive',
-          onPress: async () => {
-            await supabase
-              .from('appointments')
-              .delete()
-              .eq('id', appointmentId);
-
-            await supabase.from('audit_logs').insert({
-              actor_id: user!.id,
-              action: 'DELETE_APPOINTMENT',
-              target_id: appointmentId,
-            });
-
-            loadData();
-          },
+  const handleDelete = async (id: string) => {
+    Alert.alert('Delete appointment?', 'This action cannot be undone', [
+      { text: 'Cancel', style: 'cancel' },
+      {
+        text: 'Delete',
+        style: 'destructive',
+        onPress: async () => {
+          await supabase.from('appointments').delete().eq('id', id);
+          loadData();
         },
-      ]
-    );
+      },
+    ]);
   };
 
   if (loading) {
     return (
       <View style={styles.center}>
         <ActivityIndicator size="large" />
-        <Text style={{ marginTop: Spacing.sm }}>Loading...</Text>
       </View>
     );
   }
@@ -128,100 +125,60 @@ export default function UpcomingAppointments() {
     <View style={styles.container}>
       <SectionTitle>Upcoming Appointments</SectionTitle>
 
-      {appointments.length === 0 ? (
-        <Text style={styles.empty}>No appointments found</Text>
-      ) : (
-        <FlatList
-          data={appointments}
-          keyExtractor={(item) => item.id}
-          showsVerticalScrollIndicator={false}
-          contentContainerStyle={{ paddingBottom: 30 }}
-          renderItem={({ item }) => (
-            <Card>
-              <Text style={styles.client}>{item.client_name}</Text>
-              <Text style={styles.service}>{item.service}</Text>
+      <FlatList
+        data={appointments}
+        keyExtractor={(item) => item.id}
+        contentContainerStyle={{ paddingBottom: 40 }}
+        renderItem={({ item }) => (
+          <Card>
+            <Text style={styles.client}>{item.client_name}</Text>
+            <Text style={styles.service}>{item.service}</Text>
+            <Text style={styles.datetime}>
+              {item.appointment_date} • {item.appointment_time}
+            </Text>
 
-              <Text style={styles.datetime}>
-                {item.appointment_date} • {item.appointment_time}
-              </Text>
+            <Text style={styles.creator}>
+              👤 Created by: {item.creator_name}
+            </Text>
 
-              <Text style={styles.creator}>
-                👤 Created by: {item.creator_name}
-              </Text>
+            {item.comment && (
+              <Text style={styles.comment}>📝 {item.comment}</Text>
+            )}
 
-              {item.comment ? (
-                <Text style={styles.comment}>📝 {item.comment}</Text>
-              ) : null}
+            {canEdit && (
+              <View style={styles.actions}>
+                <Pressable
+                  onPress={() =>
+                    router.push({
+                      pathname: '/(tabs)/edit',
+                      params: { id: item.id },
+                    })
+                  }
+                >
+                  <Text style={styles.edit}>Edit</Text>
+                </Pressable>
 
-              {canEdit && (
-                <View style={styles.actions}>
-                  <Pressable
-                    onPress={() =>
-                      router.push({
-                        pathname: '/(tabs)/edit',
-                        params: { id: item.id },
-                      })
-                    }
-                  >
-                    <Text style={styles.edit}>Edit</Text>
-                  </Pressable>
-
-                  <Pressable onPress={() => handleDelete(item.id)}>
-                    <Text style={styles.delete}>Delete</Text>
-                  </Pressable>
-                </View>
-              )}
-            </Card>
-          )}
-        />
-      )}
+                <Pressable onPress={() => handleDelete(item.id)}>
+                  <Text style={styles.delete}>Delete</Text>
+                </Pressable>
+              </View>
+            )}
+          </Card>
+        )}
+      />
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    padding: Spacing.lg,
-    backgroundColor: Colors.background,
-  },
+  container: { flex: 1, padding: Spacing.lg, backgroundColor: Colors.background },
   center: { flex: 1, justifyContent: 'center', alignItems: 'center' },
-  empty: {
-    textAlign: 'center',
-    color: Colors.textSecondary,
-    marginTop: Spacing.lg,
-  },
-  client: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: Colors.textPrimary,
-  },
-  service: {
-    fontSize: 14,
-    marginTop: 2,
-    color: Colors.textSecondary,
-  },
-  datetime: {
-    fontSize: 13,
-    marginTop: Spacing.xs,
-    color: Colors.textSecondary,
-  },
-  creator: {
-    marginTop: Spacing.xs,
-    fontSize: 12,
-    color: Colors.textSecondary,
-  },
-  comment: {
-    marginTop: Spacing.xs,
-    fontSize: 13,
-    color: Colors.textSecondary,
-    fontStyle: 'italic',
-  },
+  client: { fontSize: 16, fontWeight: '700', color: Colors.textPrimary },
+  service: { fontSize: 14, color: Colors.textSecondary },
+  datetime: { marginTop: 4, fontSize: 13, color: Colors.textSecondary },
+  creator: { marginTop: 6, fontSize: 12, color: Colors.textSecondary },
+  comment: { marginTop: 4, fontStyle: 'italic', color: Colors.textSecondary },
   actions: { flexDirection: 'row', marginTop: Spacing.sm },
-  edit: {
-    marginRight: Spacing.md,
-    fontWeight: '700',
-    color: Colors.accent,
-  },
-  delete: { fontWeight: '700', color: Colors.danger },
+  edit: { marginRight: Spacing.md, color: Colors.accent, fontWeight: '700' },
+  delete: { color: Colors.danger, fontWeight: '700' },
 });
