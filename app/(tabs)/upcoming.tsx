@@ -37,6 +37,16 @@ type Profile = {
   role: Role;
 };
 
+/* 🔹 FORMATTERS */
+const formatDate = (date: string) => {
+  const d = new Date(date);
+  return `${String(d.getDate()).padStart(2, '0')}.${String(
+    d.getMonth() + 1
+  ).padStart(2, '0')}.${d.getFullYear()}`;
+};
+
+const formatTime = (time: string) => time.slice(0, 5);
+
 export default function UpcomingAppointments() {
   const { user } = useAuth();
 
@@ -76,24 +86,15 @@ export default function UpcomingAppointments() {
       .order('appointment_date', { ascending: true })
       .order('appointment_time', { ascending: true });
 
-    if (error) {
-      console.error('Upcoming error:', error);
-      setLoading(false);
-      return;
+    if (!error && data) {
+      setAppointments(
+        data.map((a: any) => ({
+          ...a,
+          creator_name: a.profiles?.full_name ?? 'Unknown',
+        }))
+      );
     }
 
-    const mapped: Appointment[] = (data ?? []).map((a: any) => ({
-      id: a.id,
-      client_name: a.client_name,
-      service: a.service,
-      appointment_date: a.appointment_date,
-      appointment_time: a.appointment_time,
-      comment: a.comment,
-      created_by: a.created_by,
-      creator_name: a.profiles?.full_name ?? 'Unknown',
-    }));
-
-    setAppointments(mapped);
     setLoading(false);
   };
 
@@ -135,7 +136,7 @@ export default function UpcomingAppointments() {
             <Text style={styles.service}>{item.service}</Text>
 
             <Text style={styles.datetime}>
-              {item.appointment_date} • {item.appointment_time}
+              {formatDate(item.appointment_date)} • {formatTime(item.appointment_time)}
             </Text>
 
             <Text style={styles.creator}>
