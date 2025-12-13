@@ -1,5 +1,6 @@
 import { Tabs } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
+import { Platform } from 'react-native';
 
 export default function TabsLayout() {
   return (
@@ -12,12 +13,14 @@ export default function TabsLayout() {
         tabBarInactiveTintColor: '#9A9A9A',
 
         tabBarStyle: {
-          height: 64,
-          paddingBottom: 10,
-          paddingTop: 6,
           backgroundColor: '#FFFFFF',
           borderTopWidth: 0.5,
           borderTopColor: '#EEE',
+
+          // ✅ IMPORTANT FIX
+          height: Platform.OS === 'ios' ? 78 : 64,
+          paddingTop: 6,
+          paddingBottom: Platform.OS === 'ios' ? 24 : 10,
         },
 
         tabBarLabelStyle: {
@@ -71,7 +74,7 @@ export default function TabsLayout() {
         }}
       />
 
-      {/* CREATE APPOINTMENT */}
+      {/* CREATE */}
       <Tabs.Screen
         name="create"
         options={{
@@ -116,11 +119,11 @@ export default function TabsLayout() {
         }}
       />
 
-      {/* HIDDEN EDIT SCREEN */}
+      {/* HIDDEN EDIT */}
       <Tabs.Screen
         name="edit"
         options={{
-          href: null, // ❌ hidden from tab bar
+          href: null,
           title: 'Edit Appointment',
         }}
       />

@@ -14,12 +14,18 @@ import { Calendar } from 'react-native-calendars';
 import { supabase } from '../../context/supabase';
 import { useAuth } from '../../context/AuthContext';
 
+import { Colors, Spacing } from '../../constants/theme';
+import { Card } from '../../components/Card';
+import { SectionTitle } from '../../components/SectionTitle';
+
 type Appointment = {
   id: string;
   client_name: string;
   service: string;
   appointment_date: string;
   appointment_time: string;
+  comment?: string | null;
+  creator_name?: string | null;
 };
 
 export default function CalendarTab() {
@@ -38,22 +44,35 @@ export default function CalendarTab() {
 
     const { data, error } = await supabase
       .from('appointments')
-      .select('*');
+      .select(`
+        id,
+        client_name,
+        service,
+        appointment_date,
+        appointment_time,
+        comment,
+        creator:profiles!appointments_created_by_fkey(full_name)
+      `);
 
-    if (!error) setAppointments(data ?? []);
+    if (!error && data) {
+      const mapped = data.map((a: any) => ({
+        ...a,
+        creator_name: a.creator?.full_name ?? 'Unknown',
+      }));
+      setAppointments(mapped);
+    }
+
     setLoading(false);
   };
 
-  // Build calendar dots
   const markedDates = appointments.reduce((acc: any, appt) => {
     acc[appt.appointment_date] = {
       marked: true,
-      dotColor: '#C9A24D',
+      dotColor: Colors.primary,
     };
     return acc;
   }, {});
 
-  // Appointments for selected day
   const dailyAppointments = appointments
     .filter((a) => a.appointment_date === selectedDate)
     .sort((a, b) =>
@@ -63,54 +82,44 @@ export default function CalendarTab() {
   if (loading) {
     return (
       <View style={styles.center}>
-        <ActivityIndicator size="large" color="#C9A24D" />
-        <Text style={styles.loadingText}>Loading calendar…</Text>
+        <ActivityIndicator size="large" />
+        <Text style={{ marginTop: Spacing.sm }}>Loading...</Text>
       </View>
     );
   }
 
   return (
     <View style={styles.container}>
-      {/* Header */}
-      <Text style={styles.title}>Calendar</Text>
+      <SectionTitle>Calendar</SectionTitle>
 
-      {/* Calendar */}
-      <View style={styles.calendarWrapper}>
-        <Calendar
-          markedDates={{
-            ...markedDates,
-            ...(selectedDate
-              ? {
-                  [selectedDate]: {
-                    selected: true,
-                    selectedColor: '#C9A24D',
-                    marked: true,
-                  },
-                }
-              : {}),
-          }}
-          onDayPress={(day) => setSelectedDate(day.dateString)}
-          theme={{
-            backgroundColor: '#FFFFFF',
-            calendarBackground: '#FFFFFF',
-            selectedDayBackgroundColor: '#C9A24D',
-            todayTextColor: '#C9A24D',
-            arrowColor: '#C9A24D',
-            dotColor: '#C9A24D',
-            textDayFontWeight: '500',
-            textMonthFontWeight: '700',
-            textDayHeaderFontWeight: '600',
-          }}
-        />
-      </View>
+      <Calendar
+        markedDates={{
+          ...markedDates,
+          ...(selectedDate
+            ? {
+                [selectedDate]: {
+                  selected: true,
+                  selectedColor: Colors.primary,
+                  marked: true,
+                },
+              }
+            : {}),
+        }}
+        onDayPress={(day) => setSelectedDate(day.dateString)}
+        theme={{
+          selectedDayBackgroundColor: Colors.primary,
+          todayTextColor: Colors.primary,
+          arrowColor: Colors.primary,
+          dotColor: Colors.primary,
+        }}
+      />
 
-      {/* Appointments list */}
       <View style={styles.listContainer}>
-        <Text style={styles.subTitle}>
+        <SectionTitle>
           {selectedDate
             ? `Appointments on ${selectedDate}`
             : 'Select a date'}
-        </Text>
+        </SectionTitle>
 
         {selectedDate && dailyAppointments.length === 0 && (
           <Text style={styles.empty}>
@@ -122,13 +131,21 @@ export default function CalendarTab() {
           data={dailyAppointments}
           keyExtractor={(item) => item.id}
           showsVerticalScrollIndicator={false}
-          contentContainerStyle={styles.listContent}
+          contentContainerStyle={{ paddingBottom: 30 }}
           renderItem={({ item }) => (
-            <View style={styles.card}>
+            <Card>
               <Text style={styles.client}>{item.client_name}</Text>
               <Text style={styles.service}>{item.service}</Text>
               <Text style={styles.time}>{item.appointment_time}</Text>
-            </View>
+
+              <Text style={styles.creator}>
+                👤 {item.creator_name}
+              </Text>
+
+              {item.comment ? (
+                <Text style={styles.comment}>📝 {item.comment}</Text>
+              ) : null}
+            </Card>
           )}
         />
       </View>
@@ -139,87 +156,46 @@ export default function CalendarTab() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#FAF8F4',
-    paddingHorizontal: 20,
-    paddingTop: 24,
+    padding: Spacing.lg,
+    backgroundColor: Colors.background,
   },
-
-  title: {
-    fontSize: 26,
-    fontWeight: '800',
-    color: '#2B2B2B',
-    marginBottom: 12,
-  },
-
-  calendarWrapper: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 16,
-    padding: 8,
-    shadowColor: '#000',
-    shadowOpacity: 0.05,
-    shadowRadius: 10,
-    elevation: 2,
-  },
-
-  listContainer: {
-    flex: 1,
-    marginTop: 20,
-  },
-
-  subTitle: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: '#2B2B2B',
-    marginBottom: 8,
-  },
-
-  listContent: {
-    paddingBottom: 40,
-  },
-
-  card: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 14,
-    padding: 16,
-    marginBottom: 12,
-    shadowColor: '#000',
-    shadowOpacity: 0.04,
-    shadowRadius: 8,
-    elevation: 1,
-  },
-
-  client: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: '#2B2B2B',
-  },
-
-  service: {
-    fontSize: 14,
-    marginTop: 2,
-    color: '#7A7A7A',
-  },
-
-  time: {
-    fontSize: 13,
-    marginTop: 6,
-    color: '#7A7A7A',
-  },
-
-  empty: {
-    marginTop: 12,
-    color: '#7A7A7A',
-  },
-
   center: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: '#FAF8F4',
   },
-
-  loadingText: {
-    marginTop: 10,
-    color: '#7A7A7A',
+  listContainer: {
+    marginTop: Spacing.lg,
+    flex: 1,
+  },
+  empty: {
+    color: Colors.textSecondary,
+    marginTop: Spacing.sm,
+  },
+  client: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: Colors.textPrimary,
+  },
+  service: {
+    fontSize: 14,
+    color: Colors.textSecondary,
+    marginTop: 2,
+  },
+  time: {
+    fontSize: 13,
+    marginTop: Spacing.xs,
+    color: Colors.textSecondary,
+  },
+  creator: {
+    marginTop: Spacing.xs,
+    fontSize: 12,
+    color: Colors.textSecondary,
+  },
+  comment: {
+    marginTop: Spacing.xs,
+    fontSize: 13,
+    color: Colors.textSecondary,
+    fontStyle: 'italic',
   },
 });

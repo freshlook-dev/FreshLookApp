@@ -1,9 +1,10 @@
 {
   "expo": {
-    "name": "FreshLook App",
+    "name": "Fresh Look",
     "slug": "freshlook-app",
     "version": "1.0.0",
     "orientation": "portrait",
+
     "icon": "./assets/images/icon.png",
     "scheme": "freshlookapp",
     "userInterfaceStyle": "automatic",
@@ -12,7 +13,7 @@
     "splash": {
       "image": "./assets/images/splash-icon.png",
       "resizeMode": "contain",
-      "backgroundColor": "#ffffff"
+      "backgroundColor": "#FAF8F4"
     },
 
     "ios": {
@@ -22,7 +23,7 @@
     "android": {
       "adaptiveIcon": {
         "foregroundImage": "./assets/images/adaptive-icon.png",
-        "backgroundColor": "#ffffff"
+        "backgroundColor": "#C9A24D"
       },
       "edgeToEdgeEnabled": true,
       "predictiveBackGestureEnabled": false
@@ -30,16 +31,16 @@
 
     "web": {
       "bundler": "metro",
-      "output": "single",
+      "output": "static",
       "favicon": "./assets/images/favicon.png",
 
       "manifest": {
-        "name": "FreshLook App",
+        "name": "Fresh Look",
         "short_name": "FreshLook",
         "start_url": "/",
         "display": "standalone",
-        "background_color": "#ffffff",
-        "theme_color": "#ffffff"
+        "background_color": "#FAF8F4",
+        "theme_color": "#C9A24D"
       }
     },
 

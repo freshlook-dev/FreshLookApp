@@ -15,6 +15,10 @@ import { router } from 'expo-router';
 import { supabase } from '../../context/supabase';
 import { useAuth } from '../../context/AuthContext';
 
+import { Colors, Spacing } from '../../constants/theme';
+import { Card } from '../../components/Card';
+import { SectionTitle } from '../../components/SectionTitle';
+
 type Role = 'owner' | 'manager' | 'staff';
 
 type Appointment = {
@@ -23,7 +27,9 @@ type Appointment = {
   service: string;
   appointment_date: string;
   appointment_time: string;
+  comment?: string | null;
   created_by: string;
+  creator_name?: string | null;
 };
 
 type Profile = {
@@ -55,11 +61,27 @@ export default function UpcomingAppointments() {
 
     const { data, error } = await supabase
       .from('appointments')
-      .select('*')
+      .select(`
+        id,
+        client_name,
+        service,
+        appointment_date,
+        appointment_time,
+        comment,
+        created_by,
+        creator:profiles!appointments_created_by_fkey(full_name)
+      `)
       .order('appointment_date', { ascending: true })
       .order('appointment_time', { ascending: true });
 
-    if (!error) setAppointments(data ?? []);
+    if (!error && data) {
+      const mapped = data.map((a: any) => ({
+        ...a,
+        creator_name: a.creator?.full_name ?? 'Unknown',
+      }));
+      setAppointments(mapped);
+    }
+
     setLoading(false);
   };
 
@@ -75,15 +97,10 @@ export default function UpcomingAppointments() {
           text: 'Delete',
           style: 'destructive',
           onPress: async () => {
-            const { error } = await supabase
+            await supabase
               .from('appointments')
               .delete()
               .eq('id', appointmentId);
-
-            if (error) {
-              Alert.alert('Error', error.message);
-              return;
-            }
 
             await supabase.from('audit_logs').insert({
               actor_id: user!.id,
@@ -101,16 +118,15 @@ export default function UpcomingAppointments() {
   if (loading) {
     return (
       <View style={styles.center}>
-        <ActivityIndicator size="large" color="#C9A24D" />
-        <Text style={styles.loadingText}>Loading appointments…</Text>
+        <ActivityIndicator size="large" />
+        <Text style={{ marginTop: Spacing.sm }}>Loading...</Text>
       </View>
     );
   }
 
   return (
     <View style={styles.container}>
-      {/* Header */}
-      <Text style={styles.title}>Upcoming Appointments</Text>
+      <SectionTitle>Upcoming Appointments</SectionTitle>
 
       {appointments.length === 0 ? (
         <Text style={styles.empty}>No appointments found</Text>
@@ -119,15 +135,23 @@ export default function UpcomingAppointments() {
           data={appointments}
           keyExtractor={(item) => item.id}
           showsVerticalScrollIndicator={false}
-          contentContainerStyle={styles.listContent}
+          contentContainerStyle={{ paddingBottom: 30 }}
           renderItem={({ item }) => (
-            <View style={styles.card}>
+            <Card>
               <Text style={styles.client}>{item.client_name}</Text>
               <Text style={styles.service}>{item.service}</Text>
 
               <Text style={styles.datetime}>
                 {item.appointment_date} • {item.appointment_time}
               </Text>
+
+              <Text style={styles.creator}>
+                👤 Created by: {item.creator_name}
+              </Text>
+
+              {item.comment ? (
+                <Text style={styles.comment}>📝 {item.comment}</Text>
+              ) : null}
 
               {canEdit && (
                 <View style={styles.actions}>
@@ -147,7 +171,7 @@ export default function UpcomingAppointments() {
                   </Pressable>
                 </View>
               )}
-            </View>
+            </Card>
           )}
         />
       )}
@@ -158,83 +182,46 @@ export default function UpcomingAppointments() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#FAF8F4',
-    paddingHorizontal: 20,
-    paddingTop: 24,
+    padding: Spacing.lg,
+    backgroundColor: Colors.background,
   },
-
-  title: {
-    fontSize: 26,
-    fontWeight: '800',
-    color: '#2B2B2B',
-    marginBottom: 16,
-  },
-
-  listContent: {
-    paddingBottom: 40,
-  },
-
-  center: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: '#FAF8F4',
-  },
-
-  loadingText: {
-    marginTop: 10,
-    color: '#7A7A7A',
-  },
-
+  center: { flex: 1, justifyContent: 'center', alignItems: 'center' },
   empty: {
     textAlign: 'center',
-    marginTop: 40,
-    color: '#7A7A7A',
-    fontSize: 15,
+    color: Colors.textSecondary,
+    marginTop: Spacing.lg,
   },
-
-  card: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 16,
-    padding: 18,
-    marginBottom: 14,
-    shadowColor: '#000',
-    shadowOpacity: 0.05,
-    shadowRadius: 10,
-    elevation: 2,
-  },
-
   client: {
     fontSize: 16,
     fontWeight: '700',
-    color: '#2B2B2B',
+    color: Colors.textPrimary,
   },
-
   service: {
     fontSize: 14,
     marginTop: 2,
-    color: '#7A7A7A',
+    color: Colors.textSecondary,
   },
-
   datetime: {
     fontSize: 13,
-    marginTop: 6,
-    color: '#7A7A7A',
+    marginTop: Spacing.xs,
+    color: Colors.textSecondary,
   },
-
-  actions: {
-    flexDirection: 'row',
-    marginTop: 12,
+  creator: {
+    marginTop: Spacing.xs,
+    fontSize: 12,
+    color: Colors.textSecondary,
   },
-
+  comment: {
+    marginTop: Spacing.xs,
+    fontSize: 13,
+    color: Colors.textSecondary,
+    fontStyle: 'italic',
+  },
+  actions: { flexDirection: 'row', marginTop: Spacing.sm },
   edit: {
-    marginRight: 20,
+    marginRight: Spacing.md,
     fontWeight: '700',
-    color: '#C9A24D',
+    color: Colors.accent,
   },
-
-  delete: {
-    fontWeight: '700',
-    color: '#D64545',
-  },
+  delete: { fontWeight: '700', color: Colors.danger },
 });

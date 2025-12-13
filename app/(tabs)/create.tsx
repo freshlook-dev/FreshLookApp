@@ -54,6 +54,7 @@ export default function CreateAppointment() {
   const [phone, setPhone] = useState('');
   const [treatment, setTreatment] = useState<string | null>(null);
   const [location, setLocation] = useState<string | null>(null);
+  const [comment, setComment] = useState('');
 
   const [date, setDate] = useState(new Date());
   const [time, setTime] = useState<string | null>(null);
@@ -64,14 +65,7 @@ export default function CreateAppointment() {
   const formatDate = (d: Date) => d.toISOString().split('T')[0];
 
   const handleCreate = async () => {
-    if (
-      !fullName ||
-      !phone ||
-      !treatment ||
-      !location ||
-      !time ||
-      !user
-    ) {
+    if (!fullName || !phone || !treatment || !location || !time || !user) {
       Alert.alert('Gabim', 'Ju lutem plotësoni të gjitha fushat');
       return;
     }
@@ -86,6 +80,7 @@ export default function CreateAppointment() {
         appointment_time: time,
         location,
         phone,
+        comment: comment.trim() || null,
         created_by: user.id,
       });
 
@@ -116,7 +111,7 @@ export default function CreateAppointment() {
     >
       <Text style={styles.title}>Termin i Ri</Text>
 
-      {/* Emri */}
+      {/* Full name */}
       <View style={styles.card}>
         <Text style={styles.label}>Emri dhe Mbiemri</Text>
         <TextInput
@@ -145,10 +140,7 @@ export default function CreateAppointment() {
         {TREATMENTS.map((item) => (
           <Pressable
             key={item}
-            style={[
-              styles.option,
-              treatment === item && styles.optionActive,
-            ]}
+            style={[styles.option, treatment === item && styles.optionActive]}
             onPress={() => setTreatment(item)}
           >
             <Text
@@ -163,26 +155,47 @@ export default function CreateAppointment() {
         ))}
       </View>
 
-      {/* Date */}
+      {/* DATE */}
       <View style={styles.card}>
         <Text style={styles.label}>Data</Text>
-        <Pressable
-          onPress={() => setShowDatePicker(true)}
-          style={styles.input}
-        >
-          <Text style={styles.valueText}>{formatDate(date)}</Text>
-        </Pressable>
 
-        {showDatePicker && (
-          <DateTimePicker
-            value={date}
-            mode="date"
-            display={Platform.OS === 'ios' ? 'spinner' : 'default'}
-            onChange={(e, d) => {
-              setShowDatePicker(false);
-              if (d) setDate(d);
-            }}
-          />
+        {Platform.OS === 'web' ? (
+          <View style={styles.webDateWrapper}>
+            <input
+              type="date"
+              value={formatDate(date)}
+              onChange={(e) => setDate(new Date(e.target.value))}
+              style={{
+                width: '100%',
+                padding: 14,
+                fontSize: 15,
+                borderRadius: 12,
+                border: '1px solid #E6D3A3',
+                backgroundColor: '#FAF8F4',
+              }}
+            />
+          </View>
+        ) : (
+          <>
+            <Pressable
+              onPress={() => setShowDatePicker(true)}
+              style={styles.input}
+            >
+              <Text style={styles.valueText}>{formatDate(date)}</Text>
+            </Pressable>
+
+            {showDatePicker && (
+              <DateTimePicker
+                value={date}
+                mode="date"
+                display={Platform.OS === 'ios' ? 'spinner' : 'default'}
+                onChange={(e, d) => {
+                  setShowDatePicker(false);
+                  if (d) setDate(d);
+                }}
+              />
+            )}
+          </>
         )}
       </View>
 
@@ -218,10 +231,7 @@ export default function CreateAppointment() {
         {LOCATIONS.map((loc) => (
           <Pressable
             key={loc}
-            style={[
-              styles.option,
-              location === loc && styles.optionActive,
-            ]}
+            style={[styles.option, location === loc && styles.optionActive]}
             onPress={() => setLocation(loc)}
           >
             <Text
@@ -234,6 +244,18 @@ export default function CreateAppointment() {
             </Text>
           </Pressable>
         ))}
+      </View>
+
+      {/* Comment */}
+      <View style={styles.card}>
+        <Text style={styles.label}>Koment për klientin (opsionale)</Text>
+        <TextInput
+          value={comment}
+          onChangeText={setComment}
+          placeholder="Shënime shtesë, kërkesa speciale, etj."
+          style={[styles.input, { height: 100, textAlignVertical: 'top' }]}
+          multiline
+        />
       </View>
 
       {/* Submit */}
@@ -349,6 +371,10 @@ const styles = StyleSheet.create({
 
   timeTextActive: {
     color: '#FFFFFF',
+  },
+
+  webDateWrapper: {
+    width: '100%',
   },
 
   button: {
