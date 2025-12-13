@@ -33,13 +33,13 @@ export default function ProfileTab() {
   const [users, setUsers] = useState<Profile[]>([]);
   const [loading, setLoading] = useState(true);
 
-  // Access code generator (Owner only)
+  // Access code generator
   const [selectedRole, setSelectedRole] =
     useState<'staff' | 'manager'>('staff');
   const [generatedCode, setGeneratedCode] = useState<string | null>(null);
   const [creatingCode, setCreatingCode] = useState(false);
 
-  // Owner broadcast notification
+  // Broadcast notification
   const [noticeTitle, setNoticeTitle] = useState('');
   const [noticeMessage, setNoticeMessage] = useState('');
   const [sendingNotice, setSendingNotice] = useState(false);
@@ -61,7 +61,7 @@ export default function ProfileTab() {
       .eq('id', user!.id)
       .single();
 
-    if (!me || error) {
+    if (error || !me) {
       setLoading(false);
       return;
     }
@@ -69,12 +69,12 @@ export default function ProfileTab() {
     setProfile(me);
 
     if (me.role === 'owner') {
-      const { data: allUsers } = await supabase
+      const { data } = await supabase
         .from('profiles')
         .select('id, email, full_name, role')
         .order('email');
 
-      setUsers(allUsers ?? []);
+      setUsers(data ?? []);
     } else {
       setUsers([]);
     }
@@ -122,7 +122,11 @@ export default function ProfileTab() {
 
       const { data, error } = await supabase
         .from('access_codes')
-        .insert({ code, role: selectedRole, created_by: profile!.id })
+        .insert({
+          code,
+          role: selectedRole,
+          created_by: profile!.id,
+        })
         .select()
         .single();
 
@@ -182,7 +186,8 @@ export default function ProfileTab() {
     }
   };
 
-  const logout = async () => {
+  /* ================= LOGOUT (FIXED) ================= */
+  const logout = () => {
     Alert.alert('Logout', 'Are you sure you want to logout?', [
       { text: 'Cancel', style: 'cancel' },
       {
@@ -190,10 +195,14 @@ export default function ProfileTab() {
         style: 'destructive',
         onPress: async () => {
           await supabase.auth.signOut();
+
+          // ✅ FORCE redirect (important for Expo Web)
+          router.replace('/(auth)/login');
         },
       },
     ]);
   };
+  /* ================================================= */
 
   if (authLoading || loading) {
     return (
@@ -226,16 +235,12 @@ export default function ProfileTab() {
         <Text style={styles.label}>Email</Text>
         <Text style={styles.value}>{profile.email}</Text>
 
-        <Text style={[styles.label, { marginTop: 12 }]}>
-          Full name
-        </Text>
+        <Text style={[styles.label, { marginTop: 12 }]}>Full name</Text>
         <Text style={styles.value}>
           {profile.full_name || 'Not set'}
         </Text>
 
-        <Text style={[styles.label, { marginTop: 12 }]}>
-          Role
-        </Text>
+        <Text style={[styles.label, { marginTop: 12 }]}>Role</Text>
         <Text
           style={[
             styles.value,
@@ -260,9 +265,7 @@ export default function ProfileTab() {
 
               return (
                 <View style={styles.card}>
-                  <Text style={styles.userEmail}>
-                    {item.email}
-                  </Text>
+                  <Text style={styles.userEmail}>{item.email}</Text>
 
                   {isSelf ? (
                     <Text style={styles.selfLabel}>
@@ -289,35 +292,31 @@ export default function ProfileTab() {
             }}
           />
 
-          <Text style={styles.sectionTitle}>
-            Generate Access Code
-          </Text>
+          <Text style={styles.sectionTitle}>Generate Access Code</Text>
 
           <View style={styles.card}>
             <View style={styles.roleRow}>
-              {(['staff', 'manager'] as const).map(
-                (role) => (
-                  <Pressable
-                    key={role}
-                    onPress={() => setSelectedRole(role)}
+              {(['staff', 'manager'] as const).map((role) => (
+                <Pressable
+                  key={role}
+                  onPress={() => setSelectedRole(role)}
+                  style={[
+                    styles.roleOption,
+                    selectedRole === role &&
+                      styles.roleOptionActive,
+                  ]}
+                >
+                  <Text
                     style={[
-                      styles.roleOption,
+                      styles.roleOptionText,
                       selectedRole === role &&
-                        styles.roleOptionActive,
+                        styles.roleOptionTextActive,
                     ]}
                   >
-                    <Text
-                      style={[
-                        styles.roleOptionText,
-                        selectedRole === role &&
-                          styles.roleOptionTextActive,
-                      ]}
-                    >
-                      {role.toUpperCase()}
-                    </Text>
-                  </Pressable>
-                )
-              )}
+                    {role.toUpperCase()}
+                  </Text>
+                </Pressable>
+              ))}
             </View>
 
             <Pressable
@@ -326,27 +325,19 @@ export default function ProfileTab() {
               style={styles.primaryButton}
             >
               <Text style={styles.primaryButtonText}>
-                {creatingCode
-                  ? 'Generating…'
-                  : 'Generate Code'}
+                {creatingCode ? 'Generating…' : 'Generate Code'}
               </Text>
             </Pressable>
 
             {generatedCode && (
               <View style={styles.codeBox}>
-                <Text style={styles.codeLabel}>
-                  Access Code
-                </Text>
-                <Text style={styles.codeValue}>
-                  {generatedCode}
-                </Text>
+                <Text style={styles.codeLabel}>Access Code</Text>
+                <Text style={styles.codeValue}>{generatedCode}</Text>
               </View>
             )}
           </View>
 
-          <Text style={styles.sectionTitle}>
-            Send Notification
-          </Text>
+          <Text style={styles.sectionTitle}>Send Notification</Text>
 
           <View style={styles.card}>
             <TextInput
@@ -360,25 +351,17 @@ export default function ProfileTab() {
               value={noticeMessage}
               onChangeText={setNoticeMessage}
               placeholder="Message"
-              style={[
-                styles.input,
-                { height: 100, textAlignVertical: 'top' },
-              ]}
+              style={[styles.input, { height: 100 }]}
               multiline
             />
 
             <Pressable
               onPress={sendBroadcastNotification}
               disabled={sendingNotice}
-              style={[
-                styles.primaryButton,
-                { marginTop: 12 },
-              ]}
+              style={[styles.primaryButton, { marginTop: 12 }]}
             >
               <Text style={styles.primaryButtonText}>
-                {sendingNotice
-                  ? 'Sending…'
-                  : 'Send to All Users'}
+                {sendingNotice ? 'Sending…' : 'Send to All Users'}
               </Text>
             </Pressable>
           </View>
@@ -386,17 +369,14 @@ export default function ProfileTab() {
       )}
 
       {/* LOGOUT */}
-      <Pressable
-        onPress={logout}
-        style={styles.logoutButton}
-      >
+      <Pressable onPress={logout} style={styles.logoutButton}>
         <Text style={styles.logoutText}>Logout</Text>
       </Pressable>
     </ScrollView>
   );
 }
 
-/* ---------------- STYLES ---------------- */
+/* ================= STYLES ================= */
 
 const styles = StyleSheet.create({
   container: {
