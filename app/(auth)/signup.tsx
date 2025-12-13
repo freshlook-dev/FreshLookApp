@@ -37,13 +37,17 @@ export default function SignUpScreen() {
       const { data: codeData, error: codeError } = await supabase
         .from('access_codes')
         .select('*')
-        .eq('code', accessCode)
+        .eq('code', accessCode.trim())
         .eq('used', false)
-        .single();
+        .maybeSingle();
 
-      if (codeError || !codeData) {
+      if (codeError) {
+        Alert.alert('Error', codeError.message);
+        return;
+      }
+
+      if (!codeData) {
         Alert.alert('Invalid code', 'Access code is invalid or already used');
-        setLoading(false);
         return;
       }
 
@@ -56,20 +60,24 @@ export default function SignUpScreen() {
 
       if (signUpError || !signUpData.user) {
         Alert.alert('Signup failed', signUpError?.message || 'Unknown error');
-        setLoading(false);
         return;
       }
 
       const userId = signUpData.user.id;
 
-      // 3️⃣ Save profile data
-      await supabase
+      // 3️⃣ Create / update profile (SAFE)
+      const { error: profileError } = await supabase
         .from('profiles')
-        .update({
-          role: codeData.role,
+        .upsert({
+          id: userId,
           full_name: fullName,
-        })
-        .eq('id', userId);
+          role: codeData.role,
+        });
+
+      if (profileError) {
+        Alert.alert('Error', profileError.message);
+        return;
+      }
 
       // 4️⃣ Mark access code as used
       await supabase
@@ -80,7 +88,7 @@ export default function SignUpScreen() {
         })
         .eq('id', codeData.id);
 
-      // 5️⃣ Audit log
+      // 5️⃣ Audit log (optional)
       await supabase.from('audit_logs').insert({
         actor_id: userId,
         action: 'USE_ACCESS_CODE',
@@ -93,7 +101,8 @@ export default function SignUpScreen() {
       );
 
       router.replace('/(auth)/login');
-    } catch {
+    } catch (err) {
+      console.error(err);
       Alert.alert('Error', 'Something went wrong');
     } finally {
       setLoading(false);
@@ -117,7 +126,6 @@ export default function SignUpScreen() {
             style={styles.logo}
             resizeMode="contain"
           />
-
           <Text style={styles.title}>Create Account</Text>
           <Text style={styles.subtitle}>
             Join Fresh Look internal platform
@@ -194,40 +202,31 @@ const styles = StyleSheet.create({
     backgroundColor: '#FAF8F4',
     justifyContent: 'center',
   },
-
   header: {
     alignItems: 'center',
     marginBottom: 32,
   },
-
   logo: {
     width: 120,
     height: 120,
     marginBottom: 16,
   },
-
   title: {
     fontSize: 28,
     fontWeight: '800',
     color: '#2B2B2B',
   },
-
   subtitle: {
     marginTop: 6,
     fontSize: 14,
     color: '#7A7A7A',
   },
-
   card: {
     backgroundColor: '#FFFFFF',
     borderRadius: 18,
     padding: 22,
-    shadowColor: '#000',
-    shadowOpacity: 0.05,
-    shadowRadius: 12,
     elevation: 3,
   },
-
   input: {
     borderWidth: 1,
     borderColor: '#E6D3A3',
@@ -239,21 +238,18 @@ const styles = StyleSheet.create({
     backgroundColor: '#FAF8F4',
     color: '#2B2B2B',
   },
-
   button: {
     backgroundColor: '#C9A24D',
     paddingVertical: 16,
     borderRadius: 14,
     marginTop: 6,
   },
-
   buttonText: {
     color: '#FFFFFF',
     fontSize: 16,
     fontWeight: '700',
     textAlign: 'center',
   },
-
   link: {
     marginTop: 26,
     textAlign: 'center',
