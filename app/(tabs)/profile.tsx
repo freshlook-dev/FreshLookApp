@@ -188,8 +188,14 @@ export default function ProfileTab() {
 
   /* ================= LOGOUT (FIXED) ================= */
  const logout = async () => {
-  await supabase.auth.signOut({ scope: 'local' });
+  try {
+    await supabase.auth.signOut({ scope: 'local' });
+  } catch (err) {
+    // ❗ Ignore Supabase 403 on web
+    console.warn('Logout warning (safe to ignore):', err);
+  }
 };
+
 
 
   /* ================================================= */
