@@ -1,15 +1,22 @@
 import { useEffect, useState } from 'react';
 import { Alert, Pressable } from 'react-native';
-import { Tabs } from 'expo-router';
+import { Tabs, Redirect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 
 import { supabase } from '../../context/supabase';
 import { useAuth } from '../../context/AuthContext';
 
 export default function TabsLayout() {
-  const { user } = useAuth();
+  const { user, loading } = useAuth();
   const [unreadCount, setUnreadCount] = useState<number>(0);
   const [refreshing, setRefreshing] = useState(false);
+
+  /* 🔐 AUTH GUARD */
+  if (loading) return null;
+
+  if (!user) {
+    return <Redirect href="/(auth)/login" />;
+  }
 
   /* 🔔 LOAD UNREAD NOTIFICATIONS COUNT */
   const loadUnread = async () => {
@@ -27,8 +34,6 @@ export default function TabsLayout() {
   };
 
   useEffect(() => {
-    if (!user) return;
-
     loadUnread();
 
     const channel = supabase
@@ -45,12 +50,11 @@ export default function TabsLayout() {
     };
   }, [user]);
 
-  /* 🔄 REFRESH ACTION (VISIBLE FEEDBACK) */
+  /* 🔄 REFRESH ACTION */
   const handleRefresh = async () => {
-    if (!user || refreshing) return;
+    if (refreshing) return;
 
     setRefreshing(true);
-
     await loadUnread();
 
     Alert.alert(
