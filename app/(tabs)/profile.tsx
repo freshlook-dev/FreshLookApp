@@ -195,17 +195,23 @@ export default function ProfileTab() {
       style: 'destructive',
       onPress: async () => {
         try {
-          await logout(); // clears AuthContext state
+          await logout(); // clears AuthContext
         } catch (e) {
-          console.log('Logout error (safe to ignore):', e);
+          console.log('Logout error (safe on web):', e);
         } finally {
-          // 🚨 REQUIRED for Supabase + Expo Web
-          window.location.href = '/(auth)/login';
+          if (typeof window !== 'undefined') {
+            // 💻 WEB: hard reset (REQUIRED)
+            window.location.href = '/(auth)/login';
+          } else {
+            // 📱 MOBILE: normal navigation
+            router.replace('/(auth)/login');
+          }
         }
       },
     },
   ]);
 };
+
 
   /* =========================================================== */
 
