@@ -9,7 +9,7 @@ import {
   ActivityIndicator,
 } from 'react-native';
 
-import { Calendar } from 'react-native-calendars';
+import { Calendar, DateData } from 'react-native-calendars';
 
 import { supabase } from '../../context/supabase';
 import { useAuth } from '../../context/AuthContext';
@@ -28,15 +28,9 @@ type Appointment = {
   creator_name: string | null;
 };
 
-/* 🔹 FORMATTERS */
-const formatDate = (date: string) => {
-  const d = new Date(date);
-  return `${String(d.getDate()).padStart(2, '0')}.${String(
-    d.getMonth() + 1
-  ).padStart(2, '0')}.${d.getFullYear()}`;
-};
-
+/* 🔹 HELPERS */
 const formatTime = (time: string) => time.slice(0, 5);
+const today = new Date().toISOString().split('T')[0];
 
 export default function CalendarTab() {
   const { user } = useAuth();
@@ -46,7 +40,10 @@ export default function CalendarTab() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    if (user) loadAppointments();
+    if (user) {
+      setSelectedDate(today); // ✅ auto-select today
+      loadAppointments();
+    }
   }, [user]);
 
   const loadAppointments = async () => {
@@ -78,14 +75,21 @@ export default function CalendarTab() {
     setLoading(false);
   };
 
+  /* 🔴 MARKED DATES */
   const markedDates = appointments.reduce((acc: any, a) => {
-    acc[a.appointment_date] = { marked: true, dotColor: Colors.primary };
+    acc[a.appointment_date] = {
+      marked: true,
+      dotColor: Colors.primary,
+    };
     return acc;
   }, {});
 
-  const dailyAppointments = appointments.filter(
-    (a) => a.appointment_date === selectedDate
-  );
+  /* 📅 DAILY APPOINTMENTS (earliest → latest) */
+  const dailyAppointments = appointments
+    .filter((a) => a.appointment_date === selectedDate)
+    .sort((a, b) =>
+      a.appointment_time.localeCompare(b.appointment_time)
+    );
 
   if (loading) {
     return (
@@ -100,18 +104,45 @@ export default function CalendarTab() {
       <SectionTitle>Calendar</SectionTitle>
 
       <Calendar
+        minDate={today} // 🚫 disable past dates
+        disableAllTouchEventsForDisabledDays
         markedDates={{
           ...markedDates,
+
+          // 📅 Highlight today (if not selected)
+          ...(today && today !== selectedDate && {
+            [today]: {
+              marked: markedDates[today]?.marked,
+              dotColor: Colors.primary,
+              selected: true,
+              selectedColor: Colors.primary + '20', // light background
+            },
+          }),
+
+          // ✅ Selected date (highest priority)
           ...(selectedDate && {
             [selectedDate]: {
               selected: true,
               selectedColor: Colors.primary,
-              marked: true,
+              marked: markedDates[selectedDate]?.marked,
+              dotColor: Colors.primary,
             },
           }),
         }}
-        onDayPress={(day) => setSelectedDate(day.dateString)}
+        onDayPress={(day: DateData) =>
+          setSelectedDate(day.dateString)
+        }
+        theme={{
+          todayTextColor: Colors.primary, // ✅ supported
+        }}
       />
+
+      {/* ℹ️ Empty state */}
+      {selectedDate && dailyAppointments.length === 0 && (
+        <Text style={styles.empty}>
+          No appointments for this day
+        </Text>
+      )}
 
       <FlatList
         data={dailyAppointments}
@@ -139,11 +170,44 @@ export default function CalendarTab() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, padding: Spacing.lg, backgroundColor: Colors.background },
-  center: { flex: 1, justifyContent: 'center', alignItems: 'center' },
-  client: { fontSize: 16, fontWeight: '700', color: Colors.textPrimary },
-  service: { fontSize: 14, color: Colors.textSecondary },
-  time: { marginTop: 4, fontSize: 13, color: Colors.textSecondary },
-  creator: { marginTop: 6, fontSize: 12, color: Colors.textSecondary },
-  comment: { marginTop: 4, fontStyle: 'italic', color: Colors.textSecondary },
+  container: {
+    flex: 1,
+    padding: Spacing.lg,
+    backgroundColor: Colors.background,
+  },
+  center: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  client: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: Colors.textPrimary,
+  },
+  service: {
+    fontSize: 14,
+    color: Colors.textSecondary,
+  },
+  time: {
+    marginTop: 4,
+    fontSize: 13,
+    color: Colors.textSecondary,
+  },
+  creator: {
+    marginTop: 6,
+    fontSize: 12,
+    color: Colors.textSecondary,
+  },
+  comment: {
+    marginTop: 4,
+    fontStyle: 'italic',
+    color: Colors.textSecondary,
+  },
+  empty: {
+    marginTop: Spacing.md,
+    textAlign: 'center',
+    color: Colors.textSecondary,
+    fontStyle: 'italic',
+  },
 });
