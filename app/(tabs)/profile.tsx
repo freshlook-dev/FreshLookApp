@@ -187,12 +187,10 @@ export default function ProfileTab() {
   };
 
   /* ================= LOGOUT (FIXED) ================= */
-  const logout = async () => {
-  await supabase.auth.signOut();
-
-  // 🔥 required for Expo Web
-  router.replace('/(auth)/login');
+ const logout = async () => {
+  await supabase.auth.signOut({ scope: 'local' });
 };
+
 
   /* ================================================= */
 
