@@ -102,7 +102,7 @@ export default function UpcomingAppointments() {
 
   const canEdit = profile?.role === 'owner' || profile?.role === 'manager';
 
-  /* 🗑️ DELETE */
+  /* 🗑️ DELETE — FINAL, GUARANTEED FEEDBACK */
   const handleDelete = (id: string) => {
     Alert.alert(
       'Delete appointment',
@@ -113,16 +113,32 @@ export default function UpcomingAppointments() {
           text: 'Delete',
           style: 'destructive',
           onPress: async () => {
-            const { error } = await supabase
+            console.log('DELETE CLICKED:', id);
+
+            const { data, error, status } = await supabase
               .from('appointments')
               .delete()
-              .eq('id', id);
+              .eq('id', id)
+              .select(); // 🔥 forces response
+
+            console.log('DELETE STATUS:', status);
+            console.log('DELETE DATA:', data);
+            console.log('DELETE ERROR:', error);
 
             if (error) {
               Alert.alert('Delete failed', error.message);
               return;
             }
 
+            if (!data || data.length === 0) {
+              Alert.alert(
+                'Not deleted',
+                'Delete was blocked by permissions (RLS).'
+              );
+              return;
+            }
+
+            Alert.alert('Deleted', 'Appointment deleted successfully.');
             loadData();
           },
         },
@@ -152,7 +168,8 @@ export default function UpcomingAppointments() {
             <Text style={styles.service}>{item.service}</Text>
 
             <Text style={styles.datetime}>
-              {formatDate(item.appointment_date)} • {formatTime(item.appointment_time)}
+              {formatDate(item.appointment_date)} •{' '}
+              {formatTime(item.appointment_time)}
             </Text>
 
             {item.location && (
