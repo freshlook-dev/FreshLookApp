@@ -58,14 +58,13 @@ export default function HomeTab() {
 
     setTotalCount(total ?? 0);
 
-    /* ⏰ UPCOMING APPOINTMENTS */
+    /* ⏰ UPCOMING APPOINTMENTS (TODAY ONLY) */
     const today = new Date().toISOString().split('T')[0];
 
     const { count: upcoming } = await supabase
       .from('appointments')
       .select('*', { count: 'exact', head: true })
-      .eq('created_by', user!.id)
-      .gte('appointment_date', today);
+      .eq('appointment_date', today);
 
     setUpcomingCount(upcoming ?? 0);
 
@@ -133,14 +132,14 @@ export default function HomeTab() {
         <Card>
           <View style={styles.statContent}>
             <Text style={styles.statNumber}>{upcomingCount}</Text>
-            <Text style={styles.statLabel}>Në ardhje</Text>
+            <Text style={styles.statLabel}>Terminet Sot</Text>
           </View>
         </Card>
 
         <Card>
           <View style={styles.statContent}>
             <Text style={styles.statNumber}>{totalCount}</Text>
-            <Text style={styles.statLabel}>Terminet e krijuara nga ju</Text>
+            <Text style={styles.statLabel}>Terminet e krijuara nga ju këtë muaj</Text>
           </View>
         </Card>
       </View>
