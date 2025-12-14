@@ -102,7 +102,7 @@ export default function UpcomingAppointments() {
 
   const canEdit = profile?.role === 'owner' || profile?.role === 'manager';
 
-  /* 🗑️ DELETE — FINAL, GUARANTEED FEEDBACK */
+  /* 🗑️ DELETE — WITH VISIBILITY CHECK (FINAL) */
   const handleDelete = (id: string) => {
     Alert.alert(
       'Delete appointment',
@@ -115,26 +115,37 @@ export default function UpcomingAppointments() {
           onPress: async () => {
             console.log('DELETE CLICKED:', id);
 
-            const { data, error, status } = await supabase
+            /* 🔍 STEP 1 — CHECK IF ROW IS VISIBLE */
+            const { data: exists, error: existsError } = await supabase
               .from('appointments')
-              .delete()
-              .eq('id', id)
-              .select(); // 🔥 forces response
+              .select('id')
+              .eq('id', id);
 
-            console.log('DELETE STATUS:', status);
-            console.log('DELETE DATA:', data);
-            console.log('DELETE ERROR:', error);
+            console.log('ROW EXISTS:', exists, existsError);
 
-            if (error) {
-              Alert.alert('Delete failed', error.message);
+            if (existsError) {
+              Alert.alert('Error', existsError.message);
               return;
             }
 
-            if (!data || data.length === 0) {
+            if (!exists || exists.length === 0) {
               Alert.alert(
-                'Not deleted',
-                'Delete was blocked by permissions (RLS).'
+                'Not allowed',
+                'This appointment is not visible to you. Delete is blocked by Row Level Security.'
               );
+              return;
+            }
+
+            /* 🗑️ STEP 2 — TRY DELETE */
+            const { error: deleteError } = await supabase
+              .from('appointments')
+              .delete()
+              .eq('id', id);
+
+            console.log('DELETE ERROR:', deleteError);
+
+            if (deleteError) {
+              Alert.alert('Delete failed', deleteError.message);
               return;
             }
 
