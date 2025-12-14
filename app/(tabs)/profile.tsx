@@ -186,7 +186,7 @@ export default function ProfileTab() {
     }
   };
 
-  /* ================= LOGOUT (ONLY CHANGE) ================= */
+  /* ================= LOGOUT (FIXED, MINIMAL) ================= */
   const handleLogout = () => {
     Alert.alert('Logout', 'Are you sure you want to logout?', [
       { text: 'Cancel', style: 'cancel' },
@@ -194,29 +194,13 @@ export default function ProfileTab() {
         text: 'Logout',
         style: 'destructive',
         onPress: async () => {
-          try {
-            await logout();
-          } catch (e) {
-            console.log('Logout error (safe):', e);
-          } finally {
-            if (typeof window !== 'undefined') {
-              // 🔥 DESKTOP WEB FIX (Supabase SPA issue)
-              Object.keys(localStorage).forEach((key) => {
-                if (key.startsWith('sb-')) {
-                  localStorage.removeItem(key);
-                }
-              });
-
-              window.location.href = '/(auth)/login';
-            } else {
-              router.replace('/(auth)/login');
-            }
-          }
+          await logout();
+          router.replace('/(auth)/login');
         },
       },
     ]);
   };
-  /* ======================================================= */
+  /* ========================================================== */
 
   if (authLoading || loading) {
     return (

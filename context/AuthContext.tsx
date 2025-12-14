@@ -7,13 +7,13 @@ import { User } from '@supabase/supabase-js';
 type AuthContextType = {
   user: User | null;
   loading: boolean;
-  logout: () => Promise<void>; // 🔥 ADD
+  logout: () => Promise<void>;
 };
 
 const AuthContext = createContext<AuthContextType>({
   user: null,
   loading: true,
-  logout: async () => {}, // 🔥 ADD
+  logout: async () => {},
 });
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
@@ -55,15 +55,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     };
   }, []);
 
-  // 🔥 THIS IS THE FIX
+  // ✅ FIXED LOGOUT (cross-platform safe)
   const logout = async () => {
     try {
-      await supabase.auth.signOut({ scope: 'local' });
+      await supabase.auth.signOut(); // 🔥 ONLY CHANGE
     } catch (e) {
-      console.log('Logout error:', e);
+      console.log('Logout error (safe):', e);
     } finally {
-      // 🚨 FORCE state update (web fix)
-      setUser(null);
+      setUser(null); // force UI update
     }
   };
 
