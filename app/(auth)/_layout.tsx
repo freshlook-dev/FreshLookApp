@@ -1,4 +1,4 @@
-import { Redirect } from 'expo-router';
+import { Stack, Redirect } from 'expo-router';
 import { useAuth } from '../../context/AuthContext';
 
 export default function AuthLayout() {
@@ -6,9 +6,11 @@ export default function AuthLayout() {
 
   if (loading) return null;
 
+  // If logged in, never show auth screens
   if (user) {
     return <Redirect href="/(tabs)" />;
   }
 
-  return null;
+  // Otherwise render auth stack
+  return <Stack screenOptions={{ headerShown: false }} />;
 }

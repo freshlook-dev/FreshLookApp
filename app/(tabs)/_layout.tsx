@@ -11,13 +11,6 @@ export default function TabsLayout() {
   const [unreadCount, setUnreadCount] = useState<number>(0);
   const [refreshing, setRefreshing] = useState(false);
 
-  /* 🔐 AUTH GUARD */
-  if (loading) return null;
-
-  if (!user) {
-    return <Redirect href="/(auth)/login" />;
-  }
-
   /* 🔔 LOAD UNREAD NOTIFICATIONS COUNT */
   const loadUnread = async () => {
     if (!user) return;
@@ -34,6 +27,9 @@ export default function TabsLayout() {
   };
 
   useEffect(() => {
+    // ✅ Hook always runs, but does nothing if no user yet
+    if (!user) return;
+
     loadUnread();
 
     const channel = supabase
@@ -41,7 +37,7 @@ export default function TabsLayout() {
       .on(
         'postgres_changes',
         { event: '*', schema: 'public', table: 'notifications' },
-        loadUnread
+        () => loadUnread()
       )
       .subscribe();
 
@@ -50,18 +46,14 @@ export default function TabsLayout() {
     };
   }, [user]);
 
-  /* 🔄 REFRESH ACTION */
+  /* 🔄 REFRESH ACTION (VISIBLE FEEDBACK) */
   const handleRefresh = async () => {
-    if (refreshing) return;
+    if (!user || refreshing) return;
 
     setRefreshing(true);
     await loadUnread();
 
-    Alert.alert(
-      'Updated',
-      'The latest data has been refreshed successfully.'
-    );
-
+    Alert.alert('Updated', 'The latest data has been refreshed successfully.');
     setRefreshing(false);
   };
 
@@ -75,6 +67,10 @@ export default function TabsLayout() {
       />
     </Pressable>
   );
+
+  // ✅ Redirects happen AFTER hooks (no hook-skip)
+  if (loading) return null;
+  if (!user) return <Redirect href="/(auth)/login" />;
 
   return (
     <Tabs
