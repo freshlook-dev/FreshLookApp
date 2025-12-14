@@ -8,6 +8,8 @@ import {
   ActivityIndicator,
   FlatList,
   Alert,
+  Pressable,
+  Platform,
 } from 'react-native';
 
 import { supabase } from '../../context/supabase';
@@ -122,36 +124,43 @@ export default function NotificationsTab() {
   };
 
   /* 🗑 DELETE (OWNER ONLY) */
- const deleteNotification = (id: string) => {
-  Alert.alert(
-    'Delete announcement',
-    'Are you sure you want to delete this notification?',
-    [
-      { text: 'Cancel', style: 'cancel' },
-      {
-        text: 'Delete',
-        style: 'destructive',
-        onPress: async () => {
-          const { error } = await supabase
-            .from('notifications')
-            .delete()
-            .eq('id', id);
+  const deleteNotification = async (id: string) => {
+    // 🌐 Web fallback
+    if (Platform.OS === 'web') {
+      const ok = confirm('Are you sure you want to delete this notification?');
+      if (!ok) return;
+    } else {
+      const confirmed = await new Promise<boolean>((resolve) => {
+        Alert.alert(
+          'Delete announcement',
+          'Are you sure you want to delete this notification?',
+          [
+            { text: 'Cancel', style: 'cancel', onPress: () => resolve(false) },
+            {
+              text: 'Delete',
+              style: 'destructive',
+              onPress: () => resolve(true),
+            },
+          ]
+        );
+      });
 
-          if (error) {
-            Alert.alert('Delete failed', error.message);
-            console.error('Delete failed:', error);
-            return;
-          }
+      if (!confirmed) return;
+    }
 
-          setNotifications((prev) =>
-            prev.filter((n) => n.id !== id)
-          );
-        },
-      },
-    ]
-  );
-};
+    const { error } = await supabase
+      .from('notifications')
+      .delete()
+      .eq('id', id);
 
+    if (error) {
+      Alert.alert('Delete failed', error.message);
+      console.error('Delete failed:', error);
+      return;
+    }
+
+    setNotifications((prev) => prev.filter((n) => n.id !== id));
+  };
 
   const formatDateTime = (iso: string) => {
     const d = new Date(iso);
@@ -203,12 +212,12 @@ export default function NotificationsTab() {
                 </View>
 
                 {role === 'owner' && (
-                  <Text
-                    style={styles.delete}
+                  <Pressable
                     onPress={() => deleteNotification(item.id)}
+                    hitSlop={12}
                   >
-                    Delete
-                  </Text>
+                    <Text style={styles.delete}>Delete</Text>
+                  </Pressable>
                 )}
               </View>
             </View>
