@@ -7,11 +7,22 @@ import {
   StyleSheet,
   ActivityIndicator,
   FlatList,
-  ScrollView,
 } from 'react-native';
 
 import { supabase } from '../../context/supabase';
 import { useAuth } from '../../context/AuthContext';
+
+/* ---------------- TYPES ---------------- */
+
+type NotificationRow = {
+  id: string;
+  title: string;
+  message: string;
+  created_at: string;
+  author: {
+    full_name: string | null;
+  }[]; // ✅ ARRAY (important)
+};
 
 type NotificationItem = {
   id: string;
@@ -21,6 +32,8 @@ type NotificationItem = {
   author_name: string;
 };
 
+/* ---------------- COMPONENT ---------------- */
+
 export default function NotificationsTab() {
   const { user } = useAuth();
 
@@ -28,10 +41,17 @@ export default function NotificationsTab() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    if (user) loadNotifications();
+    if (!user) {
+      setLoading(false);
+      return;
+    }
+
+    loadNotifications();
   }, [user]);
 
   const loadNotifications = async () => {
+    if (!user) return;
+
     setLoading(true);
 
     const { data, error } = await supabase
@@ -41,20 +61,30 @@ export default function NotificationsTab() {
         title,
         message,
         created_at,
-        author:profiles!notifications_user_id_fkey(full_name)
+        author:profiles (
+          full_name
+        )
       `)
       .eq('type', 'custom')
-      .eq('user_id', user!.id)
+      .eq('user_id', user.id)
       .order('created_at', { ascending: false });
 
-    if (!error && data) {
-      const mapped = data.map((n: any) => ({
-        id: n.id,
-        title: n.title,
-        message: n.message,
-        created_at: n.created_at,
-        author_name: n.author?.full_name ?? 'Owner',
-      }));
+    if (error) {
+      console.error('Failed to load notifications:', error.message);
+      setLoading(false);
+      return;
+    }
+
+    if (data) {
+      const mapped: NotificationItem[] = (data as NotificationRow[]).map(
+        (n) => ({
+          id: n.id,
+          title: n.title,
+          message: n.message,
+          created_at: n.created_at,
+          author_name: n.author?.[0]?.full_name ?? 'Owner', // ✅ FIX
+        })
+      );
 
       setNotifications(mapped);
     }
@@ -123,45 +153,38 @@ const styles = StyleSheet.create({
     backgroundColor: '#FAF8F4',
     padding: 20,
   },
-
   pageTitle: {
     fontSize: 26,
     fontWeight: '800',
     color: '#2B2B2B',
     marginBottom: 16,
   },
-
   center: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
     backgroundColor: '#FAF8F4',
   },
-
   loadingText: {
     marginTop: 10,
     color: '#7A7A7A',
   },
-
   emptyBox: {
     marginTop: 60,
     alignItems: 'center',
     paddingHorizontal: 20,
   },
-
   emptyTitle: {
     fontSize: 18,
     fontWeight: '700',
     color: '#2B2B2B',
     marginBottom: 6,
   },
-
   emptyText: {
     fontSize: 14,
     color: '#7A7A7A',
     textAlign: 'center',
   },
-
   card: {
     backgroundColor: '#FFFFFF',
     borderRadius: 16,
@@ -172,33 +195,28 @@ const styles = StyleSheet.create({
     shadowRadius: 10,
     elevation: 2,
   },
-
   title: {
     fontSize: 16,
     fontWeight: '800',
     color: '#2B2B2B',
   },
-
   message: {
     fontSize: 14,
     marginTop: 6,
     color: '#2B2B2B',
     lineHeight: 20,
   },
-
   meta: {
     marginTop: 12,
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
   },
-
   author: {
     fontSize: 12,
     fontWeight: '700',
     color: '#C9A24D',
   },
-
   time: {
     fontSize: 12,
     color: '#7A7A7A',
