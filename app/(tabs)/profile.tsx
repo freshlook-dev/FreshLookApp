@@ -27,7 +27,7 @@ type Profile = {
 };
 
 export default function ProfileTab() {
-  const { user, loading: authLoading } = useAuth();
+  const { user, loading: authLoading, logout } = useAuth(); // ✅ FIXED
 
   const [profile, setProfile] = useState<Profile | null>(null);
   const [users, setUsers] = useState<Profile[]>([]);
@@ -185,20 +185,6 @@ export default function ProfileTab() {
       setSendingNotice(false);
     }
   };
-
-  /* ================= LOGOUT (FIXED) ================= */
- const logout = async () => {
-  try {
-    await supabase.auth.signOut({ scope: 'local' });
-  } catch (err) {
-    // ❗ Ignore Supabase 403 on web
-    console.warn('Logout warning (safe to ignore):', err);
-  }
-};
-
-
-
-  /* ================================================= */
 
   if (authLoading || loading) {
     return (
@@ -371,6 +357,9 @@ export default function ProfileTab() {
     </ScrollView>
   );
 }
+
+/* ================= STYLES ================= */
+/* (UNCHANGED — exactly your original styles) */
 
 /* ================= STYLES ================= */
 
