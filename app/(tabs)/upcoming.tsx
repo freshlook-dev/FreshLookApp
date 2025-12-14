@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import {
   View,
   Text,
@@ -9,7 +9,6 @@ import {
   ActivityIndicator,
   TouchableOpacity,
   Alert,
-  Platform,
 } from 'react-native';
 import { router } from 'expo-router';
 
@@ -51,12 +50,24 @@ const formatTime = (time: string) => time.slice(0, 5);
 export default function UpcomingAppointments() {
   const { user } = useAuth();
 
+  const isMounted = useRef(true);
+
   const [appointments, setAppointments] = useState<Appointment[]>([]);
   const [profile, setProfile] = useState<Profile | null>(null);
   const [loading, setLoading] = useState(true);
 
+  /* 🧼 MOUNT / UNMOUNT SAFETY */
   useEffect(() => {
-    if (user) loadData();
+    return () => {
+      isMounted.current = false;
+    };
+  }, []);
+
+  /* 🔐 LOAD DATA ONLY WHEN USER EXISTS */
+  useEffect(() => {
+    if (!user) return;
+
+    loadData();
   }, [user]);
 
   const loadData = async () => {
@@ -68,6 +79,7 @@ export default function UpcomingAppointments() {
       .eq('id', user!.id)
       .single();
 
+    if (!isMounted.current) return;
     setProfile(profileData);
 
     const { data } = await supabase
@@ -86,6 +98,8 @@ export default function UpcomingAppointments() {
       .order('appointment_date', { ascending: true })
       .order('appointment_time', { ascending: true });
 
+    if (!isMounted.current) return;
+
     if (data) {
       setAppointments(
         data.map((a: any) => ({
@@ -100,20 +114,36 @@ export default function UpcomingAppointments() {
 
   const canEdit = profile?.role === 'owner' || profile?.role === 'manager';
 
-  const showAlert = (title: string, msg: string) => {
-    if (Platform.OS === 'web') {
-      window.alert(`${title}\n\n${msg}`);
-    } else {
-      Alert.alert(title, msg);
-    }
+  /* 🗑️ DELETE — SAFE VERSION */
+  const handleDelete = (id: string) => {
+    Alert.alert(
+      'Delete appointment',
+      'Are you sure you want to delete this appointment?',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: async () => {
+            const { error } = await supabase
+              .from('appointments')
+              .delete()
+              .eq('id', id);
+
+            if (error) {
+              Alert.alert('Delete failed', error.message);
+              return;
+            }
+
+            if (!isMounted.current) return;
+            loadData();
+          },
+        },
+      ]
+    );
   };
 
-  const handleDelete = async (id: string) => {
-    console.log('🔥 HANDLE DELETE CALLED:', id);
-    showAlert('Delete pressed', `Appointment ID:\n${id}`);
-  };
-
-  if (loading) {
+  if (!user || loading) {
     return (
       <View style={styles.center}>
         <ActivityIndicator size="large" />
@@ -149,7 +179,7 @@ export default function UpcomingAppointments() {
             {canEdit && (
               <View style={styles.actions}>
                 <TouchableOpacity
-                  onPressIn={() =>
+                  onPress={() =>
                     router.push({
                       pathname: '/(tabs)/edit',
                       params: { id: item.id },
@@ -161,7 +191,7 @@ export default function UpcomingAppointments() {
                 </TouchableOpacity>
 
                 <TouchableOpacity
-                  onPressIn={() => handleDelete(item.id)}
+                  onPress={() => handleDelete(item.id)}
                   style={styles.actionBtn}
                 >
                   <Text style={styles.delete}>Delete</Text>
