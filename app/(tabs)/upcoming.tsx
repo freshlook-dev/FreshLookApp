@@ -56,17 +56,14 @@ export default function UpcomingAppointments() {
   const [profile, setProfile] = useState<Profile | null>(null);
   const [loading, setLoading] = useState(true);
 
-  /* 🧼 MOUNT / UNMOUNT SAFETY */
   useEffect(() => {
     return () => {
       isMounted.current = false;
     };
   }, []);
 
-  /* 🔐 LOAD DATA ONLY WHEN USER EXISTS */
   useEffect(() => {
     if (!user) return;
-
     loadData();
   }, [user]);
 
@@ -114,7 +111,6 @@ export default function UpcomingAppointments() {
 
   const canEdit = profile?.role === 'owner' || profile?.role === 'manager';
 
-  /* 🗑️ DELETE — SAFE VERSION */
   const handleDelete = (id: string) => {
     Alert.alert(
       'Delete appointment',
@@ -176,6 +172,11 @@ export default function UpcomingAppointments() {
               👤 Created by: {item.creator_name}
             </Text>
 
+            {/* 📝 COMMENT */}
+            {item.comment && (
+              <Text style={styles.comment}>📝 {item.comment}</Text>
+            )}
+
             {canEdit && (
               <View style={styles.actions}>
                 <TouchableOpacity
@@ -206,15 +207,61 @@ export default function UpcomingAppointments() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, padding: Spacing.lg, backgroundColor: Colors.background },
-  center: { flex: 1, justifyContent: 'center', alignItems: 'center' },
-  client: { fontSize: 16, fontWeight: '700', color: Colors.textPrimary },
-  service: { fontSize: 14, color: Colors.textSecondary },
-  datetime: { marginTop: 4, fontSize: 13, color: Colors.textSecondary },
-  location: { marginTop: 4, fontSize: 13, color: Colors.textSecondary },
-  creator: { marginTop: 6, fontSize: 12, color: Colors.textSecondary },
-  actions: { flexDirection: 'row', marginTop: Spacing.sm },
-  actionBtn: { paddingVertical: 6, paddingHorizontal: 10 },
-  edit: { marginRight: Spacing.md, color: Colors.accent, fontWeight: '700' },
-  delete: { color: Colors.danger, fontWeight: '700' },
+  container: {
+    flex: 1,
+    padding: Spacing.lg,
+    backgroundColor: Colors.background,
+  },
+  center: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  client: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: Colors.textPrimary,
+  },
+  service: {
+    fontSize: 14,
+    color: Colors.textSecondary,
+  },
+  datetime: {
+    marginTop: 4,
+    fontSize: 13,
+    color: Colors.textSecondary,
+  },
+  location: {
+    marginTop: 4,
+    fontSize: 13,
+    color: Colors.textSecondary,
+  },
+  creator: {
+    marginTop: 6,
+    fontSize: 12,
+    color: Colors.textSecondary,
+  },
+  comment: {
+    marginTop: 6,
+    fontSize: 13,
+    fontStyle: 'italic',
+    color: Colors.textSecondary,
+  },
+  actions: {
+    flexDirection: 'row',
+    marginTop: Spacing.sm,
+  },
+  actionBtn: {
+    paddingVertical: 6,
+    paddingHorizontal: 10,
+  },
+  edit: {
+    marginRight: Spacing.md,
+    color: Colors.accent,
+    fontWeight: '700',
+  },
+  delete: {
+    color: Colors.danger,
+    fontWeight: '700',
+  },
 });

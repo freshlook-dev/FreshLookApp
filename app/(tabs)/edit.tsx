@@ -59,6 +59,7 @@ export default function EditAppointment() {
   const [location, setLocation] = useState<string | null>(null);
   const [date, setDate] = useState(new Date());
   const [time, setTime] = useState<string | null>(null);
+  const [comment, setComment] = useState(''); // ✅ NEW
 
   const [showDatePicker, setShowDatePicker] = useState(false);
 
@@ -97,6 +98,7 @@ export default function EditAppointment() {
     setLocation(data.location);
     setDate(new Date(data.appointment_date));
     setTime(data.appointment_time);
+    setComment(data.comment ?? ''); // ✅ LOAD COMMENT
 
     setLoading(false);
   };
@@ -120,6 +122,7 @@ export default function EditAppointment() {
         appointment_date: formatDate(date),
         appointment_time: time,
         location,
+        comment: comment || null, // ✅ SAVE COMMENT
       })
       .eq('id', id);
 
@@ -195,6 +198,18 @@ export default function EditAppointment() {
             </Text>
           </Pressable>
         ))}
+      </View>
+
+      {/* Comment */}
+      <View style={styles.card}>
+        <Text style={styles.label}>Koment</Text>
+        <TextInput
+          value={comment}
+          onChangeText={setComment}
+          placeholder="Shënime shtesë…"
+          multiline
+          style={[styles.input, { height: 90 }]}
+        />
       </View>
 
       {/* Date */}
@@ -283,14 +298,12 @@ const styles = StyleSheet.create({
     padding: 20,
     paddingBottom: 40,
   },
-
   title: {
     fontSize: 26,
     fontWeight: '800',
     color: '#2B2B2B',
     marginBottom: 20,
   },
-
   card: {
     backgroundColor: '#FFFFFF',
     borderRadius: 16,
@@ -301,14 +314,12 @@ const styles = StyleSheet.create({
     shadowRadius: 10,
     elevation: 2,
   },
-
   label: {
     fontSize: 13,
     color: '#7A7A7A',
     marginBottom: 6,
     fontWeight: '600',
   },
-
   input: {
     borderWidth: 1,
     borderColor: '#E6D3A3',
@@ -317,13 +328,11 @@ const styles = StyleSheet.create({
     fontSize: 15,
     backgroundColor: '#FAF8F4',
   },
-
   valueText: {
     fontSize: 15,
     fontWeight: '600',
     color: '#2B2B2B',
   },
-
   option: {
     padding: 12,
     borderRadius: 10,
@@ -331,26 +340,21 @@ const styles = StyleSheet.create({
     borderColor: '#E6D3A3',
     marginBottom: 8,
   },
-
   optionActive: {
     backgroundColor: '#C9A24D',
   },
-
   optionText: {
     fontSize: 14,
     fontWeight: '600',
     color: '#2B2B2B',
   },
-
   optionTextActive: {
     color: '#FFFFFF',
   },
-
   timeGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
   },
-
   timeSlot: {
     width: '30%',
     paddingVertical: 10,
@@ -360,21 +364,17 @@ const styles = StyleSheet.create({
     borderColor: '#E6D3A3',
     alignItems: 'center',
   },
-
   timeSlotActive: {
     backgroundColor: '#C9A24D',
   },
-
   timeText: {
     fontSize: 13,
     fontWeight: '700',
     color: '#2B2B2B',
   },
-
   timeTextActive: {
     color: '#FFFFFF',
   },
-
   button: {
     backgroundColor: '#C9A24D',
     paddingVertical: 18,
@@ -382,20 +382,17 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginTop: 8,
   },
-
   buttonText: {
     color: '#FFFFFF',
     fontSize: 16,
     fontWeight: '800',
   },
-
   center: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
     backgroundColor: '#FAF8F4',
   },
-
   loadingText: {
     marginTop: 10,
     color: '#7A7A7A',

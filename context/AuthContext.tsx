@@ -21,11 +21,24 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     let mounted = true;
 
-    supabase.auth.getSession().then(({ data }) => {
-      if (!mounted) return;
-      setUser(data.session?.user ?? null);
-      setLoading(false);
-    });
+    const initAuth = async () => {
+      try {
+        const { data, error } = await supabase.auth.getSession();
+
+        if (!mounted) return;
+
+        if (error) {
+          console.warn('Supabase session error:', error.message);
+          setUser(null);
+        } else {
+          setUser(data.session?.user ?? null);
+        }
+      } finally {
+        if (mounted) setLoading(false);
+      }
+    };
+
+    initAuth();
 
     const {
       data: { subscription },
