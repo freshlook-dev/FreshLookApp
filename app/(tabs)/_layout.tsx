@@ -70,7 +70,10 @@ export default function TabsLayout() {
   if (loading) return null;
 
 // 🚨 DO NOT redirect from TabsLayout
-if (!user) return null;
+if (!user) {
+  return <Redirect href="/(auth)/login" />;
+}
+
 
 
   return (
