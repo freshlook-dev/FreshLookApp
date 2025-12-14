@@ -9,6 +9,7 @@ import {
   ActivityIndicator,
   TouchableOpacity,
   Alert,
+  Platform,
 } from 'react-native';
 import { router } from 'expo-router';
 
@@ -38,7 +39,6 @@ type Profile = {
   role: Role;
 };
 
-/* 🔹 FORMATTERS */
 const formatDate = (date: string) => {
   const d = new Date(date);
   return `${String(d.getDate()).padStart(2, '0')}.${String(
@@ -70,7 +70,7 @@ export default function UpcomingAppointments() {
 
     setProfile(profileData);
 
-    const { data, error } = await supabase
+    const { data } = await supabase
       .from('appointments')
       .select(`
         id,
@@ -81,14 +81,12 @@ export default function UpcomingAppointments() {
         location,
         comment,
         created_by,
-        profiles:created_by (
-          full_name
-        )
+        profiles:created_by ( full_name )
       `)
       .order('appointment_date', { ascending: true })
       .order('appointment_time', { ascending: true });
 
-    if (!error && data) {
+    if (data) {
       setAppointments(
         data.map((a: any) => ({
           ...a,
@@ -102,59 +100,17 @@ export default function UpcomingAppointments() {
 
   const canEdit = profile?.role === 'owner' || profile?.role === 'manager';
 
-  /* 🗑️ DELETE — WITH VISIBILITY CHECK (FINAL) */
-  const handleDelete = (id: string) => {
-    Alert.alert(
-      'Delete appointment',
-      'Are you sure you want to delete this appointment? This action cannot be undone.',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Delete',
-          style: 'destructive',
-          onPress: async () => {
-            console.log('DELETE CLICKED:', id);
+  const showAlert = (title: string, msg: string) => {
+    if (Platform.OS === 'web') {
+      window.alert(`${title}\n\n${msg}`);
+    } else {
+      Alert.alert(title, msg);
+    }
+  };
 
-            /* 🔍 STEP 1 — CHECK IF ROW IS VISIBLE */
-            const { data: exists, error: existsError } = await supabase
-              .from('appointments')
-              .select('id')
-              .eq('id', id);
-
-            console.log('ROW EXISTS:', exists, existsError);
-
-            if (existsError) {
-              Alert.alert('Error', existsError.message);
-              return;
-            }
-
-            if (!exists || exists.length === 0) {
-              Alert.alert(
-                'Not allowed',
-                'This appointment is not visible to you. Delete is blocked by Row Level Security.'
-              );
-              return;
-            }
-
-            /* 🗑️ STEP 2 — TRY DELETE */
-            const { error: deleteError } = await supabase
-              .from('appointments')
-              .delete()
-              .eq('id', id);
-
-            console.log('DELETE ERROR:', deleteError);
-
-            if (deleteError) {
-              Alert.alert('Delete failed', deleteError.message);
-              return;
-            }
-
-            Alert.alert('Deleted', 'Appointment deleted successfully.');
-            loadData();
-          },
-        },
-      ]
-    );
+  const handleDelete = async (id: string) => {
+    console.log('🔥 HANDLE DELETE CALLED:', id);
+    showAlert('Delete pressed', `Appointment ID:\n${id}`);
   };
 
   if (loading) {
@@ -179,8 +135,7 @@ export default function UpcomingAppointments() {
             <Text style={styles.service}>{item.service}</Text>
 
             <Text style={styles.datetime}>
-              {formatDate(item.appointment_date)} •{' '}
-              {formatTime(item.appointment_time)}
+              {formatDate(item.appointment_date)} • {formatTime(item.appointment_time)}
             </Text>
 
             {item.location && (
@@ -191,14 +146,10 @@ export default function UpcomingAppointments() {
               👤 Created by: {item.creator_name}
             </Text>
 
-            {item.comment && (
-              <Text style={styles.comment}>📝 {item.comment}</Text>
-            )}
-
             {canEdit && (
               <View style={styles.actions}>
                 <TouchableOpacity
-                  onPress={() =>
+                  onPressIn={() =>
                     router.push({
                       pathname: '/(tabs)/edit',
                       params: { id: item.id },
@@ -210,7 +161,7 @@ export default function UpcomingAppointments() {
                 </TouchableOpacity>
 
                 <TouchableOpacity
-                  onPress={() => handleDelete(item.id)}
+                  onPressIn={() => handleDelete(item.id)}
                   style={styles.actionBtn}
                 >
                   <Text style={styles.delete}>Delete</Text>
@@ -225,60 +176,15 @@ export default function UpcomingAppointments() {
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    padding: Spacing.lg,
-    backgroundColor: Colors.background,
-  },
-  center: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  client: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: Colors.textPrimary,
-  },
-  service: {
-    fontSize: 14,
-    color: Colors.textSecondary,
-  },
-  datetime: {
-    marginTop: 4,
-    fontSize: 13,
-    color: Colors.textSecondary,
-  },
-  location: {
-    marginTop: 4,
-    fontSize: 13,
-    color: Colors.textSecondary,
-  },
-  creator: {
-    marginTop: 6,
-    fontSize: 12,
-    color: Colors.textSecondary,
-  },
-  comment: {
-    marginTop: 4,
-    fontStyle: 'italic',
-    color: Colors.textSecondary,
-  },
-  actions: {
-    flexDirection: 'row',
-    marginTop: Spacing.sm,
-  },
-  actionBtn: {
-    paddingVertical: 6,
-    paddingHorizontal: 10,
-  },
-  edit: {
-    marginRight: Spacing.md,
-    color: Colors.accent,
-    fontWeight: '700',
-  },
-  delete: {
-    color: Colors.danger,
-    fontWeight: '700',
-  },
+  container: { flex: 1, padding: Spacing.lg, backgroundColor: Colors.background },
+  center: { flex: 1, justifyContent: 'center', alignItems: 'center' },
+  client: { fontSize: 16, fontWeight: '700', color: Colors.textPrimary },
+  service: { fontSize: 14, color: Colors.textSecondary },
+  datetime: { marginTop: 4, fontSize: 13, color: Colors.textSecondary },
+  location: { marginTop: 4, fontSize: 13, color: Colors.textSecondary },
+  creator: { marginTop: 6, fontSize: 12, color: Colors.textSecondary },
+  actions: { flexDirection: 'row', marginTop: Spacing.sm },
+  actionBtn: { paddingVertical: 6, paddingHorizontal: 10 },
+  edit: { marginRight: Spacing.md, color: Colors.accent, fontWeight: '700' },
+  delete: { color: Colors.danger, fontWeight: '700' },
 });
