@@ -188,18 +188,25 @@ export default function ProfileTab() {
 
   /* ================= LOGOUT (FINAL, SAFE FIX) ================= */
   const handleLogout = () => {
-    Alert.alert('Logout', 'Are you sure you want to logout?', [
-      { text: 'Cancel', style: 'cancel' },
-      {
-        text: 'Logout',
-        style: 'destructive',
-        onPress: async () => {
-          await logout(); // ✅ clears AuthContext immediately
-          router.replace('/(auth)/login');
-        },
+  Alert.alert('Logout', 'Are you sure you want to logout?', [
+    { text: 'Cancel', style: 'cancel' },
+    {
+      text: 'Logout',
+      style: 'destructive',
+      onPress: async () => {
+        try {
+          await logout(); // clears AuthContext state
+        } catch (e) {
+          console.log('Logout error (safe to ignore):', e);
+        } finally {
+          // 🚨 REQUIRED for Supabase + Expo Web
+          window.location.href = '/(auth)/login';
+        }
       },
-    ]);
-  };
+    },
+  ]);
+};
+
   /* =========================================================== */
 
   if (authLoading || loading) {
