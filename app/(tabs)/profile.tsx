@@ -27,7 +27,7 @@ type Profile = {
 };
 
 export default function ProfileTab() {
-  const { user, loading: authLoading } = useAuth();
+  const { user, loading: authLoading, logout } = useAuth(); // ✅ added logout
 
   const [profile, setProfile] = useState<Profile | null>(null);
   const [users, setUsers] = useState<Profile[]>([]);
@@ -186,26 +186,21 @@ export default function ProfileTab() {
     }
   };
 
-  /* ================= LOGOUT (FIXED) ================= */
-  const logout = () => {
+  /* ================= LOGOUT (FINAL, SAFE FIX) ================= */
+  const handleLogout = () => {
     Alert.alert('Logout', 'Are you sure you want to logout?', [
       { text: 'Cancel', style: 'cancel' },
       {
         text: 'Logout',
         style: 'destructive',
         onPress: async () => {
-          try {
-            await supabase.auth.signOut({ scope: 'local' });
-          } catch (e) {
-            console.log('Logout error:', e);
-          } finally {
-            router.replace('/(auth)/login');
-          }
+          await logout(); // ✅ clears AuthContext immediately
+          router.replace('/(auth)/login');
         },
       },
     ]);
   };
-  /* ================================================= */
+  /* =========================================================== */
 
   if (authLoading || loading) {
     return (
@@ -372,14 +367,14 @@ export default function ProfileTab() {
       )}
 
       {/* LOGOUT */}
-      <Pressable onPress={logout} style={styles.logoutButton}>
+      <Pressable onPress={handleLogout} style={styles.logoutButton}>
         <Text style={styles.logoutText}>Logout</Text>
       </Pressable>
     </ScrollView>
   );
 }
 
-/* ================= STYLES ================= */
+/* ================= STYLES (UNCHANGED) ================= */
 
 const styles = StyleSheet.create({
   container: {

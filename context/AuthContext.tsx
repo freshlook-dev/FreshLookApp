@@ -7,11 +7,13 @@ import { User } from '@supabase/supabase-js';
 type AuthContextType = {
   user: User | null;
   loading: boolean;
+  logout: () => Promise<void>; // 🔥 ADD
 };
 
 const AuthContext = createContext<AuthContextType>({
   user: null,
   loading: true,
+  logout: async () => {}, // 🔥 ADD
 });
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
@@ -53,8 +55,20 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     };
   }, []);
 
+  // 🔥 THIS IS THE FIX
+  const logout = async () => {
+    try {
+      await supabase.auth.signOut({ scope: 'local' });
+    } catch (e) {
+      console.log('Logout error:', e);
+    } finally {
+      // 🚨 FORCE state update (web fix)
+      setUser(null);
+    }
+  };
+
   return (
-    <AuthContext.Provider value={{ user, loading }}>
+    <AuthContext.Provider value={{ user, loading, logout }}>
       {children}
     </AuthContext.Provider>
   );
