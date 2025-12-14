@@ -14,7 +14,6 @@ import {
   Platform,
   Image,
 } from 'react-native';
-import { router } from 'expo-router';
 import { supabase } from '../../context/supabase';
 
 export default function SignUpScreen() {
@@ -60,24 +59,34 @@ export default function SignUpScreen() {
 
       const userId = signUpData.user.id;
 
-      // 3️⃣ Force profile write (bulletproof)
-      const { error: profileError } = await supabase
+      // 3️⃣ UPDATE profile first
+      const { data: updatedProfile, error: updateError } = await supabase
         .from('profiles')
-        .upsert(
-          {
+        .update({
+          full_name: fullName.trim(),
+          role: codeData.role,
+        })
+        .eq('id', userId)
+        .select()
+        .single();
+
+      // 4️⃣ If no row exists → INSERT
+      if (updateError || !updatedProfile) {
+        const { error: insertError } = await supabase
+          .from('profiles')
+          .insert({
             id: userId,
             full_name: fullName.trim(),
             role: codeData.role,
-          },
-          { onConflict: 'id' }
-        );
+          });
 
-      if (profileError) {
-        Alert.alert('Profile error', profileError.message);
-        return;
+        if (insertError) {
+          Alert.alert('Profile error', insertError.message);
+          return;
+        }
       }
 
-      // 4️⃣ Mark access code as used
+      // 5️⃣ Mark access code as used
       await supabase
         .from('access_codes')
         .update({
@@ -86,7 +95,7 @@ export default function SignUpScreen() {
         })
         .eq('id', codeData.id);
 
-      // 5️⃣ Optional audit log
+      // 6️⃣ Optional audit log
       await supabase.from('audit_logs').insert({
         actor_id: userId,
         action: 'USE_ACCESS_CODE',
@@ -94,9 +103,9 @@ export default function SignUpScreen() {
       });
 
       Alert.alert('Success', 'Account created successfully');
+      // ❗ NO ROUTER REDIRECT HERE
+      // AuthContext will handle navigation
 
-      // ✅ CORRECT REDIRECT
-      router.replace('/(tabs)');
     } catch (err) {
       console.error(err);
       Alert.alert('Error', 'Something went wrong');
