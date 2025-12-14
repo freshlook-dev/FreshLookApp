@@ -68,7 +68,10 @@ export default function TabsLayout() {
 
   // ✅ Redirects AFTER hooks
   if (loading) return null;
-  if (!user) return <Redirect href="/(auth)/login" />;
+
+// 🚨 DO NOT redirect from TabsLayout
+if (!user) return null;
+
 
   return (
     <Tabs
