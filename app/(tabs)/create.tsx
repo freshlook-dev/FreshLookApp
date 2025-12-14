@@ -118,6 +118,7 @@ export default function CreateAppointment() {
           value={fullName}
           onChangeText={setFullName}
           placeholder="Emri i klientit"
+          placeholderTextColor="#B5B5B5"
           style={styles.input}
         />
       </View>
@@ -128,7 +129,8 @@ export default function CreateAppointment() {
         <TextInput
           value={phone}
           onChangeText={setPhone}
-          placeholder="+383..."
+          placeholder="04x - xxx - xxx"
+          placeholderTextColor="#B5B5B5"
           keyboardType="phone-pad"
           style={styles.input}
         />
@@ -253,6 +255,7 @@ export default function CreateAppointment() {
           value={comment}
           onChangeText={setComment}
           placeholder="Shënime shtesë, kërkesa speciale, etj."
+          placeholderTextColor="#B5B5B5"
           style={[styles.input, { height: 100, textAlignVertical: 'top' }]}
           multiline
         />
