@@ -27,7 +27,7 @@ type Profile = {
 };
 
 export default function ProfileTab() {
-  const { user, loading: authLoading, logout } = useAuth(); // ✅ added logout
+  const { user, loading: authLoading, logout } = useAuth();
 
   const [profile, setProfile] = useState<Profile | null>(null);
   const [users, setUsers] = useState<Profile[]>([]);
@@ -186,34 +186,37 @@ export default function ProfileTab() {
     }
   };
 
-  /* ================= LOGOUT (FINAL, SAFE FIX) ================= */
+  /* ================= LOGOUT (ONLY CHANGE) ================= */
   const handleLogout = () => {
-  Alert.alert('Logout', 'Are you sure you want to logout?', [
-    { text: 'Cancel', style: 'cancel' },
-    {
-      text: 'Logout',
-      style: 'destructive',
-      onPress: async () => {
-        try {
-          await logout(); // clears AuthContext
-        } catch (e) {
-          console.log('Logout error (safe on web):', e);
-        } finally {
-          if (typeof window !== 'undefined') {
-            // 💻 WEB: hard reset (REQUIRED)
-            window.location.href = '/(auth)/login';
-          } else {
-            // 📱 MOBILE: normal navigation
-            router.replace('/(auth)/login');
+    Alert.alert('Logout', 'Are you sure you want to logout?', [
+      { text: 'Cancel', style: 'cancel' },
+      {
+        text: 'Logout',
+        style: 'destructive',
+        onPress: async () => {
+          try {
+            await logout();
+          } catch (e) {
+            console.log('Logout error (safe):', e);
+          } finally {
+            if (typeof window !== 'undefined') {
+              // 🔥 DESKTOP WEB FIX (Supabase SPA issue)
+              Object.keys(localStorage).forEach((key) => {
+                if (key.startsWith('sb-')) {
+                  localStorage.removeItem(key);
+                }
+              });
+
+              window.location.href = '/(auth)/login';
+            } else {
+              router.replace('/(auth)/login');
+            }
           }
-        }
+        },
       },
-    },
-  ]);
-};
-
-
-  /* =========================================================== */
+    ]);
+  };
+  /* ======================================================= */
 
   if (authLoading || loading) {
     return (
