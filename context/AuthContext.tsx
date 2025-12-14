@@ -21,15 +21,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     let mounted = true;
 
-    // 🔹 Initial session load
     supabase.auth.getSession().then(({ data }) => {
       if (!mounted) return;
-
       setUser(data.session?.user ?? null);
       setLoading(false);
     });
 
-    // 🔹 Listen to auth changes
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((_event, session) => {
