@@ -61,7 +61,7 @@ export default function SignUpScreen() {
 
       const userId = signUpData.user.id;
 
-      /* 3️⃣ UPSERT PROFILE (FIXED) */
+      /* 3️⃣ UPSERT PROFILE */
       const { error: profileError } = await supabase
         .from('profiles')
         .upsert({
@@ -76,13 +76,11 @@ export default function SignUpScreen() {
         return;
       }
 
-      /* 4️⃣ MARK ACCESS CODE AS USED */
+      /* 4️⃣ MARK ACCESS CODE AS USED
+         (used_at is set by DB trigger) */
       const { error: codeUpdateError } = await supabase
         .from('access_codes')
-        .update({
-          used: true,
-          used_at: new Date().toISOString(),
-        })
+        .update({ used: true })
         .eq('id', codeData.id);
 
       if (codeUpdateError) {
@@ -99,7 +97,7 @@ export default function SignUpScreen() {
       });
 
       Alert.alert('Success', 'Account created successfully');
-      // ❗ AuthContext handles navigation
+      // AuthContext handles navigation
 
     } catch (err) {
       console.error(err);
