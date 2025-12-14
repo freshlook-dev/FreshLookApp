@@ -104,32 +104,39 @@ export default function UpcomingAppointments() {
 
   /* 🗑️ DELETE WITH CONFIRMATION + ERROR HANDLING */
   const handleDelete = (id: string) => {
-    Alert.alert(
-      'Delete appointment',
-      'Are you sure you want to delete this appointment? This action cannot be undone.',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Delete',
-          style: 'destructive',
-          onPress: async () => {
-            const { error } = await supabase
-              .from('appointments')
-              .delete()
-              .eq('id', id);
+  Alert.alert(
+    'Delete appointment',
+    'Are you sure you want to delete this appointment? This action cannot be undone.',
+    [
+      { text: 'Cancel', style: 'cancel' },
+      {
+        text: 'Delete',
+        style: 'destructive',
+        onPress: async () => {
+          console.log('Trying to delete:', id);
 
-            if (error) {
-              Alert.alert('Delete failed', error.message);
-              return;
-            }
+          const { error } = await supabase
+            .from('appointments')
+            .delete()
+            .eq('id', id);
 
-            loadData();
-          },
+          if (error) {
+            console.error('DELETE ERROR:', error);
+            Alert.alert(
+              'Delete failed',
+              error.message
+            );
+            return;
+          }
+
+          Alert.alert('Deleted', 'Appointment deleted successfully.');
+          loadData();
         },
-      ],
-      { cancelable: true }
-    );
-  };
+      },
+    ]
+  );
+};
+
 
   if (loading) {
     return (
