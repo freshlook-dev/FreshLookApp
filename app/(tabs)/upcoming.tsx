@@ -27,6 +27,7 @@ type Appointment = {
   service: string;
   appointment_date: string;
   appointment_time: string;
+  location: string | null;
   comment: string | null;
   created_by: string;
   creator_name: string | null;
@@ -77,6 +78,7 @@ export default function UpcomingAppointments() {
         service,
         appointment_date,
         appointment_time,
+        location,
         comment,
         created_by,
         profiles:created_by (
@@ -100,18 +102,33 @@ export default function UpcomingAppointments() {
 
   const canEdit = profile?.role === 'owner' || profile?.role === 'manager';
 
-  const handleDelete = async (id: string) => {
-    Alert.alert('Delete appointment?', 'This action cannot be undone', [
-      { text: 'Cancel', style: 'cancel' },
-      {
-        text: 'Delete',
-        style: 'destructive',
-        onPress: async () => {
-          await supabase.from('appointments').delete().eq('id', id);
-          loadData();
+  /* 🗑️ DELETE WITH CONFIRMATION + ERROR HANDLING */
+  const handleDelete = (id: string) => {
+    Alert.alert(
+      'Delete appointment',
+      'Are you sure you want to delete this appointment? This action cannot be undone.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: async () => {
+            const { error } = await supabase
+              .from('appointments')
+              .delete()
+              .eq('id', id);
+
+            if (error) {
+              Alert.alert('Delete failed', error.message);
+              return;
+            }
+
+            loadData();
+          },
         },
-      },
-    ]);
+      ],
+      { cancelable: true }
+    );
   };
 
   if (loading) {
@@ -136,8 +153,13 @@ export default function UpcomingAppointments() {
             <Text style={styles.service}>{item.service}</Text>
 
             <Text style={styles.datetime}>
-              {formatDate(item.appointment_date)} • {formatTime(item.appointment_time)}
+              {formatDate(item.appointment_date)} •{' '}
+              {formatTime(item.appointment_time)}
             </Text>
+
+            {item.location && (
+              <Text style={styles.location}>📍 {item.location}</Text>
+            )}
 
             <Text style={styles.creator}>
               👤 Created by: {item.creator_name}
@@ -173,14 +195,56 @@ export default function UpcomingAppointments() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, padding: Spacing.lg, backgroundColor: Colors.background },
-  center: { flex: 1, justifyContent: 'center', alignItems: 'center' },
-  client: { fontSize: 16, fontWeight: '700', color: Colors.textPrimary },
-  service: { fontSize: 14, color: Colors.textSecondary },
-  datetime: { marginTop: 4, fontSize: 13, color: Colors.textSecondary },
-  creator: { marginTop: 6, fontSize: 12, color: Colors.textSecondary },
-  comment: { marginTop: 4, fontStyle: 'italic', color: Colors.textSecondary },
-  actions: { flexDirection: 'row', marginTop: Spacing.sm },
-  edit: { marginRight: Spacing.md, color: Colors.accent, fontWeight: '700' },
-  delete: { color: Colors.danger, fontWeight: '700' },
+  container: {
+    flex: 1,
+    padding: Spacing.lg,
+    backgroundColor: Colors.background,
+  },
+  center: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  client: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: Colors.textPrimary,
+  },
+  service: {
+    fontSize: 14,
+    color: Colors.textSecondary,
+  },
+  datetime: {
+    marginTop: 4,
+    fontSize: 13,
+    color: Colors.textSecondary,
+  },
+  location: {
+    marginTop: 4,
+    fontSize: 13,
+    color: Colors.textSecondary,
+  },
+  creator: {
+    marginTop: 6,
+    fontSize: 12,
+    color: Colors.textSecondary,
+  },
+  comment: {
+    marginTop: 4,
+    fontStyle: 'italic',
+    color: Colors.textSecondary,
+  },
+  actions: {
+    flexDirection: 'row',
+    marginTop: Spacing.sm,
+  },
+  edit: {
+    marginRight: Spacing.md,
+    color: Colors.accent,
+    fontWeight: '700',
+  },
+  delete: {
+    color: Colors.danger,
+    fontWeight: '700',
+  },
 });

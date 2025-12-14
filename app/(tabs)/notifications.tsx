@@ -11,6 +11,7 @@ import {
   Pressable,
   Platform,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { supabase } from '../../context/supabase';
 import { useAuth } from '../../context/AuthContext';
@@ -39,6 +40,7 @@ type NotificationItem = {
 
 export default function NotificationsTab() {
   const { user } = useAuth();
+  const insets = useSafeAreaInsets(); // ✅ FIX
 
   const [notifications, setNotifications] = useState<NotificationItem[]>([]);
   const [loading, setLoading] = useState(true);
@@ -125,7 +127,6 @@ export default function NotificationsTab() {
 
   /* 🗑 DELETE (OWNER ONLY) */
   const deleteNotification = async (id: string) => {
-    // 🌐 Web fallback
     if (Platform.OS === 'web') {
       const ok = confirm('Are you sure you want to delete this notification?');
       if (!ok) return;
@@ -182,7 +183,12 @@ export default function NotificationsTab() {
   }
 
   return (
-    <View style={styles.container}>
+    <View
+      style={[
+        styles.container,
+        { paddingTop: Math.max(20, insets.top) }, // ✅ KEY FIX
+      ]}
+    >
       <Text style={styles.pageTitle}>Announcements</Text>
 
       {notifications.length === 0 ? (
@@ -234,7 +240,8 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#FAF8F4',
-    padding: 20,
+    paddingHorizontal: 20,
+    paddingBottom: 20,
   },
   pageTitle: {
     fontSize: 26,

@@ -11,31 +11,37 @@ import {
   KeyboardAvoidingView,
   Platform,
   Image,
+  Alert,
 } from 'react-native';
 import { supabase } from '../../context/supabase';
 import { router } from 'expo-router';
 
-export default function Login() {
+export default function ForgotPassword() {
   const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
 
-  const handleLogin = async () => {
-    if (!email || !password) return;
+  const handleReset = async () => {
+    if (!email) {
+      Alert.alert('Error', 'Please enter your email address');
+      return;
+    }
 
     setLoading(true);
 
-    const { error } = await supabase.auth.signInWithPassword({
-      email,
-      password,
+    const { error } = await supabase.auth.resetPasswordForEmail(email, {
+      redirectTo: `${window.location.origin}/(auth)/reset`,
     });
 
     setLoading(false);
 
     if (error) {
-      alert(error.message);
+      Alert.alert('Error', error.message);
     } else {
-      router.replace('/');
+      Alert.alert(
+        'Email sent',
+        'Check your email for password reset instructions.',
+        [{ text: 'OK', onPress: () => router.back() }]
+      );
     }
   };
 
@@ -57,9 +63,9 @@ export default function Login() {
             resizeMode="contain"
           />
 
-          <Text style={styles.title}>Welcome Back</Text>
+          <Text style={styles.title}>Forgot Password</Text>
           <Text style={styles.subtitle}>
-            Sign in to continue to Fresh Look
+            Enter your email to receive a reset link
           </Text>
         </View>
 
@@ -75,37 +81,20 @@ export default function Login() {
             style={styles.input}
           />
 
-          <TextInput
-            placeholder="Password"
-            placeholderTextColor="#999"
-            secureTextEntry
-            value={password}
-            onChangeText={setPassword}
-            style={styles.input}
-          />
-
-          {/* 🔐 FORGOT PASSWORD */}
-          <Pressable
-            onPress={() => router.push('/(auth)/forgot')}
-            style={{ marginBottom: 10 }}
-          >
-            <Text style={styles.forgot}>Forgot password?</Text>
-          </Pressable>
-
           <Pressable
             style={[styles.button, loading && { opacity: 0.7 }]}
-            onPress={handleLogin}
+            onPress={handleReset}
             disabled={loading}
           >
             <Text style={styles.buttonText}>
-              {loading ? 'Signing in…' : 'Log In'}
+              {loading ? 'Sending…' : 'Send Reset Link'}
             </Text>
           </Pressable>
         </View>
 
-        {/* Footer */}
-        <Pressable onPress={() => router.replace('/(auth)/signup')}>
-          <Text style={styles.link}>Create new account</Text>
+        {/* Back to login */}
+        <Pressable onPress={() => router.back()}>
+          <Text style={styles.link}>Back to login</Text>
         </Pressable>
       </ScrollView>
     </KeyboardAvoidingView>
@@ -141,6 +130,7 @@ const styles = StyleSheet.create({
     marginTop: 6,
     fontSize: 14,
     color: '#7A7A7A',
+    textAlign: 'center',
   },
 
   card: {
@@ -163,13 +153,6 @@ const styles = StyleSheet.create({
     marginBottom: 14,
     backgroundColor: '#FAF8F4',
     color: '#2B2B2B',
-  },
-
-  forgot: {
-    textAlign: 'right',
-    color: '#C9A24D',
-    fontWeight: '600',
-    fontSize: 13,
   },
 
   button: {

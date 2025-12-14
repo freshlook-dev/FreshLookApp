@@ -24,6 +24,8 @@ type Appointment = {
   service: string;
   appointment_date: string;
   appointment_time: string;
+  phone: string | null;
+  location: string | null; // ✅ added
   comment: string | null;
   creator_name: string | null;
 };
@@ -41,7 +43,7 @@ export default function CalendarTab() {
 
   useEffect(() => {
     if (user) {
-      setSelectedDate(today); // ✅ auto-select today
+      setSelectedDate(today);
       loadAppointments();
     }
   }, [user]);
@@ -57,6 +59,8 @@ export default function CalendarTab() {
         service,
         appointment_date,
         appointment_time,
+        phone,
+        location,
         comment,
         profiles:created_by (
           full_name
@@ -84,7 +88,7 @@ export default function CalendarTab() {
     return acc;
   }, {});
 
-  /* 📅 DAILY APPOINTMENTS (earliest → latest) */
+  /* 📅 DAILY APPOINTMENTS */
   const dailyAppointments = appointments
     .filter((a) => a.appointment_date === selectedDate)
     .sort((a, b) =>
@@ -104,22 +108,20 @@ export default function CalendarTab() {
       <SectionTitle>Calendar</SectionTitle>
 
       <Calendar
-        minDate={today} // 🚫 disable past dates
+        minDate={today}
         disableAllTouchEventsForDisabledDays
         markedDates={{
           ...markedDates,
 
-          // 📅 Highlight today (if not selected)
           ...(today && today !== selectedDate && {
             [today]: {
               marked: markedDates[today]?.marked,
               dotColor: Colors.primary,
               selected: true,
-              selectedColor: Colors.primary + '20', // light background
+              selectedColor: Colors.primary + '20',
             },
           }),
 
-          // ✅ Selected date (highest priority)
           ...(selectedDate && {
             [selectedDate]: {
               selected: true,
@@ -133,11 +135,10 @@ export default function CalendarTab() {
           setSelectedDate(day.dateString)
         }
         theme={{
-          todayTextColor: Colors.primary, // ✅ supported
+          todayTextColor: Colors.primary,
         }}
       />
 
-      {/* ℹ️ Empty state */}
       {selectedDate && dailyAppointments.length === 0 && (
         <Text style={styles.empty}>
           No appointments for this day
@@ -156,6 +157,20 @@ export default function CalendarTab() {
             <Text style={styles.time}>
               {formatTime(item.appointment_time)}
             </Text>
+
+            {/* 📞 PHONE */}
+            {item.phone && (
+              <Text style={styles.phone}>
+                📞 {item.phone}
+              </Text>
+            )}
+
+            {/* 📍 LOCATION */}
+            {item.location && (
+              <Text style={styles.location}>
+                📍 {item.location}
+              </Text>
+            )}
 
             <Text style={styles.creator}>👤 {item.creator_name}</Text>
 
@@ -191,6 +206,16 @@ const styles = StyleSheet.create({
   },
   time: {
     marginTop: 4,
+    fontSize: 13,
+    color: Colors.textSecondary,
+  },
+  phone: {
+    marginTop: 4,
+    fontSize: 13,
+    color: Colors.textSecondary,
+  },
+  location: {
+    marginTop: 2,
     fontSize: 13,
     color: Colors.textSecondary,
   },
