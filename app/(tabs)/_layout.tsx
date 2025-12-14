@@ -1,7 +1,47 @@
+import { useEffect, useState } from 'react';
 import { Tabs } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 
+import { supabase } from '../../context/supabase';
+import { useAuth } from '../../context/AuthContext';
+
 export default function TabsLayout() {
+  const { user } = useAuth();
+  const [unreadCount, setUnreadCount] = useState<number>(0);
+
+  /* 🔔 LOAD UNREAD NOTIFICATIONS COUNT */
+  useEffect(() => {
+    if (!user) return;
+
+    const loadUnread = async () => {
+      const { count, error } = await supabase
+        .from('notifications')
+        .select('*', { count: 'exact', head: true })
+        .eq('user_id', user.id)
+        .eq('read', false);
+
+      if (!error) {
+        setUnreadCount(count ?? 0);
+      }
+    };
+
+    loadUnread();
+
+    // 🔄 Realtime updates
+    const channel = supabase
+      .channel('notifications-badge')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'notifications' },
+        () => loadUnread()
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [user]);
+
   return (
     <Tabs
       screenOptions={{
@@ -11,12 +51,11 @@ export default function TabsLayout() {
         tabBarActiveTintColor: '#C9A24D',
         tabBarInactiveTintColor: '#9A9A9A',
 
-        // ✅ SAFE AREA FRIENDLY
         tabBarStyle: {
           backgroundColor: '#FFFFFF',
           borderTopWidth: 0.5,
           borderTopColor: '#EEE',
-          paddingBottom: 8, // 👈 SAFE for iOS + Android + Web
+          paddingBottom: 8,
         },
 
         tabBarLabelStyle: {
@@ -33,7 +72,7 @@ export default function TabsLayout() {
       <Tabs.Screen
         name="index"
         options={{
-          title: 'Home',
+          title: 'Kryefaqja',
           tabBarIcon: ({ color, size, focused }) => (
             <Ionicons
               name={focused ? 'home' : 'home-outline'}
@@ -47,7 +86,7 @@ export default function TabsLayout() {
       <Tabs.Screen
         name="upcoming"
         options={{
-          title: 'Upcoming',
+          title: 'Në ardhje',
           tabBarIcon: ({ color, size, focused }) => (
             <Ionicons
               name={focused ? 'list' : 'list-outline'}
@@ -61,7 +100,7 @@ export default function TabsLayout() {
       <Tabs.Screen
         name="calendar"
         options={{
-          title: 'Calendar',
+          title: 'Kalendari',
           tabBarIcon: ({ color, size, focused }) => (
             <Ionicons
               name={focused ? 'calendar' : 'calendar-outline'}
@@ -75,7 +114,7 @@ export default function TabsLayout() {
       <Tabs.Screen
         name="create"
         options={{
-          title: 'New',
+          title: 'Termin i ri',
           tabBarIcon: ({ color, size, focused }) => (
             <Ionicons
               name={focused ? 'add-circle' : 'add-circle-outline'}
@@ -89,7 +128,13 @@ export default function TabsLayout() {
       <Tabs.Screen
         name="notifications"
         options={{
-          title: 'Announcements',
+          title: 'Njoftime',
+          tabBarBadge: unreadCount > 0 ? unreadCount : undefined,
+          tabBarBadgeStyle: {
+            backgroundColor: '#C0392B',
+            color: '#FFFFFF',
+            fontWeight: '700',
+          },
           tabBarIcon: ({ color, size, focused }) => (
             <Ionicons
               name={focused ? 'megaphone' : 'megaphone-outline'}
@@ -103,7 +148,7 @@ export default function TabsLayout() {
       <Tabs.Screen
         name="profile"
         options={{
-          title: 'Profile',
+          title: 'Profili',
           tabBarIcon: ({ color, size, focused }) => (
             <Ionicons
               name={focused ? 'person' : 'person-outline'}

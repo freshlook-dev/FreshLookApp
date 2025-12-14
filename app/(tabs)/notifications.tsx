@@ -7,6 +7,7 @@ import {
   StyleSheet,
   ActivityIndicator,
   FlatList,
+  Alert,
 } from 'react-native';
 
 import { supabase } from '../../context/supabase';
@@ -21,7 +22,7 @@ type NotificationRow = {
   created_at: string;
   author: {
     full_name: string | null;
-  }[]; // ✅ ARRAY (important)
+  }[];
 };
 
 type NotificationItem = {
@@ -39,7 +40,23 @@ export default function NotificationsTab() {
 
   const [notifications, setNotifications] = useState<NotificationItem[]>([]);
   const [loading, setLoading] = useState(true);
+  const [role, setRole] = useState<'owner' | 'manager' | 'staff'>('staff');
 
+  /* 🔐 LOAD ROLE */
+  useEffect(() => {
+    if (!user) return;
+
+    supabase
+      .from('profiles')
+      .select('role')
+      .eq('id', user.id)
+      .single()
+      .then(({ data }) => {
+        if (data?.role) setRole(data.role);
+      });
+  }, [user]);
+
+  /* 📥 LOAD NOTIFICATIONS */
   useEffect(() => {
     if (!user) {
       setLoading(false);
@@ -47,6 +64,7 @@ export default function NotificationsTab() {
     }
 
     loadNotifications();
+    markAsRead();
   }, [user]);
 
   const loadNotifications = async () => {
@@ -82,7 +100,7 @@ export default function NotificationsTab() {
           title: n.title,
           message: n.message,
           created_at: n.created_at,
-          author_name: n.author?.[0]?.full_name ?? 'Owner', // ✅ FIX
+          author_name: n.author?.[0]?.full_name ?? 'Owner',
         })
       );
 
@@ -92,6 +110,47 @@ export default function NotificationsTab() {
     setLoading(false);
   };
 
+  /* 👁 MARK AS READ */
+  const markAsRead = async () => {
+    if (!user) return;
+
+    await supabase
+      .from('notifications')
+      .update({ read: true })
+      .eq('user_id', user.id)
+      .eq('read', false);
+  };
+
+  /* 🗑 DELETE (OWNER ONLY) */
+  const deleteNotification = (id: string) => {
+    Alert.alert(
+      'Delete announcement',
+      'Are you sure you want to delete this notification?',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: async () => {
+            const { error } = await supabase
+              .from('notifications')
+              .delete()
+              .eq('id', id);
+
+            if (error) {
+              console.error('Delete failed:', error.message);
+              return;
+            }
+
+            setNotifications((prev) =>
+              prev.filter((n) => n.id !== id)
+            );
+          },
+        },
+      ]
+    );
+  };
+
   const formatDateTime = (iso: string) => {
     const d = new Date(iso);
     return `${d.toLocaleDateString()} • ${d.toLocaleTimeString([], {
@@ -99,6 +158,8 @@ export default function NotificationsTab() {
       minute: '2-digit',
     })}`;
   };
+
+  /* ---------------- UI ---------------- */
 
   if (loading) {
     return (
@@ -132,10 +193,21 @@ export default function NotificationsTab() {
               <Text style={styles.message}>{item.message}</Text>
 
               <View style={styles.meta}>
-                <Text style={styles.author}>{item.author_name}</Text>
-                <Text style={styles.time}>
-                  {formatDateTime(item.created_at)}
-                </Text>
+                <View>
+                  <Text style={styles.author}>{item.author_name}</Text>
+                  <Text style={styles.time}>
+                    {formatDateTime(item.created_at)}
+                  </Text>
+                </View>
+
+                {role === 'owner' && (
+                  <Text
+                    style={styles.delete}
+                    onPress={() => deleteNotification(item.id)}
+                  >
+                    Delete
+                  </Text>
+                )}
               </View>
             </View>
           )}
@@ -220,5 +292,10 @@ const styles = StyleSheet.create({
   time: {
     fontSize: 12,
     color: '#7A7A7A',
+  },
+  delete: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#C0392B',
   },
 });
