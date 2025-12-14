@@ -7,46 +7,31 @@ import {
   TextInput,
   Pressable,
   StyleSheet,
-  ActivityIndicator,
   Alert,
+  KeyboardAvoidingView,
+  Platform,
 } from 'react-native';
-import { supabase } from '../../context/supabase';
 import { router } from 'expo-router';
+import { supabase } from '../../context/supabase';
 
 export default function ResetPassword() {
-  const [checking, setChecking] = useState(true);
   const [password, setPassword] = useState('');
-  const [confirm, setConfirm] = useState('');
   const [loading, setLoading] = useState(false);
+  const [validSession, setValidSession] = useState<boolean | null>(null);
 
-  /* 🔑 VERY IMPORTANT: get session from URL */
   useEffect(() => {
-    const init = async () => {
-      const { data, error } = await supabase.auth.getSession();
-
-      if (error || !data.session) {
-        Alert.alert(
-          'Invalid link',
-          'This password reset link is invalid or expired.'
-        );
-        router.replace('/(auth)/login');
-        return;
-      }
-
-      setChecking(false);
+    // Supabase creates a temporary session from the email link
+    const checkSession = async () => {
+      const { data } = await supabase.auth.getSession();
+      setValidSession(!!data.session);
     };
 
-    init();
+    checkSession();
   }, []);
 
-  const handleUpdate = async () => {
+  const updatePassword = async () => {
     if (password.length < 6) {
-      Alert.alert('Error', 'Password must be at least 6 characters');
-      return;
-    }
-
-    if (password !== confirm) {
-      Alert.alert('Error', 'Passwords do not match');
+      Alert.alert('Error', 'Password must be at least 6 characters.');
       return;
     }
 
@@ -60,67 +45,74 @@ export default function ResetPassword() {
 
     if (error) {
       Alert.alert('Error', error.message);
-    } else {
-      Alert.alert('Success', 'Password updated successfully', [
-        {
-          text: 'Login',
-          onPress: () => router.replace('/(auth)/login'),
-        },
-      ]);
+      return;
     }
+
+    Alert.alert(
+      'Success',
+      'Your password has been updated. Please log in.'
+    );
+
+    await supabase.auth.signOut();
+    router.replace('/(auth)/login');
   };
 
-  /* ⏳ Prevent render until session exists */
-  if (checking) {
+  if (validSession === false) {
     return (
-      <View style={styles.center}>
-        <ActivityIndicator size="large" color="#C9A24D" />
-        <Text style={{ marginTop: 10 }}>Checking reset link…</Text>
+      <View style={styles.container}>
+        <Text style={styles.title}>Invalid or expired link</Text>
+        <Text style={styles.subtitle}>
+          Please request a new password reset email.
+        </Text>
+
+        <Pressable
+          style={styles.button}
+          onPress={() => router.replace('/(auth)/login')}
+        >
+          <Text style={styles.buttonText}>Go to login</Text>
+        </Pressable>
       </View>
     );
   }
 
+  if (validSession === null) {
+    return null;
+  }
+
   return (
-    <View style={styles.container}>
-      <Text style={styles.title}>Reset Password</Text>
-
-      <TextInput
-        placeholder="New password"
-        secureTextEntry
-        value={password}
-        onChangeText={setPassword}
-        style={styles.input}
-      />
-
-      <TextInput
-        placeholder="Confirm password"
-        secureTextEntry
-        value={confirm}
-        onChangeText={setConfirm}
-        style={styles.input}
-      />
-
-      <Pressable
-        style={[styles.button, loading && { opacity: 0.7 }]}
-        onPress={handleUpdate}
-        disabled={loading}
-      >
-        <Text style={styles.buttonText}>
-          {loading ? 'Updating…' : 'Update Password'}
+    <KeyboardAvoidingView
+      style={{ flex: 1 }}
+      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+    >
+      <View style={styles.container}>
+        <Text style={styles.title}>Set new password</Text>
+        <Text style={styles.subtitle}>
+          Enter your new password below.
         </Text>
-      </Pressable>
-    </View>
+
+        <TextInput
+          placeholder="New password"
+          secureTextEntry
+          value={password}
+          onChangeText={setPassword}
+          style={styles.input}
+        />
+
+        <Pressable
+          style={[styles.button, loading && { opacity: 0.7 }]}
+          onPress={updatePassword}
+          disabled={loading}
+        >
+          <Text style={styles.buttonText}>
+            {loading ? 'Updating…' : 'Update password'}
+          </Text>
+        </Pressable>
+      </View>
+    </KeyboardAvoidingView>
   );
 }
 
 const styles = StyleSheet.create({
-  center: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: '#FAF8F4',
-  },
-
   container: {
     flex: 1,
     padding: 24,
@@ -130,25 +122,36 @@ const styles = StyleSheet.create({
 
   title: {
     fontSize: 26,
-    fontWeight: '800',
-    marginBottom: 24,
+    fontWeight: '700',
+    color: '#2B2B2B',
+    marginBottom: 6,
     textAlign: 'center',
+  },
+
+  subtitle: {
+    fontSize: 14,
+    color: '#7A7A7A',
+    textAlign: 'center',
+    marginBottom: 24,
   },
 
   input: {
     borderWidth: 1,
     borderColor: '#E6D3A3',
     borderRadius: 12,
-    padding: 14,
-    marginBottom: 12,
-    backgroundColor: '#FFFFFF',
+    paddingVertical: 14,
+    paddingHorizontal: 16,
+    fontSize: 15,
+    marginBottom: 14,
+    backgroundColor: '#FAF8F4',
+    color: '#2B2B2B',
   },
 
   button: {
     backgroundColor: '#C9A24D',
     paddingVertical: 16,
     borderRadius: 14,
-    marginTop: 12,
+    marginTop: 6,
   },
 
   buttonText: {
