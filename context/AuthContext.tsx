@@ -23,16 +23,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     const initAuth = async () => {
       try {
-        const { data, error } = await supabase.auth.getSession();
-
+        const { data } = await supabase.auth.getSession();
         if (!mounted) return;
-
-        if (error) {
-          console.warn('Supabase session error:', error.message);
-          setUser(null);
-        } else {
-          setUser(data.session?.user ?? null);
-        }
+        setUser(data.session?.user ?? null);
       } finally {
         if (mounted) setLoading(false);
       }
@@ -42,8 +35,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     const {
       data: { subscription },
-    } = supabase.auth.onAuthStateChange((_event, session) => {
+    } = supabase.auth.onAuthStateChange((event, session) => {
       if (!mounted) return;
+
+      if (event === 'SIGNED_OUT') {
+        setUser(null); // 🔥 THIS FIXES YOUR ISSUE
+        return;
+      }
+
       setUser(session?.user ?? null);
     });
 

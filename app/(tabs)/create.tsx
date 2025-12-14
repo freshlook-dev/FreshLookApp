@@ -25,6 +25,9 @@ const TREATMENTS = [
   'Depilim me Laser',
   'Largim i Tatuazhit',
   'Plasma Pen',
+  'EMS',
+  'Manikyr',
+  'Microblading',
 ];
 
 const LOCATIONS = ['Prishtinë', 'Fushë Kosovë'];
