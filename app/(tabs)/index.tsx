@@ -5,148 +5,113 @@ import {
   View,
   Text,
   StyleSheet,
-  FlatList,
   ActivityIndicator,
-  Pressable,
-  Alert,
+  FlatList,
 } from 'react-native';
-import { router } from 'expo-router';
 
-import { supabase } from '../../context/supabase';
 import { useAuth } from '../../context/AuthContext';
+import { supabase } from '../../context/supabase';
 
-import { Colors, Spacing } from '../../constants/theme';
 import { Card } from '../../components/Card';
-import { SectionTitle } from '../../components/SectionTitle';
+import { Colors, Spacing } from '../../constants/theme';
 
-type Role = 'owner' | 'manager' | 'staff';
-type DayType = 'today' | 'tomorrow';
+/* ---------- TYPES ---------- */
 
-type Appointment = {
-  id: string;
-  client_name: string;
-  service: string;
-  appointment_date: string;
-  appointment_time: string;
-  comment: string | null;
-  created_by: string;
-  creator_name: string | null;
+type StaffStat = {
+  user_id: string;
+  full_name: string;
+  count: number;
 };
 
-type Profile = {
-  id: string;
-  role: Role;
-};
+/* ---------- SCREEN ---------- */
 
-/* 🔹 FORMATTERS */
-const formatDate = (date: string) => {
-  const d = new Date(date);
-  return `${String(d.getDate()).padStart(2, '0')}.${String(
-    d.getMonth() + 1
-  ).padStart(2, '0')}.${d.getFullYear()}`;
-};
-
-const formatTime = (time: string) => time.slice(0, 5);
-
-/* 🔹 DATE HELPERS */
-const getDateString = (type: DayType) => {
-  const d = new Date();
-  if (type === 'tomorrow') d.setDate(d.getDate() + 1);
-  return d.toISOString().split('T')[0];
-};
-
-export default function UpcomingAppointments() {
+export default function HomeTab() {
   const { user } = useAuth();
 
-  const [appointments, setAppointments] = useState<Appointment[]>([]);
-  const [profile, setProfile] = useState<Profile | null>(null);
+  const [fullName, setFullName] = useState<string>('User');
+  const [totalCount, setTotalCount] = useState(0);
+  const [upcomingCount, setUpcomingCount] = useState(0);
+  const [staffStats, setStaffStats] = useState<StaffStat[]>([]);
   const [loading, setLoading] = useState(true);
-  const [selectedDay, setSelectedDay] = useState<DayType>('today');
 
-  /* 🕛 AUTO RESET AT MIDNIGHT */
   useEffect(() => {
-    const now = new Date();
-    const midnight = new Date();
-    midnight.setHours(24, 0, 0, 0);
+    if (user) loadStats();
+  }, [user]);
 
-    const timeout = midnight.getTime() - now.getTime();
-
-    const timer = setTimeout(() => {
-      loadData();
-    }, timeout);
-
-    return () => clearTimeout(timer);
-  }, [selectedDay]);
-
-  /* 🔁 AUTO REFRESH EVERY 1 MIN */
-  useEffect(() => {
-    if (!user) return;
-
-    loadData(); // initial load
-
-    const interval = setInterval(() => {
-      loadData();
-    }, 60_000); // 1 minute
-
-    return () => clearInterval(interval);
-  }, [user, selectedDay]);
-
-  const loadData = async () => {
+  const loadStats = async () => {
     setLoading(true);
 
-    const date = getDateString(selectedDay);
-
-    const { data: profileData } = await supabase
+    /* 👤 USER FULL NAME */
+    const { data: profile } = await supabase
       .from('profiles')
-      .select('id, role')
+      .select('full_name')
       .eq('id', user!.id)
       .single();
 
-    setProfile(profileData);
+    setFullName(profile?.full_name ?? 'User');
 
-    const { data, error } = await supabase
+    /* 📊 TOTAL APPOINTMENTS CREATED BY USER */
+    const { count: total } = await supabase
       .from('appointments')
-      .select(`
-        id,
-        client_name,
-        service,
-        appointment_date,
-        appointment_time,
-        comment,
+      .select('*', { count: 'exact', head: true })
+      .eq('created_by', user!.id);
+
+    setTotalCount(total ?? 0);
+
+    /* ⏰ UPCOMING APPOINTMENTS */
+    const today = new Date().toISOString().split('T')[0];
+
+    const { count: upcoming } = await supabase
+      .from('appointments')
+      .select('*', { count: 'exact', head: true })
+      .eq('created_by', user!.id)
+      .gte('appointment_date', today);
+
+    setUpcomingCount(upcoming ?? 0);
+
+    /* 📅 MONTHLY STAFF STATS */
+    const firstDayOfMonth = new Date(
+      new Date().getFullYear(),
+      new Date().getMonth(),
+      1
+    )
+      .toISOString()
+      .split('T')[0];
+
+    const { data: monthlyAppointments, error } = await supabase
+      .from('appointments')
+      .select(
+        `
         created_by,
         profiles:created_by (
           full_name
         )
-      `)
-      .eq('appointment_date', date)
-      .order('appointment_time', { ascending: true });
+      `
+      )
+      .gte('created_at', firstDayOfMonth);
 
-    if (!error && data) {
-      setAppointments(
-        data.map((a: any) => ({
-          ...a,
-          creator_name: a.profiles?.full_name ?? 'Unknown',
-        }))
-      );
+    if (!error && monthlyAppointments) {
+      const map: Record<string, StaffStat> = {};
+
+      monthlyAppointments.forEach((a: any) => {
+        const id = a.created_by;
+        const name = a.profiles?.full_name ?? 'Unknown';
+
+        if (!map[id]) {
+          map[id] = {
+            user_id: id,
+            full_name: name,
+            count: 0,
+          };
+        }
+
+        map[id].count += 1;
+      });
+
+      setStaffStats(Object.values(map));
     }
 
     setLoading(false);
-  };
-
-  const canEdit = profile?.role === 'owner' || profile?.role === 'manager';
-
-  const handleDelete = async (id: string) => {
-    Alert.alert('Delete appointment?', 'This action cannot be undone', [
-      { text: 'Cancel', style: 'cancel' },
-      {
-        text: 'Delete',
-        style: 'destructive',
-        onPress: async () => {
-          await supabase.from('appointments').delete().eq('id', id);
-          loadData();
-        },
-      },
-    ]);
   };
 
   if (loading) {
@@ -159,99 +124,111 @@ export default function UpcomingAppointments() {
 
   return (
     <View style={styles.container}>
-      <SectionTitle>
-        {`Upcoming Appointments (${selectedDay === 'today' ? 'Today' : 'Tomorrow'}: ${appointments.length})`}
-      </SectionTitle>
+      {/* HEADER */}
+      <Text style={styles.welcome}>Mirë se vini!</Text>
+      <Text style={styles.name}>{fullName}</Text>
 
-      {/* 🔘 DAY TOGGLE */}
-      <View style={styles.toggle}>
-        <Pressable
-          style={[
-            styles.toggleBtn,
-            selectedDay === 'today' && styles.activeToggle,
-          ]}
-          onPress={() => setSelectedDay('today')}
-        >
-          <Text>Today</Text>
-        </Pressable>
+      {/* USER STATS */}
+      <View style={styles.statsRow}>
+        <Card>
+          <View style={styles.statContent}>
+            <Text style={styles.statNumber}>{upcomingCount}</Text>
+            <Text style={styles.statLabel}>Në ardhje</Text>
+          </View>
+        </Card>
 
-        <Pressable
-          style={[
-            styles.toggleBtn,
-            selectedDay === 'tomorrow' && styles.activeToggle,
-          ]}
-          onPress={() => setSelectedDay('tomorrow')}
-        >
-          <Text>Tomorrow</Text>
-        </Pressable>
+        <Card>
+          <View style={styles.statContent}>
+            <Text style={styles.statNumber}>{totalCount}</Text>
+            <Text style={styles.statLabel}>Terminet e krijuara nga ju</Text>
+          </View>
+        </Card>
       </View>
 
-      {appointments.length === 0 ? (
-        <Text style={styles.empty}>No appointments</Text>
-      ) : (
-        <FlatList
-          data={appointments}
-          keyExtractor={(item) => item.id}
-          contentContainerStyle={{ paddingBottom: 40 }}
-          renderItem={({ item }) => (
-            <Card>
-              <Text style={styles.client}>{item.client_name}</Text>
-              <Text style={styles.service}>{item.service}</Text>
+      {/* MONTHLY STAFF STATS */}
+      <Text style={styles.sectionTitle}>📊 Statistika mujore (stafi)</Text>
 
-              <Text style={styles.datetime}>
-                {formatDate(item.appointment_date)} • {formatTime(item.appointment_time)}
-              </Text>
-
-              {canEdit && (
-                <View style={styles.actions}>
-                  <Pressable
-                    onPress={() =>
-                      router.push({
-                        pathname: '/(tabs)/edit',
-                        params: { id: item.id },
-                      })
-                    }
-                  >
-                    <Text style={styles.edit}>Edit</Text>
-                  </Pressable>
-
-                  <Pressable onPress={() => handleDelete(item.id)}>
-                    <Text style={styles.delete}>Delete</Text>
-                  </Pressable>
-                </View>
-              )}
-            </Card>
-          )}
-        />
-      )}
+      <FlatList
+        data={staffStats}
+        keyExtractor={(item) => item.user_id}
+        showsVerticalScrollIndicator={false}
+        renderItem={({ item }) => (
+          <Card>
+            <View style={styles.staffRow}>
+              <Text style={styles.staffName}>{item.full_name}</Text>
+              <Text style={styles.staffCount}>{item.count}</Text>
+            </View>
+          </Card>
+        )}
+      />
     </View>
   );
 }
 
+/* ---------- STYLES ---------- */
+
 const styles = StyleSheet.create({
-  container: { flex: 1, padding: Spacing.lg, backgroundColor: Colors.background },
-  center: { flex: 1, justifyContent: 'center', alignItems: 'center' },
-  empty: { textAlign: 'center', marginTop: Spacing.lg, color: Colors.textSecondary },
-
-  toggle: {
+  container: {
+    flex: 1,
+    backgroundColor: Colors.background,
+    padding: Spacing.lg,
+  },
+  center: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  welcome: {
+    fontSize: 14,
+    color: Colors.textSecondary,
+  },
+  name: {
+    fontSize: 26,
+    fontWeight: '800',
+    color: Colors.textPrimary,
+    marginBottom: Spacing.lg,
+  },
+  statsRow: {
     flexDirection: 'row',
-    marginVertical: Spacing.md,
+    gap: Spacing.md,
+    marginBottom: Spacing.lg,
   },
-  toggleBtn: {
-    paddingVertical: 6,
-    paddingHorizontal: 16,
-    borderRadius: 20,
-    backgroundColor: Colors.card,
-    marginRight: Spacing.sm,
+  statContent: {
+    alignItems: 'center',
+    paddingVertical: Spacing.md,
+    width: 140,
   },
-  activeToggle: {
-    backgroundColor: Colors.accent,
+  statNumber: {
+    fontSize: 26,
+    fontWeight: '800',
+    color: Colors.primary,
   },
-
-  client: { fontSize: 16, fontWeight: '700' },
-  service: { fontSize: 14, color: Colors.textSecondary },
-  datetime: { marginTop: 4, fontSize: 13 },
-  actions: { flexDirection: 'row', marginTop: Spacing.sm },
-  edit: { marginRight: Spacing.md, color: Colors.accent, fontWeight: '700' },
-  delete: { color: Colors.danger, fontWeight: '700' },
+  statLabel: {
+    marginTop: 4,
+    fontSize: 13,
+    color: Colors.textSecondary,
+    fontWeight: '600',
+    textAlign: 'center',
+  },
+  sectionTitle: {
+    marginBottom: Spacing.sm,
+    fontSize: 16,
+    fontWeight: '700',
+    color: Colors.textPrimary,
+  },
+  staffRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  staffName: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: Colors.textPrimary,
+  },
+  staffCount: {
+    fontSize: 18,
+    fontWeight: '800',
+    color: Colors.primary,
+  },
 });

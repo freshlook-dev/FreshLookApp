@@ -47,9 +47,6 @@ const formatDate = (date: string) => {
 
 const formatTime = (time: string) => time.slice(0, 5);
 
-/* 🔹 TODAY (YYYY-MM-DD) */
-const today = new Date().toISOString().split('T')[0];
-
 export default function UpcomingAppointments() {
   const { user } = useAuth();
 
@@ -64,7 +61,6 @@ export default function UpcomingAppointments() {
   const loadData = async () => {
     setLoading(true);
 
-    /* 🔹 USER ROLE */
     const { data: profileData } = await supabase
       .from('profiles')
       .select('id, role')
@@ -73,7 +69,6 @@ export default function UpcomingAppointments() {
 
     setProfile(profileData);
 
-    /* 🔹 ONLY TODAY'S APPOINTMENTS */
     const { data, error } = await supabase
       .from('appointments')
       .select(`
@@ -88,7 +83,7 @@ export default function UpcomingAppointments() {
           full_name
         )
       `)
-      .eq('appointment_date', today)
+      .order('appointment_date', { ascending: true })
       .order('appointment_time', { ascending: true });
 
     if (!error && data) {
@@ -129,112 +124,63 @@ export default function UpcomingAppointments() {
 
   return (
     <View style={styles.container}>
-      <SectionTitle>
-  {`Upcoming Appointments (Today: ${appointments.length})`}
-</SectionTitle>
+      <SectionTitle>Upcoming Appointments</SectionTitle>
 
+      <FlatList
+        data={appointments}
+        keyExtractor={(item) => item.id}
+        contentContainerStyle={{ paddingBottom: 40 }}
+        renderItem={({ item }) => (
+          <Card>
+            <Text style={styles.client}>{item.client_name}</Text>
+            <Text style={styles.service}>{item.service}</Text>
 
-      {appointments.length === 0 ? (
-        <Text style={styles.empty}>No appointments for today</Text>
-      ) : (
-        <FlatList
-          data={appointments}
-          keyExtractor={(item) => item.id}
-          contentContainerStyle={{ paddingBottom: 40 }}
-          renderItem={({ item }) => (
-            <Card>
-              <Text style={styles.client}>{item.client_name}</Text>
-              <Text style={styles.service}>{item.service}</Text>
+            <Text style={styles.datetime}>
+              {formatDate(item.appointment_date)} • {formatTime(item.appointment_time)}
+            </Text>
 
-              <Text style={styles.datetime}>
-                {formatDate(item.appointment_date)} • {formatTime(item.appointment_time)}
-              </Text>
+            <Text style={styles.creator}>
+              👤 Created by: {item.creator_name}
+            </Text>
 
-              <Text style={styles.creator}>
-                👤 Created by: {item.creator_name}
-              </Text>
+            {item.comment && (
+              <Text style={styles.comment}>📝 {item.comment}</Text>
+            )}
 
-              {item.comment && (
-                <Text style={styles.comment}>📝 {item.comment}</Text>
-              )}
+            {canEdit && (
+              <View style={styles.actions}>
+                <Pressable
+                  onPress={() =>
+                    router.push({
+                      pathname: '/(tabs)/edit',
+                      params: { id: item.id },
+                    })
+                  }
+                >
+                  <Text style={styles.edit}>Edit</Text>
+                </Pressable>
 
-              {canEdit && (
-                <View style={styles.actions}>
-                  <Pressable
-                    onPress={() =>
-                      router.push({
-                        pathname: '/(tabs)/edit',
-                        params: { id: item.id },
-                      })
-                    }
-                  >
-                    <Text style={styles.edit}>Edit</Text>
-                  </Pressable>
-
-                  <Pressable onPress={() => handleDelete(item.id)}>
-                    <Text style={styles.delete}>Delete</Text>
-                  </Pressable>
-                </View>
-              )}
-            </Card>
-          )}
-        />
-      )}
+                <Pressable onPress={() => handleDelete(item.id)}>
+                  <Text style={styles.delete}>Delete</Text>
+                </Pressable>
+              </View>
+            )}
+          </Card>
+        )}
+      />
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    padding: Spacing.lg,
-    backgroundColor: Colors.background,
-  },
-  center: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  empty: {
-    marginTop: Spacing.lg,
-    textAlign: 'center',
-    color: Colors.textSecondary,
-  },
-  client: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: Colors.textPrimary,
-  },
-  service: {
-    fontSize: 14,
-    color: Colors.textSecondary,
-  },
-  datetime: {
-    marginTop: 4,
-    fontSize: 13,
-    color: Colors.textSecondary,
-  },
-  creator: {
-    marginTop: 6,
-    fontSize: 12,
-    color: Colors.textSecondary,
-  },
-  comment: {
-    marginTop: 4,
-    fontStyle: 'italic',
-    color: Colors.textSecondary,
-  },
-  actions: {
-    flexDirection: 'row',
-    marginTop: Spacing.sm,
-  },
-  edit: {
-    marginRight: Spacing.md,
-    color: Colors.accent,
-    fontWeight: '700',
-  },
-  delete: {
-    color: Colors.danger,
-    fontWeight: '700',
-  },
+  container: { flex: 1, padding: Spacing.lg, backgroundColor: Colors.background },
+  center: { flex: 1, justifyContent: 'center', alignItems: 'center' },
+  client: { fontSize: 16, fontWeight: '700', color: Colors.textPrimary },
+  service: { fontSize: 14, color: Colors.textSecondary },
+  datetime: { marginTop: 4, fontSize: 13, color: Colors.textSecondary },
+  creator: { marginTop: 6, fontSize: 12, color: Colors.textSecondary },
+  comment: { marginTop: 4, fontStyle: 'italic', color: Colors.textSecondary },
+  actions: { flexDirection: 'row', marginTop: Spacing.sm },
+  edit: { marginRight: Spacing.md, color: Colors.accent, fontWeight: '700' },
+  delete: { color: Colors.danger, fontWeight: '700' },
 });
