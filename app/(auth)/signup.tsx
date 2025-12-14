@@ -41,17 +41,12 @@ export default function SignUpScreen() {
         .eq('used', false)
         .maybeSingle();
 
-      if (codeError) {
-        Alert.alert('Error', codeError.message);
-        return;
-      }
-
-      if (!codeData) {
+      if (codeError || !codeData) {
         Alert.alert('Invalid code', 'Access code is invalid or already used');
         return;
       }
 
-      // 2️⃣ Create auth user
+      // 2️⃣ Create auth user (AUTO LOGIN)
       const { data: signUpData, error: signUpError } =
         await supabase.auth.signUp({
           email,
@@ -65,17 +60,20 @@ export default function SignUpScreen() {
 
       const userId = signUpData.user.id;
 
-      // 3️⃣ Create / update profile (SAFE)
+      // 3️⃣ Force profile write (bulletproof)
       const { error: profileError } = await supabase
         .from('profiles')
-        .upsert({
-          id: userId,
-          full_name: fullName,
-          role: codeData.role,
-        });
+        .upsert(
+          {
+            id: userId,
+            full_name: fullName.trim(),
+            role: codeData.role,
+          },
+          { onConflict: 'id' }
+        );
 
       if (profileError) {
-        Alert.alert('Error', profileError.message);
+        Alert.alert('Profile error', profileError.message);
         return;
       }
 
@@ -88,19 +86,17 @@ export default function SignUpScreen() {
         })
         .eq('id', codeData.id);
 
-      // 5️⃣ Audit log (optional)
+      // 5️⃣ Optional audit log
       await supabase.from('audit_logs').insert({
         actor_id: userId,
         action: 'USE_ACCESS_CODE',
         target_id: codeData.id,
       });
 
-      Alert.alert(
-        'Success',
-        'Account created successfully. You can now log in.'
-      );
+      Alert.alert('Success', 'Account created successfully');
 
-      router.replace('/(auth)/login');
+      // ✅ CORRECT REDIRECT
+      router.replace('/(tabs)');
     } catch (err) {
       console.error(err);
       Alert.alert('Error', 'Something went wrong');
@@ -119,7 +115,6 @@ export default function SignUpScreen() {
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
       >
-        {/* Header */}
         <View style={styles.header}>
           <Image
             source={require('../../assets/images/logo.png')}
@@ -132,11 +127,9 @@ export default function SignUpScreen() {
           </Text>
         </View>
 
-        {/* Form */}
         <View style={styles.card}>
           <TextInput
             placeholder="Full Name"
-            placeholderTextColor="#999"
             value={fullName}
             onChangeText={setFullName}
             style={styles.input}
@@ -144,7 +137,6 @@ export default function SignUpScreen() {
 
           <TextInput
             placeholder="Email address"
-            placeholderTextColor="#999"
             autoCapitalize="none"
             keyboardType="email-address"
             value={email}
@@ -154,7 +146,6 @@ export default function SignUpScreen() {
 
           <TextInput
             placeholder="Password"
-            placeholderTextColor="#999"
             secureTextEntry
             value={password}
             onChangeText={setPassword}
@@ -163,7 +154,6 @@ export default function SignUpScreen() {
 
           <TextInput
             placeholder="5-digit Access Code"
-            placeholderTextColor="#999"
             keyboardType="number-pad"
             maxLength={5}
             value={accessCode}
@@ -183,13 +173,6 @@ export default function SignUpScreen() {
             )}
           </Pressable>
         </View>
-
-        {/* Footer */}
-        <Pressable onPress={() => router.replace('/(auth)/login')}>
-          <Text style={styles.link}>
-            Already have an account? Log in
-          </Text>
-        </Pressable>
       </ScrollView>
     </KeyboardAvoidingView>
   );
@@ -225,35 +208,24 @@ const styles = StyleSheet.create({
     backgroundColor: '#FFFFFF',
     borderRadius: 18,
     padding: 22,
-    elevation: 3,
   },
   input: {
     borderWidth: 1,
     borderColor: '#E6D3A3',
     borderRadius: 14,
-    paddingVertical: 14,
-    paddingHorizontal: 16,
-    fontSize: 15,
+    padding: 14,
     marginBottom: 14,
     backgroundColor: '#FAF8F4',
-    color: '#2B2B2B',
   },
   button: {
     backgroundColor: '#C9A24D',
     paddingVertical: 16,
     borderRadius: 14,
-    marginTop: 6,
   },
   buttonText: {
     color: '#FFFFFF',
     fontSize: 16,
     fontWeight: '700',
     textAlign: 'center',
-  },
-  link: {
-    marginTop: 26,
-    textAlign: 'center',
-    color: '#C9A24D',
-    fontWeight: '600',
   },
 });
