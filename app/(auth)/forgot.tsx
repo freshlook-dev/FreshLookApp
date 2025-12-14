@@ -15,6 +15,7 @@ import {
 } from 'react-native';
 import { supabase } from '../../context/supabase';
 import { router } from 'expo-router';
+import * as Linking from 'expo-linking';
 
 export default function ForgotPassword() {
   const [email, setEmail] = useState('');
@@ -28,8 +29,11 @@ export default function ForgotPassword() {
 
     setLoading(true);
 
+    // ✅ Universal redirect (web + mobile)
+    const redirectUrl = Linking.createURL('/reset-password');
+
     const { error } = await supabase.auth.resetPasswordForEmail(email, {
-      redirectTo: `${window.location.origin}/(auth)/reset`,
+      redirectTo: redirectUrl,
     });
 
     setLoading(false);
@@ -100,6 +104,8 @@ export default function ForgotPassword() {
     </KeyboardAvoidingView>
   );
 }
+
+/* ---------------- STYLES ---------------- */
 
 const styles = StyleSheet.create({
   container: {
