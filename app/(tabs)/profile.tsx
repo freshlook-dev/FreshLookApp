@@ -187,13 +187,24 @@ export default function ProfileTab() {
   };
 
   /* ================= LOGOUT (FIXED) ================= */
-  const logout = async () => {
-  await supabase.auth.signOut();
-
-  // 🔥 required for Expo Web
-  router.replace('/(auth)/login');
-};
-
+  const logout = () => {
+    Alert.alert('Logout', 'Are you sure you want to logout?', [
+      { text: 'Cancel', style: 'cancel' },
+      {
+        text: 'Logout',
+        style: 'destructive',
+        onPress: async () => {
+          try {
+            await supabase.auth.signOut({ scope: 'local' });
+          } catch (e) {
+            console.log('Logout error:', e);
+          } finally {
+            router.replace('/(auth)/login');
+          }
+        },
+      },
+    ]);
+  };
   /* ================================================= */
 
   if (authLoading || loading) {
