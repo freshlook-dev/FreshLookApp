@@ -32,7 +32,7 @@ export default function SignUpScreen() {
     setLoading(true);
 
     try {
-      // 1️⃣ Validate access code
+      /* 1️⃣ VALIDATE ACCESS CODE */
       const { data: codeData, error: codeError } = await supabase
         .from('access_codes')
         .select('*')
@@ -41,11 +41,12 @@ export default function SignUpScreen() {
         .maybeSingle();
 
       if (codeError || !codeData) {
+        setLoading(false);
         Alert.alert('Invalid code', 'Access code is invalid or already used');
         return;
       }
 
-      // 2️⃣ Create auth user (AUTO LOGIN)
+      /* 2️⃣ CREATE AUTH USER */
       const { data: signUpData, error: signUpError } =
         await supabase.auth.signUp({
           email,
@@ -53,41 +54,30 @@ export default function SignUpScreen() {
         });
 
       if (signUpError || !signUpData.user) {
+        setLoading(false);
         Alert.alert('Signup failed', signUpError?.message || 'Unknown error');
         return;
       }
 
       const userId = signUpData.user.id;
 
-      // 3️⃣ UPDATE profile first
-      const { data: updatedProfile, error: updateError } = await supabase
+      /* 3️⃣ UPSERT PROFILE (FIXED) */
+      const { error: profileError } = await supabase
         .from('profiles')
-        .update({
+        .upsert({
+          id: userId,
           full_name: fullName.trim(),
           role: codeData.role,
-        })
-        .eq('id', userId)
-        .select()
-        .single();
+        });
 
-      // 4️⃣ If no row exists → INSERT
-      if (updateError || !updatedProfile) {
-        const { error: insertError } = await supabase
-          .from('profiles')
-          .insert({
-            id: userId,
-            full_name: fullName.trim(),
-            role: codeData.role,
-          });
-
-        if (insertError) {
-          Alert.alert('Profile error', insertError.message);
-          return;
-        }
+      if (profileError) {
+        setLoading(false);
+        Alert.alert('Profile error', profileError.message);
+        return;
       }
 
-      // 5️⃣ Mark access code as used
-      await supabase
+      /* 4️⃣ MARK ACCESS CODE AS USED */
+      const { error: codeUpdateError } = await supabase
         .from('access_codes')
         .update({
           used: true,
@@ -95,7 +85,13 @@ export default function SignUpScreen() {
         })
         .eq('id', codeData.id);
 
-      // 6️⃣ Optional audit log
+      if (codeUpdateError) {
+        setLoading(false);
+        Alert.alert('Access code error', codeUpdateError.message);
+        return;
+      }
+
+      /* 5️⃣ OPTIONAL AUDIT LOG */
       await supabase.from('audit_logs').insert({
         actor_id: userId,
         action: 'USE_ACCESS_CODE',
@@ -103,8 +99,7 @@ export default function SignUpScreen() {
       });
 
       Alert.alert('Success', 'Account created successfully');
-      // ❗ NO ROUTER REDIRECT HERE
-      // AuthContext will handle navigation
+      // ❗ AuthContext handles navigation
 
     } catch (err) {
       console.error(err);
