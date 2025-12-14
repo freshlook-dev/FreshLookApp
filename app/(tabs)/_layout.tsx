@@ -82,9 +82,9 @@ export default function TabsLayout() {
         // 🔥 PERFECT TAB BAR POSITION (iOS + Android)
         tabBarStyle: {
           backgroundColor: '#FFFFFF',
-          borderTopWidth: 1.0,
+          borderTopWidth: 1.5,
           borderTopColor: '#EEE',
-          height: 70 + insets.bottom,
+          height: 75 + insets.bottom,
           paddingBottom: Math.max(insets.bottom - 6, 8),
         },
 
