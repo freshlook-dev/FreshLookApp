@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Alert, Pressable } from 'react-native';
-import { Tabs } from 'expo-router';
+import { Tabs, Redirect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -52,10 +52,7 @@ export default function TabsLayout() {
 
     setRefreshing(true);
     await loadUnread();
-    Alert.alert(
-      'Updated',
-      'The latest data has been refreshed successfully.'
-    );
+    Alert.alert('Updated', 'The latest data has been refreshed successfully.');
     setRefreshing(false);
   };
 
@@ -69,8 +66,9 @@ export default function TabsLayout() {
     </Pressable>
   );
 
-  // ✅ ONLY wait for auth loading
+  // ✅ Redirects AFTER hooks
   if (loading) return null;
+  if (!user) return <Redirect href="/(auth)/login" />;
 
   return (
     <Tabs
@@ -81,9 +79,10 @@ export default function TabsLayout() {
         tabBarActiveTintColor: '#C9A24D',
         tabBarInactiveTintColor: '#9A9A9A',
 
+        // 🔥 PERFECT TAB BAR POSITION (iOS + Android)
         tabBarStyle: {
           backgroundColor: '#FFFFFF',
-          borderTopWidth: 2,
+          borderTopWidth: 2.0,
           borderTopColor: '#EEE',
           height: 60 + insets.bottom,
           paddingBottom: Math.max(insets.bottom - 6, 8),

@@ -10,43 +10,43 @@ import {
   ScrollView,
   KeyboardAvoidingView,
   Platform,
+  Image,
   Alert,
 } from 'react-native';
-import { router } from 'expo-router';
 import { supabase } from '../../context/supabase';
+import { router } from 'expo-router';
+import * as Linking from 'expo-linking';
 
 export default function ForgotPassword() {
   const [email, setEmail] = useState('');
   const [loading, setLoading] = useState(false);
 
-  const sendResetLink = async () => {
-    if (!email.trim()) {
-      Alert.alert('Error', 'Please enter your email address.');
+  const handleReset = async () => {
+    if (!email) {
+      Alert.alert('Error', 'Please enter your email address');
       return;
     }
 
     setLoading(true);
 
-    const { error } = await supabase.auth.resetPasswordForEmail(
-      email.trim(),
-      {
-        redirectTo: `${window.location.origin}/reset-password`,
-      }
-    );
+    // ✅ Universal redirect (web + mobile)
+    const redirectUrl = Linking.createURL('/reset-password');
+
+    const { error } = await supabase.auth.resetPasswordForEmail(email, {
+      redirectTo: redirectUrl,
+    });
 
     setLoading(false);
 
     if (error) {
       Alert.alert('Error', error.message);
-      return;
+    } else {
+      Alert.alert(
+        'Email sent',
+        'Check your email for password reset instructions.',
+        [{ text: 'OK', onPress: () => router.back() }]
+      );
     }
-
-    Alert.alert(
-      'Email sent',
-      'We have sent you a password reset link. Please check your email.'
-    );
-
-    router.back();
   };
 
   return (
@@ -59,11 +59,21 @@ export default function ForgotPassword() {
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
       >
-        <Text style={styles.title}>Forgot password</Text>
-        <Text style={styles.subtitle}>
-          Enter your email and we’ll send you a reset link.
-        </Text>
+        {/* Header */}
+        <View style={styles.header}>
+          <Image
+            source={require('../../assets/images/logo.png')}
+            style={styles.logo}
+            resizeMode="contain"
+          />
 
+          <Text style={styles.title}>Forgot Password</Text>
+          <Text style={styles.subtitle}>
+            Enter your email to receive a reset link
+          </Text>
+        </View>
+
+        {/* Form */}
         <View style={styles.card}>
           <TextInput
             placeholder="Email address"
@@ -77,22 +87,25 @@ export default function ForgotPassword() {
 
           <Pressable
             style={[styles.button, loading && { opacity: 0.7 }]}
-            onPress={sendResetLink}
+            onPress={handleReset}
             disabled={loading}
           >
             <Text style={styles.buttonText}>
-              {loading ? 'Sending…' : 'Send reset link'}
+              {loading ? 'Sending…' : 'Send Reset Link'}
             </Text>
           </Pressable>
-
-          <Pressable onPress={() => router.back()}>
-            <Text style={styles.back}>Back to login</Text>
-          </Pressable>
         </View>
+
+        {/* Back to login */}
+        <Pressable onPress={() => router.back()}>
+          <Text style={styles.link}>Back to login</Text>
+        </Pressable>
       </ScrollView>
     </KeyboardAvoidingView>
   );
 }
+
+/* ---------------- STYLES ---------------- */
 
 const styles = StyleSheet.create({
   container: {
@@ -102,19 +115,28 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
 
+  header: {
+    alignItems: 'center',
+    marginBottom: 32,
+  },
+
+  logo: {
+    width: 120,
+    height: 120,
+    marginBottom: 16,
+  },
+
   title: {
-    fontSize: 26,
+    fontSize: 28,
     fontWeight: '700',
     color: '#2B2B2B',
-    marginBottom: 6,
-    textAlign: 'center',
   },
 
   subtitle: {
+    marginTop: 6,
     fontSize: 14,
     color: '#7A7A7A',
     textAlign: 'center',
-    marginBottom: 24,
   },
 
   card: {
@@ -143,7 +165,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#C9A24D',
     paddingVertical: 16,
     borderRadius: 14,
-    marginTop: 6,
+    marginTop: 8,
   },
 
   buttonText: {
@@ -153,8 +175,8 @@ const styles = StyleSheet.create({
     fontSize: 16,
   },
 
-  back: {
-    marginTop: 16,
+  link: {
+    marginTop: 24,
     textAlign: 'center',
     color: '#C9A24D',
     fontWeight: '600',
