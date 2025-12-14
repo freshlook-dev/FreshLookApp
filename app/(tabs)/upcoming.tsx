@@ -8,7 +8,6 @@ import {
   FlatList,
   ActivityIndicator,
   TouchableOpacity,
-  Alert,
 } from 'react-native';
 import { router } from 'expo-router';
 
@@ -111,34 +110,6 @@ export default function UpcomingAppointments() {
 
   const canEdit = profile?.role === 'owner' || profile?.role === 'manager';
 
-  const handleDelete = (id: string) => {
-    Alert.alert(
-      'Delete appointment',
-      'Are you sure you want to delete this appointment?',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Delete',
-          style: 'destructive',
-          onPress: async () => {
-            const { error } = await supabase
-              .from('appointments')
-              .delete()
-              .eq('id', id);
-
-            if (error) {
-              Alert.alert('Delete failed', error.message);
-              return;
-            }
-
-            if (!isMounted.current) return;
-            loadData();
-          },
-        },
-      ]
-    );
-  };
-
   if (!user || loading) {
     return (
       <View style={styles.center}>
@@ -172,7 +143,6 @@ export default function UpcomingAppointments() {
               👤 Created by: {item.creator_name}
             </Text>
 
-            {/* 📝 COMMENT */}
             {item.comment && (
               <Text style={styles.comment}>📝 {item.comment}</Text>
             )}
@@ -189,13 +159,6 @@ export default function UpcomingAppointments() {
                   style={styles.actionBtn}
                 >
                   <Text style={styles.edit}>Edit</Text>
-                </TouchableOpacity>
-
-                <TouchableOpacity
-                  onPress={() => handleDelete(item.id)}
-                  style={styles.actionBtn}
-                >
-                  <Text style={styles.delete}>Delete</Text>
                 </TouchableOpacity>
               </View>
             )}
@@ -258,10 +221,6 @@ const styles = StyleSheet.create({
   edit: {
     marginRight: Spacing.md,
     color: Colors.accent,
-    fontWeight: '700',
-  },
-  delete: {
-    color: Colors.danger,
     fontWeight: '700',
   },
 });
