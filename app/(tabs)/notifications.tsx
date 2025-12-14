@@ -122,34 +122,36 @@ export default function NotificationsTab() {
   };
 
   /* 🗑 DELETE (OWNER ONLY) */
-  const deleteNotification = (id: string) => {
-    Alert.alert(
-      'Delete announcement',
-      'Are you sure you want to delete this notification?',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Delete',
-          style: 'destructive',
-          onPress: async () => {
-            const { error } = await supabase
-              .from('notifications')
-              .delete()
-              .eq('id', id);
+ const deleteNotification = (id: string) => {
+  Alert.alert(
+    'Delete announcement',
+    'Are you sure you want to delete this notification?',
+    [
+      { text: 'Cancel', style: 'cancel' },
+      {
+        text: 'Delete',
+        style: 'destructive',
+        onPress: async () => {
+          const { error } = await supabase
+            .from('notifications')
+            .delete()
+            .eq('id', id);
 
-            if (error) {
-              console.error('Delete failed:', error.message);
-              return;
-            }
+          if (error) {
+            Alert.alert('Delete failed', error.message);
+            console.error('Delete failed:', error);
+            return;
+          }
 
-            setNotifications((prev) =>
-              prev.filter((n) => n.id !== id)
-            );
-          },
+          setNotifications((prev) =>
+            prev.filter((n) => n.id !== id)
+          );
         },
-      ]
-    );
-  };
+      },
+    ]
+  );
+};
+
 
   const formatDateTime = (iso: string) => {
     const d = new Date(iso);
