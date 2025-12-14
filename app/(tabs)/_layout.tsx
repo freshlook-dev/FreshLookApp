@@ -1,13 +1,16 @@
 import { useEffect, useState } from 'react';
-import { Alert, Pressable, SafeAreaView, StyleSheet } from 'react-native';
+import { Alert, Pressable } from 'react-native';
 import { Tabs, Redirect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { supabase } from '../../context/supabase';
 import { useAuth } from '../../context/AuthContext';
 
 export default function TabsLayout() {
   const { user, loading } = useAuth();
+  const insets = useSafeAreaInsets();
+
   const [unreadCount, setUnreadCount] = useState<number>(0);
   const [refreshing, setRefreshing] = useState(false);
 
@@ -15,15 +18,13 @@ export default function TabsLayout() {
   const loadUnread = async () => {
     if (!user) return;
 
-    const { count, error } = await supabase
+    const { count } = await supabase
       .from('notifications')
       .select('*', { count: 'exact', head: true })
       .eq('user_id', user.id)
       .eq('read', false);
 
-    if (!error) {
-      setUnreadCount(count ?? 0);
-    }
+    setUnreadCount(count ?? 0);
   };
 
   useEffect(() => {
@@ -51,7 +52,6 @@ export default function TabsLayout() {
 
     setRefreshing(true);
     await loadUnread();
-
     Alert.alert('Updated', 'The latest data has been refreshed successfully.');
     setRefreshing(false);
   };
@@ -71,146 +71,138 @@ export default function TabsLayout() {
   if (!user) return <Redirect href="/(auth)/login" />;
 
   return (
-    <SafeAreaView style={styles.safe}>
-      <Tabs
-        screenOptions={{
-          headerShown: true,
-          headerTitleAlign: 'center',
+    <Tabs
+      screenOptions={{
+        headerShown: true,
+        headerTitleAlign: 'center',
 
-          tabBarActiveTintColor: '#C9A24D',
-          tabBarInactiveTintColor: '#9A9A9A',
+        tabBarActiveTintColor: '#C9A24D',
+        tabBarInactiveTintColor: '#9A9A9A',
 
-          tabBarStyle: {
-            backgroundColor: '#FFFFFF',
-            borderTopWidth: 0.5,
-            borderTopColor: '#EEE',
-            paddingBottom: 8,
-          },
+        // 🔥 PERFECT TAB BAR POSITION (iOS + Android)
+        tabBarStyle: {
+          backgroundColor: '#FFFFFF',
+          borderTopWidth: 0.5,
+          borderTopColor: '#EEE',
+          height: 58 + insets.bottom,
+          paddingBottom: Math.max(insets.bottom - 6, 8),
+        },
 
-          tabBarLabelStyle: {
-            fontSize: 12,
-            fontWeight: '600',
-            marginBottom: 4,
-          },
+        tabBarLabelStyle: {
+          fontSize: 12,
+          fontWeight: '600',
+          marginBottom: 4,
+        },
 
-          tabBarItemStyle: {
-            paddingTop: 6,
-          },
+        tabBarItemStyle: {
+          paddingTop: 6,
+        },
+      }}
+    >
+      <Tabs.Screen
+        name="index"
+        options={{
+          title: 'Kryefaqja',
+          headerRight: () => <RefreshButton />,
+          tabBarIcon: ({ color, size, focused }) => (
+            <Ionicons
+              name={focused ? 'home' : 'home-outline'}
+              size={size}
+              color={color}
+            />
+          ),
         }}
-      >
-        <Tabs.Screen
-          name="index"
-          options={{
-            title: 'Kryefaqja',
-            headerRight: () => <RefreshButton />,
-            tabBarIcon: ({ color, size, focused }) => (
-              <Ionicons
-                name={focused ? 'home' : 'home-outline'}
-                size={size}
-                color={color}
-              />
-            ),
-          }}
-        />
+      />
 
-        <Tabs.Screen
-          name="upcoming"
-          options={{
-            title: 'Në ardhje',
-            headerRight: () => <RefreshButton />,
-            tabBarIcon: ({ color, size, focused }) => (
-              <Ionicons
-                name={focused ? 'list' : 'list-outline'}
-                size={size}
-                color={color}
-              />
-            ),
-          }}
-        />
+      <Tabs.Screen
+        name="upcoming"
+        options={{
+          title: 'Në ardhje',
+          headerRight: () => <RefreshButton />,
+          tabBarIcon: ({ color, size, focused }) => (
+            <Ionicons
+              name={focused ? 'list' : 'list-outline'}
+              size={size}
+              color={color}
+            />
+          ),
+        }}
+      />
 
-        <Tabs.Screen
-          name="calendar"
-          options={{
-            title: 'Kalendari',
-            headerRight: () => <RefreshButton />,
-            tabBarIcon: ({ color, size, focused }) => (
-              <Ionicons
-                name={focused ? 'calendar' : 'calendar-outline'}
-                size={size}
-                color={color}
-              />
-            ),
-          }}
-        />
+      <Tabs.Screen
+        name="calendar"
+        options={{
+          title: 'Kalendari',
+          headerRight: () => <RefreshButton />,
+          tabBarIcon: ({ color, size, focused }) => (
+            <Ionicons
+              name={focused ? 'calendar' : 'calendar-outline'}
+              size={size}
+              color={color}
+            />
+          ),
+        }}
+      />
 
-        <Tabs.Screen
-          name="create"
-          options={{
-            title: 'Termin i ri',
-            headerRight: () => <RefreshButton />,
-            tabBarIcon: ({ color, size, focused }) => (
-              <Ionicons
-                name={focused ? 'add-circle' : 'add-circle-outline'}
-                size={size + 6}
-                color={color}
-              />
-            ),
-          }}
-        />
+      <Tabs.Screen
+        name="create"
+        options={{
+          title: 'Termin i ri',
+          headerRight: () => <RefreshButton />,
+          tabBarIcon: ({ color, size, focused }) => (
+            <Ionicons
+              name={focused ? 'add-circle' : 'add-circle-outline'}
+              size={size + 6}
+              color={color}
+            />
+          ),
+        }}
+      />
 
-        <Tabs.Screen
-          name="notifications"
-          options={{
-            title: 'Njoftime',
-            headerRight: () => <RefreshButton />,
-            tabBarBadge: unreadCount > 0 ? unreadCount : undefined,
-            tabBarBadgeStyle: {
-              backgroundColor: '#C0392B',
-              color: '#FFFFFF',
-              fontWeight: '700',
-            },
-            tabBarIcon: ({ color, size, focused }) => (
-              <Ionicons
-                name={focused ? 'megaphone' : 'megaphone-outline'}
-                size={size}
-                color={color}
-              />
-            ),
-          }}
-        />
+      <Tabs.Screen
+        name="notifications"
+        options={{
+          title: 'Njoftime',
+          headerRight: () => <RefreshButton />,
+          tabBarBadge: unreadCount > 0 ? unreadCount : undefined,
+          tabBarBadgeStyle: {
+            backgroundColor: '#C0392B',
+            color: '#FFFFFF',
+            fontWeight: '700',
+          },
+          tabBarIcon: ({ color, size, focused }) => (
+            <Ionicons
+              name={focused ? 'megaphone' : 'megaphone-outline'}
+              size={size}
+              color={color}
+            />
+          ),
+        }}
+      />
 
-        <Tabs.Screen
-          name="profile"
-          options={{
-            title: 'Profili',
-            headerRight: () => <RefreshButton />,
-            tabBarIcon: ({ color, size, focused }) => (
-              <Ionicons
-                name={focused ? 'person' : 'person-outline'}
-                size={size}
-                color={color}
-              />
-            ),
-          }}
-        />
+      <Tabs.Screen
+        name="profile"
+        options={{
+          title: 'Profili',
+          headerRight: () => <RefreshButton />,
+          tabBarIcon: ({ color, size, focused }) => (
+            <Ionicons
+              name={focused ? 'person' : 'person-outline'}
+              size={size}
+              color={color}
+            />
+          ),
+        }}
+      />
 
-        {/* Hidden edit screen */}
-        <Tabs.Screen
-          name="edit"
-          options={{
-            href: null,
-            title: 'Edit Appointment',
-          }}
-        />
-      </Tabs>
-    </SafeAreaView>
+      {/* Hidden edit screen */}
+      <Tabs.Screen
+        name="edit"
+        options={{
+          href: null,
+          title: 'Edit Appointment',
+        }}
+      />
+    </Tabs>
   );
 }
-
-const styles = StyleSheet.create({
-  safe: {
-    flex: 1,
-    backgroundColor: '#FAF8F4',
-    paddingHorizontal: 16, // ✅ FIXES EDGE ISSUE
-  },
-});
