@@ -7,7 +7,7 @@ import {
   StyleSheet,
   FlatList,
   ActivityIndicator,
-  Pressable,
+  TouchableOpacity,
   Alert,
 } from 'react-native';
 import { router } from 'expo-router';
@@ -102,41 +102,33 @@ export default function UpcomingAppointments() {
 
   const canEdit = profile?.role === 'owner' || profile?.role === 'manager';
 
-  /* 🗑️ DELETE WITH CONFIRMATION + ERROR HANDLING */
+  /* 🗑️ DELETE */
   const handleDelete = (id: string) => {
-  Alert.alert(
-    'Delete appointment',
-    'Are you sure you want to delete this appointment? This action cannot be undone.',
-    [
-      { text: 'Cancel', style: 'cancel' },
-      {
-        text: 'Delete',
-        style: 'destructive',
-        onPress: async () => {
-          console.log('Trying to delete:', id);
+    Alert.alert(
+      'Delete appointment',
+      'Are you sure you want to delete this appointment? This action cannot be undone.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: async () => {
+            const { error } = await supabase
+              .from('appointments')
+              .delete()
+              .eq('id', id);
 
-          const { error } = await supabase
-            .from('appointments')
-            .delete()
-            .eq('id', id);
+            if (error) {
+              Alert.alert('Delete failed', error.message);
+              return;
+            }
 
-          if (error) {
-            console.error('DELETE ERROR:', error);
-            Alert.alert(
-              'Delete failed',
-              error.message
-            );
-            return;
-          }
-
-          Alert.alert('Deleted', 'Appointment deleted successfully.');
-          loadData();
+            loadData();
+          },
         },
-      },
-    ]
-  );
-};
-
+      ]
+    );
+  };
 
   if (loading) {
     return (
@@ -160,8 +152,7 @@ export default function UpcomingAppointments() {
             <Text style={styles.service}>{item.service}</Text>
 
             <Text style={styles.datetime}>
-              {formatDate(item.appointment_date)} •{' '}
-              {formatTime(item.appointment_time)}
+              {formatDate(item.appointment_date)} • {formatTime(item.appointment_time)}
             </Text>
 
             {item.location && (
@@ -178,20 +169,24 @@ export default function UpcomingAppointments() {
 
             {canEdit && (
               <View style={styles.actions}>
-                <Pressable
+                <TouchableOpacity
                   onPress={() =>
                     router.push({
                       pathname: '/(tabs)/edit',
                       params: { id: item.id },
                     })
                   }
+                  style={styles.actionBtn}
                 >
                   <Text style={styles.edit}>Edit</Text>
-                </Pressable>
+                </TouchableOpacity>
 
-                <Pressable onPress={() => handleDelete(item.id)}>
+                <TouchableOpacity
+                  onPress={() => handleDelete(item.id)}
+                  style={styles.actionBtn}
+                >
                   <Text style={styles.delete}>Delete</Text>
-                </Pressable>
+                </TouchableOpacity>
               </View>
             )}
           </Card>
@@ -244,6 +239,10 @@ const styles = StyleSheet.create({
   actions: {
     flexDirection: 'row',
     marginTop: Spacing.sm,
+  },
+  actionBtn: {
+    paddingVertical: 6,
+    paddingHorizontal: 10,
   },
   edit: {
     marginRight: Spacing.md,
