@@ -21,34 +21,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     let mounted = true;
 
-    // 1️⃣ Initial session
-    supabase.auth.getSession().then(({ data, error }) => {
+    // 🔹 Initial session load
+    supabase.auth.getSession().then(({ data }) => {
       if (!mounted) return;
-
-      if (error) {
-        console.log('Session error:', error);
-        setUser(null);
-        setLoading(false);
-        return;
-      }
 
       setUser(data.session?.user ?? null);
       setLoading(false);
     });
 
-    // 2️⃣ Auth state changes
+    // 🔹 Listen to auth changes
     const {
       data: { subscription },
-    } = supabase.auth.onAuthStateChange((event, session) => {
+    } = supabase.auth.onAuthStateChange((_event, session) => {
       if (!mounted) return;
-
-      // Handle invalid refresh token (runtime event)
-      if ((event as string) === 'TOKEN_REFRESH_FAILED') {
-        supabase.auth.signOut();
-        setUser(null);
-        return;
-      }
-
       setUser(session?.user ?? null);
     });
 
