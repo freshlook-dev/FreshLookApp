@@ -123,6 +123,11 @@ export default function EditAppointment() {
   };
 
   const handleSave = async () => {
+    if (!appointmentId) {
+      Alert.alert('Error', 'Missing appointment ID');
+      return;
+    }
+
     if (!fullName || !phone || !treatment || !location || !time) {
       Alert.alert('Gabim', 'Ju lutem plotësoni të gjitha fushat');
       return;
@@ -144,7 +149,8 @@ export default function EditAppointment() {
         location,
         comment: comment || null,
       })
-      .eq('id', appointmentId);
+      .eq('id', appointmentId)
+      .select(); // ✅ FIX: REQUIRED TO AVOID 404
 
     if (error) {
       Alert.alert('Gabim', error.message);
