@@ -27,7 +27,7 @@ type Profile = {
 };
 
 export default function ProfileTab() {
-  const { user, loading: authLoading, logout } = useAuth(); // ✅ FIXED
+  const { user, loading: authLoading, logout } = useAuth();
 
   const [profile, setProfile] = useState<Profile | null>(null);
   const [users, setUsers] = useState<Profile[]>([]);
@@ -45,11 +45,10 @@ export default function ProfileTab() {
   const [sendingNotice, setSendingNotice] = useState(false);
 
   // 🔐 Change password
-const [oldPassword, setOldPassword] = useState('');
-const [newPassword, setNewPassword] = useState('');
-const [confirmPassword, setConfirmPassword] = useState('');
-const [changingPassword, setChangingPassword] = useState(false);
-
+  const [oldPassword, setOldPassword] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [changingPassword, setChangingPassword] = useState(false);
 
   useEffect(() => {
     if (!authLoading && !user) {
@@ -194,63 +193,59 @@ const [changingPassword, setChangingPassword] = useState(false);
   };
 
   const handleChangePassword = async () => {
-  if (!oldPassword || !newPassword || !confirmPassword) {
-    Alert.alert('Error', 'All fields are required');
-    return;
-  }
-
-  if (newPassword.length < 6) {
-    Alert.alert('Error', 'Password must be at least 6 characters');
-    return;
-  }
-
-  if (newPassword !== confirmPassword) {
-    Alert.alert('Error', 'New passwords do not match');
-    return;
-  }
-
-  try {
-    setChangingPassword(true);
-
-    // 🔐 Re-authenticate with old password
-    const { error: signInError } =
-      await supabase.auth.signInWithPassword({
-        email: profile!.email,
-        password: oldPassword,
-      });
-
-    if (signInError) {
-      Alert.alert('Error', 'Old password is incorrect');
+    if (!oldPassword || !newPassword || !confirmPassword) {
+      Alert.alert('Error', 'All fields are required');
       return;
     }
 
-    // 🔑 Update password
-    const { error: updateError } =
-      await supabase.auth.updateUser({
-        password: newPassword,
-      });
-
-    if (updateError) {
-      Alert.alert('Error', updateError.message);
+    if (newPassword.length < 6) {
+      Alert.alert('Error', 'Password must be at least 6 characters');
       return;
     }
 
-    // Optional audit log
-    await supabase.from('audit_logs').insert({
-      actor_id: profile!.id,
-      action: 'CHANGE_PASSWORD',
-    });
+    if (newPassword !== confirmPassword) {
+      Alert.alert('Error', 'New passwords do not match');
+      return;
+    }
 
-    setOldPassword('');
-    setNewPassword('');
-    setConfirmPassword('');
+    try {
+      setChangingPassword(true);
 
-    Alert.alert('Success', 'Password updated successfully');
-  } finally {
-    setChangingPassword(false);
-  }
-};
+      const { error: signInError } =
+        await supabase.auth.signInWithPassword({
+          email: profile!.email,
+          password: oldPassword,
+        });
 
+      if (signInError) {
+        Alert.alert('Error', 'Old password is incorrect');
+        return;
+      }
+
+      const { error: updateError } =
+        await supabase.auth.updateUser({
+          password: newPassword,
+        });
+
+      if (updateError) {
+        Alert.alert('Error', updateError.message);
+        return;
+      }
+
+      await supabase.from('audit_logs').insert({
+        actor_id: profile!.id,
+        action: 'CHANGE_PASSWORD',
+      });
+
+      setOldPassword('');
+      setNewPassword('');
+      setConfirmPassword('');
+
+      Alert.alert('Success', 'Password updated successfully');
+    } finally {
+      setChangingPassword(false);
+    }
+  };
 
   if (authLoading || loading) {
     return (
@@ -269,11 +264,7 @@ const [changingPassword, setChangingPassword] = useState(false);
     );
   }
 
-  
-
   const isOwner = profile.role === 'owner';
-
-  
 
   return (
     <ScrollView
@@ -301,6 +292,45 @@ const [changingPassword, setChangingPassword] = useState(false);
         >
           {profile.role.toUpperCase()}
         </Text>
+      </View>
+
+      {/* 🔐 CHANGE PASSWORD (AVAILABLE FOR ALL USERS) */}
+      <Text style={styles.sectionTitle}>Change Password</Text>
+
+      <View style={styles.card}>
+        <TextInput
+          placeholder="Old password"
+          secureTextEntry
+          value={oldPassword}
+          onChangeText={setOldPassword}
+          style={styles.input}
+        />
+
+        <TextInput
+          placeholder="New password"
+          secureTextEntry
+          value={newPassword}
+          onChangeText={setNewPassword}
+          style={styles.input}
+        />
+
+        <TextInput
+          placeholder="Confirm new password"
+          secureTextEntry
+          value={confirmPassword}
+          onChangeText={setConfirmPassword}
+          style={styles.input}
+        />
+
+        <Pressable
+          onPress={handleChangePassword}
+          disabled={changingPassword}
+          style={styles.primaryButton}
+        >
+          <Text style={styles.primaryButtonText}>
+            {changingPassword ? 'Updating…' : 'Update Password'}
+          </Text>
+        </Pressable>
       </View>
 
       {/* OWNER ONLY */}
@@ -343,46 +373,6 @@ const [changingPassword, setChangingPassword] = useState(false);
               );
             }}
           />
-
-          {/* 🔐 CHANGE PASSWORD */}
-<Text style={styles.sectionTitle}>Change Password</Text>
-
-<View style={styles.card}>
-  <TextInput
-    placeholder="Old password"
-    secureTextEntry
-    value={oldPassword}
-    onChangeText={setOldPassword}
-    style={styles.input}
-  />
-
-  <TextInput
-    placeholder="New password"
-    secureTextEntry
-    value={newPassword}
-    onChangeText={setNewPassword}
-    style={styles.input}
-  />
-
-  <TextInput
-    placeholder="Confirm new password"
-    secureTextEntry
-    value={confirmPassword}
-    onChangeText={setConfirmPassword}
-    style={styles.input}
-  />
-
-  <Pressable
-    onPress={handleChangePassword}
-    disabled={changingPassword}
-    style={styles.primaryButton}
-  >
-    <Text style={styles.primaryButtonText}>
-      {changingPassword ? 'Updating…' : 'Update Password'}
-    </Text>
-  </Pressable>
-</View>
-
 
           <Text style={styles.sectionTitle}>Generate Access Code</Text>
 
@@ -469,11 +459,7 @@ const [changingPassword, setChangingPassword] = useState(false);
 }
 
 /* ================= STYLES ================= */
-/* (UNCHANGED — exactly your original styles) */
-
-/* ================= STYLES ================= */
-
-
+/* UNCHANGED — EXACTLY YOUR ORIGINAL STYLES */
 
 const styles = StyleSheet.create({
   container: {
@@ -647,5 +633,3 @@ const styles = StyleSheet.create({
     color: '#7A7A7A',
   },
 });
-
-
