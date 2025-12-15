@@ -62,7 +62,7 @@ export default function EditAppointment() {
   const [location, setLocation] = useState<string | null>(null);
   const [date, setDate] = useState(new Date());
   const [time, setTime] = useState<string | null>(null);
-  const [comment, setComment] = useState(''); // ✅ NEW
+  const [comment, setComment] = useState('');
 
   const [showDatePicker, setShowDatePicker] = useState(false);
 
@@ -101,7 +101,7 @@ export default function EditAppointment() {
     setLocation(data.location);
     setDate(new Date(data.appointment_date));
     setTime(data.appointment_time);
-    setComment(data.comment ?? ''); // ✅ LOAD COMMENT
+    setComment(data.comment ?? '');
 
     setLoading(false);
   };
@@ -125,7 +125,7 @@ export default function EditAppointment() {
         appointment_date: formatDate(date),
         appointment_time: time,
         location,
-        comment: comment || null, // ✅ SAVE COMMENT
+        comment: comment || null,
       })
       .eq('id', id);
 
@@ -218,20 +218,40 @@ export default function EditAppointment() {
       {/* Date */}
       <View style={styles.card}>
         <Text style={styles.label}>Data</Text>
-        <Pressable onPress={() => setShowDatePicker(true)} style={styles.input}>
-          <Text style={styles.valueText}>{formatDate(date)}</Text>
-        </Pressable>
 
-        {showDatePicker && (
-          <DateTimePicker
-            value={date}
-            mode="date"
-            display={Platform.OS === 'ios' ? 'spinner' : 'default'}
-            onChange={(e, d) => {
-              setShowDatePicker(false);
-              if (d) setDate(d);
+        {Platform.OS === 'web' ? (
+          <input
+            type="date"
+            value={formatDate(date)}
+            onChange={(e) => setDate(new Date(e.target.value))}
+            style={{
+              borderWidth: 1,
+              borderColor: '#E6D3A3',
+              borderRadius: 12,
+              padding: 14,
+              fontSize: 15,
+              backgroundColor: '#FAF8F4',
+              fontFamily: 'inherit',
             }}
           />
+        ) : (
+          <>
+            <Pressable onPress={() => setShowDatePicker(true)} style={styles.input}>
+              <Text style={styles.valueText}>{formatDate(date)}</Text>
+            </Pressable>
+
+            {showDatePicker && (
+              <DateTimePicker
+                value={date}
+                mode="date"
+                display={Platform.OS === 'ios' ? 'spinner' : 'default'}
+                onChange={(_, selectedDate) => {
+                  setShowDatePicker(false);
+                  if (selectedDate) setDate(selectedDate);
+                }}
+              />
+            )}
+          </>
         )}
       </View>
 
