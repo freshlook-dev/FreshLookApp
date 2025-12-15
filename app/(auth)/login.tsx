@@ -86,7 +86,7 @@ export default function Login() {
 
           {/* 🔐 FORGOT PASSWORD */}
           <Pressable
-            onPress={() => router.push('/(auth)/forgot')}
+            onPress={() => router.push('../(auth)/forgot-password')}
             style={{ marginBottom: 10 }}
           >
             <Text style={styles.forgot}>Forgot password?</Text>
