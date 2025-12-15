@@ -9,6 +9,7 @@ import {
   ActivityIndicator,
   TouchableOpacity,
   Alert,
+  Platform,
 } from 'react-native';
 
 import { supabase } from '../../context/supabase';
@@ -46,9 +47,13 @@ export default function UpcomingAppointments() {
 
   const [appointments, setAppointments] = useState<Appointment[]>([]);
   const [loading, setLoading] = useState(true);
+
   const [locationFilter, setLocationFilter] = useState<
     'all' | 'Prishtinë' | 'Fushë Kosovë'
   >('all');
+
+  // ✅ shows button feedback + prevents double click
+  const [processingId, setProcessingId] = useState<string | null>(null);
 
   useEffect(() => {
     return () => {
@@ -86,44 +91,78 @@ export default function UpcomingAppointments() {
 
     const { data, error } = await query;
 
+    if (!isMounted.current) return;
+
     if (error) {
       Alert.alert('Gabim', error.message);
       setLoading(false);
       return;
     }
 
-    if (!isMounted.current) return;
-
-    setAppointments(data ?? []);
+    setAppointments((data ?? []) as Appointment[]);
     setLoading(false);
   };
 
-  const confirmStatus = (id: string, status: Status) => {
+  const askConfirm = (status: Status) => {
     const message =
       status === 'arrived'
         ? 'A jeni të sigurt që klienti ka ardhur?'
         : 'A jeni të sigurt që klienti e ka anuluar termin?';
 
-    Alert.alert('Konfirmim', message, [
-      { text: 'Jo', style: 'cancel' },
-      {
-        text: 'Po',
-        onPress: async () => {
-          const { error } = await supabase
-            .from('appointments')
-            .update({ status })
-            .eq('id', id)
-            .select(); // ✅ REQUIRED FOR RLS
+    // ✅ Web: confirm() is the most reliable
+    if (Platform.OS === 'web') {
+      return Promise.resolve(confirm(message));
+    }
 
-          if (error) {
-            Alert.alert('Gabim', error.message);
-            return;
-          }
+    // ✅ Native: Alert.alert
+    return new Promise<boolean>((resolve) => {
+      Alert.alert('Konfirmim', message, [
+        { text: 'Jo', style: 'cancel', onPress: () => resolve(false) },
+        { text: 'Po', onPress: () => resolve(true) },
+      ]);
+    });
+  };
 
-          setAppointments((prev) => prev.filter((a) => a.id !== id));
-        },
-      },
-    ]);
+  const markStatus = async (id: string, status: Status) => {
+    if (processingId) return;
+
+    const ok = await askConfirm(status);
+    if (!ok) return;
+
+    setProcessingId(id);
+
+    // ✅ Optimistic UI: remove immediately (feels responsive)
+    const prev = appointments;
+    setAppointments((p) => p.filter((a) => a.id !== id));
+
+    const { data, error } = await supabase
+      .from('appointments')
+      .update({ status })
+      .eq('id', id)
+      .eq('archived', false)
+      .eq('status', 'upcoming') // ✅ prevents updating already-processed items
+      .select('id, status'); // ✅ force return under RLS
+
+    if (error) {
+      // rollback UI if failed
+      setAppointments(prev);
+      Alert.alert('Gabim', error.message);
+      setProcessingId(null);
+      return;
+    }
+
+    // If 0 rows updated, tell user why (most common: RLS or missing column or row already changed)
+    if (!data || data.length === 0) {
+      setAppointments(prev);
+      Alert.alert(
+        'Gabim',
+        'Nuk u përditësua asnjë rekord. Kontrollo: kolonën status, politikat RLS, ose nëse termini është ndryshuar më herët.'
+      );
+      setProcessingId(null);
+      return;
+    }
+
+    setProcessingId(null);
   };
 
   if (!user || loading) {
@@ -173,8 +212,7 @@ export default function UpcomingAppointments() {
                 <Text style={styles.service}>{item.service}</Text>
 
                 <Text style={styles.datetime}>
-                  {formatDate(item.appointment_date)} •{' '}
-                  {formatTime(item.appointment_time)}
+                  {formatDate(item.appointment_date)} • {formatTime(item.appointment_time)}
                 </Text>
 
                 {item.location && (
@@ -188,17 +226,31 @@ export default function UpcomingAppointments() {
 
               <View style={styles.sideActions}>
                 <TouchableOpacity
-                  style={[styles.statusBtn, styles.arrived]}
-                  onPress={() => confirmStatus(item.id, 'arrived')}
+                  disabled={processingId === item.id}
+                  style={[
+                    styles.statusBtn,
+                    styles.arrived,
+                    processingId === item.id && styles.disabledBtn,
+                  ]}
+                  onPress={() => markStatus(item.id, 'arrived')}
                 >
-                  <Text style={styles.statusText}>Ka ardhur</Text>
+                  <Text style={styles.statusText}>
+                    {processingId === item.id ? '...' : 'Ka ardhur'}
+                  </Text>
                 </TouchableOpacity>
 
                 <TouchableOpacity
-                  style={[styles.statusBtn, styles.canceled]}
-                  onPress={() => confirmStatus(item.id, 'canceled')}
+                  disabled={processingId === item.id}
+                  style={[
+                    styles.statusBtn,
+                    styles.canceled,
+                    processingId === item.id && styles.disabledBtn,
+                  ]}
+                  onPress={() => markStatus(item.id, 'canceled')}
                 >
-                  <Text style={styles.statusText}>Anulim</Text>
+                  <Text style={styles.statusText}>
+                    {processingId === item.id ? '...' : 'Anulim'}
+                  </Text>
                 </TouchableOpacity>
               </View>
             </View>
@@ -282,12 +334,17 @@ const styles = StyleSheet.create({
     paddingVertical: 6,
     paddingHorizontal: 10,
     borderRadius: 8,
+    minWidth: 84,
+    alignItems: 'center',
   },
   arrived: {
     backgroundColor: '#2ecc71',
   },
   canceled: {
     backgroundColor: '#e74c3c',
+  },
+  disabledBtn: {
+    opacity: 0.6,
   },
   statusText: {
     color: '#fff',
