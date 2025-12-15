@@ -44,6 +44,13 @@ export default function ProfileTab() {
   const [noticeMessage, setNoticeMessage] = useState('');
   const [sendingNotice, setSendingNotice] = useState(false);
 
+  // 🔐 Change password
+const [oldPassword, setOldPassword] = useState('');
+const [newPassword, setNewPassword] = useState('');
+const [confirmPassword, setConfirmPassword] = useState('');
+const [changingPassword, setChangingPassword] = useState(false);
+
+
   useEffect(() => {
     if (!authLoading && !user) {
       router.replace('/(auth)/login');
@@ -186,6 +193,65 @@ export default function ProfileTab() {
     }
   };
 
+  const handleChangePassword = async () => {
+  if (!oldPassword || !newPassword || !confirmPassword) {
+    Alert.alert('Error', 'All fields are required');
+    return;
+  }
+
+  if (newPassword.length < 6) {
+    Alert.alert('Error', 'Password must be at least 6 characters');
+    return;
+  }
+
+  if (newPassword !== confirmPassword) {
+    Alert.alert('Error', 'New passwords do not match');
+    return;
+  }
+
+  try {
+    setChangingPassword(true);
+
+    // 🔐 Re-authenticate with old password
+    const { error: signInError } =
+      await supabase.auth.signInWithPassword({
+        email: profile!.email,
+        password: oldPassword,
+      });
+
+    if (signInError) {
+      Alert.alert('Error', 'Old password is incorrect');
+      return;
+    }
+
+    // 🔑 Update password
+    const { error: updateError } =
+      await supabase.auth.updateUser({
+        password: newPassword,
+      });
+
+    if (updateError) {
+      Alert.alert('Error', updateError.message);
+      return;
+    }
+
+    // Optional audit log
+    await supabase.from('audit_logs').insert({
+      actor_id: profile!.id,
+      action: 'CHANGE_PASSWORD',
+    });
+
+    setOldPassword('');
+    setNewPassword('');
+    setConfirmPassword('');
+
+    Alert.alert('Success', 'Password updated successfully');
+  } finally {
+    setChangingPassword(false);
+  }
+};
+
+
   if (authLoading || loading) {
     return (
       <View style={styles.center}>
@@ -203,7 +269,11 @@ export default function ProfileTab() {
     );
   }
 
+  
+
   const isOwner = profile.role === 'owner';
+
+  
 
   return (
     <ScrollView
@@ -273,6 +343,46 @@ export default function ProfileTab() {
               );
             }}
           />
+
+          {/* 🔐 CHANGE PASSWORD */}
+<Text style={styles.sectionTitle}>Change Password</Text>
+
+<View style={styles.card}>
+  <TextInput
+    placeholder="Old password"
+    secureTextEntry
+    value={oldPassword}
+    onChangeText={setOldPassword}
+    style={styles.input}
+  />
+
+  <TextInput
+    placeholder="New password"
+    secureTextEntry
+    value={newPassword}
+    onChangeText={setNewPassword}
+    style={styles.input}
+  />
+
+  <TextInput
+    placeholder="Confirm new password"
+    secureTextEntry
+    value={confirmPassword}
+    onChangeText={setConfirmPassword}
+    style={styles.input}
+  />
+
+  <Pressable
+    onPress={handleChangePassword}
+    disabled={changingPassword}
+    style={styles.primaryButton}
+  >
+    <Text style={styles.primaryButtonText}>
+      {changingPassword ? 'Updating…' : 'Update Password'}
+    </Text>
+  </Pressable>
+</View>
+
 
           <Text style={styles.sectionTitle}>Generate Access Code</Text>
 
@@ -362,6 +472,8 @@ export default function ProfileTab() {
 /* (UNCHANGED — exactly your original styles) */
 
 /* ================= STYLES ================= */
+
+
 
 const styles = StyleSheet.create({
   container: {
@@ -535,3 +647,5 @@ const styles = StyleSheet.create({
     color: '#7A7A7A',
   },
 });
+
+
