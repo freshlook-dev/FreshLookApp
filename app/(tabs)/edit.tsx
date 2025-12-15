@@ -51,7 +51,10 @@ const TIME_SLOTS = generateTimeSlots();
 type Role = 'owner' | 'manager' | 'staff';
 
 export default function EditAppointment() {
-  const { id } = useLocalSearchParams<{ id: string }>();
+  const params = useLocalSearchParams();
+  const appointmentId =
+    typeof params.id === 'string' ? params.id : params.id?.[0];
+
   const { user } = useAuth();
 
   const [loading, setLoading] = useState(true);
@@ -67,8 +70,8 @@ export default function EditAppointment() {
   const [showDatePicker, setShowDatePicker] = useState(false);
 
   useEffect(() => {
-    if (user && id) loadData();
-  }, [user, id]);
+    if (user && appointmentId) loadData();
+  }, [user, appointmentId]);
 
   const loadData = async () => {
     const { data: profile } = await supabase
@@ -86,7 +89,7 @@ export default function EditAppointment() {
     const { data, error } = await supabase
       .from('appointments')
       .select('*')
-      .eq('id', id)
+      .eq('id', appointmentId)
       .single();
 
     if (error || !data) {
@@ -127,7 +130,7 @@ export default function EditAppointment() {
         location,
         comment: comment || null,
       })
-      .eq('id', id);
+      .eq('id', appointmentId);
 
     if (error) {
       Alert.alert('Gabim', error.message);
@@ -138,7 +141,7 @@ export default function EditAppointment() {
     await supabase.from('audit_logs').insert({
       actor_id: user!.id,
       action: 'UPDATE_APPOINTMENT',
-      target_id: id,
+      target_id: appointmentId,
     });
 
     Alert.alert('Sukses', 'Termini u përditësua');
@@ -162,13 +165,11 @@ export default function EditAppointment() {
     >
       <Text style={styles.title}>Edito Termin</Text>
 
-      {/* Name */}
       <View style={styles.card}>
         <Text style={styles.label}>Emri dhe Mbiemri</Text>
         <TextInput value={fullName} onChangeText={setFullName} style={styles.input} />
       </View>
 
-      {/* Phone */}
       <View style={styles.card}>
         <Text style={styles.label}>Numri kontaktues</Text>
         <TextInput
@@ -179,7 +180,6 @@ export default function EditAppointment() {
         />
       </View>
 
-      {/* Treatment */}
       <View style={styles.card}>
         <Text style={styles.label}>Tretmani</Text>
         {TREATMENTS.map((item) => (
@@ -203,7 +203,6 @@ export default function EditAppointment() {
         ))}
       </View>
 
-      {/* Comment */}
       <View style={styles.card}>
         <Text style={styles.label}>Koment</Text>
         <TextInput
@@ -215,7 +214,6 @@ export default function EditAppointment() {
         />
       </View>
 
-      {/* Date */}
       <View style={styles.card}>
         <Text style={styles.label}>Data</Text>
 
@@ -255,7 +253,6 @@ export default function EditAppointment() {
         )}
       </View>
 
-      {/* Time */}
       <View style={styles.card}>
         <Text style={styles.label}>Ora</Text>
         <View style={styles.timeGrid}>
@@ -281,7 +278,6 @@ export default function EditAppointment() {
         </View>
       </View>
 
-      {/* Location */}
       <View style={styles.card}>
         <Text style={styles.label}>Lokacioni</Text>
         {LOCATIONS.map((loc) => (
