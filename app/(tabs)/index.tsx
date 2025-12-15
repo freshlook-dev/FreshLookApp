@@ -229,7 +229,7 @@ const styles = StyleSheet.create({
   statsRow: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    justifyContent: 'space-between',
+    gap: Spacing.sm,
     marginBottom: Spacing.lg,
   },
   /* SMALL CARDS */
