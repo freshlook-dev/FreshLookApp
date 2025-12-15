@@ -13,13 +13,14 @@ import { router } from 'expo-router';
 import { supabase } from '../../context/supabase';
 import { useAuth } from '../../context/AuthContext';
 
+/* ---------- TYPES ---------- */
+
 type Role = 'owner' | 'manager' | 'staff';
 
 type AuditLogRow = {
   id: string;
   action: string;
   created_at: string;
-  details: any;
   actor_id: string | null;
   target_id: string | null;
 };
@@ -30,10 +31,11 @@ type AuditLog = {
   id: string;
   action: string;
   created_at: string;
-  details: any;
   actorEmail: string;
   targetEmail?: string;
 };
+
+/* ---------- HELPERS ---------- */
 
 const formatDateTime = (iso: string) => {
   const d = new Date(iso);
@@ -42,6 +44,8 @@ const formatDateTime = (iso: string) => {
     minute: '2-digit',
   })}`;
 };
+
+/* ---------- SCREEN ---------- */
 
 export default function AuditLogScreen() {
   const { user } = useAuth();
@@ -57,7 +61,7 @@ export default function AuditLogScreen() {
   const init = async () => {
     setLoading(true);
 
-    // 🔐 Check owner role
+    /* 🔐 OWNER CHECK */
     const { data: profile } = await supabase
       .from('profiles')
       .select('role')
@@ -74,18 +78,18 @@ export default function AuditLogScreen() {
   };
 
   const loadLogs = async () => {
-    // 1️⃣ Load audit logs
+    /* 1️⃣ LOAD AUDIT LOG ROWS */
     const { data: rows, error } = await supabase
       .from('audit_logs')
-      .select('id, action, created_at, details, actor_id, target_id')
+      .select('id, action, created_at, actor_id, target_id')
       .order('created_at', { ascending: false });
 
     if (error || !rows) {
-      console.error(error);
+      console.error('Failed to load audit logs:', error);
       return;
     }
 
-    // 2️⃣ Collect all profile IDs
+    /* 2️⃣ COLLECT PROFILE IDS */
     const profileIds = Array.from(
       new Set(
         rows
@@ -94,7 +98,7 @@ export default function AuditLogScreen() {
       )
     );
 
-    // 3️⃣ Fetch profiles
+    /* 3️⃣ FETCH PROFILE EMAILS */
     const { data: profiles } = await supabase
       .from('profiles')
       .select('id, email')
@@ -105,12 +109,11 @@ export default function AuditLogScreen() {
       profileMap[p.id] = p.email;
     });
 
-    // 4️⃣ Merge data
+    /* 4️⃣ MERGE DATA */
     const formatted: AuditLog[] = rows.map((r) => ({
       id: r.id,
       action: r.action,
       created_at: r.created_at,
-      details: r.details,
       actorEmail: r.actor_id
         ? profileMap[r.actor_id] ?? 'Unknown'
         : 'System',
@@ -121,6 +124,8 @@ export default function AuditLogScreen() {
 
     setLogs(formatted);
   };
+
+  /* ---------- UI ---------- */
 
   if (loading) {
     return (
@@ -160,7 +165,7 @@ export default function AuditLogScreen() {
   );
 }
 
-/* ---------------- STYLES ---------------- */
+/* ---------- STYLES ---------- */
 
 const styles = StyleSheet.create({
   container: {
