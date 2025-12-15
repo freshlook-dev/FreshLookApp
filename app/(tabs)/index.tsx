@@ -54,7 +54,7 @@ export default function HomeTab() {
 
     setFullName(profile?.full_name ?? 'User');
 
-    /* 📊 TOTAL CREATED BY USER (MONTH) */
+    /* 📊 TOTAL CREATED BY USER */
     const { count: total } = await supabase
       .from('appointments')
       .select('*', { count: 'exact', head: true })
@@ -150,38 +150,33 @@ export default function HomeTab() {
       <Text style={styles.welcome}>Mirë se vini!</Text>
       <Text style={styles.name}>{fullName}</Text>
 
-      {/* MAIN STATS */}
-      <View style={styles.statsRow}>
-        <Card>
-          <View style={styles.statContent}>
-            <Text style={styles.statNumber}>{upcomingCount}</Text>
-            <Text style={styles.statLabel}>Terminet Sot</Text>
-          </View>
-        </Card>
-
-        <Card>
-          <View style={styles.statContent}>
-            <Text style={styles.statNumber}>{totalCount}</Text>
-            <Text style={styles.statLabel}>
-              Terminet e krijuara nga ju këtë muaj
-            </Text>
-          </View>
-        </Card>
-      </View>
-
-      {/* LOCATION TODAY (SMALL CARDS) */}
+      {/* ALL 4 CARDS IN ONE ROW */}
       <View style={styles.statsRow}>
         <Card>
           <View style={styles.smallStat}>
+            <Text style={styles.smallNumber}>{upcomingCount}</Text>
+            <Text style={styles.smallLabel}>Sot</Text>
+          </View>
+        </Card>
+
+        <Card>
+          <View style={styles.smallStat}>
+            <Text style={styles.smallNumber}>{totalCount}</Text>
+            <Text style={styles.smallLabel}>Krijuar</Text>
+          </View>
+        </Card>
+
+        <Card>
+          <View style={styles.smallStat}>
             <Text style={styles.smallNumber}>{prishtinaToday}</Text>
-            <Text style={styles.smallLabel}>Prishtinë Sot</Text>
+            <Text style={styles.smallLabel}>Prishtinë</Text>
           </View>
         </Card>
 
         <Card>
           <View style={styles.smallStat}>
             <Text style={styles.smallNumber}>{fusheToday}</Text>
-            <Text style={styles.smallLabel}>Fushë Kosovë Sot</Text>
+            <Text style={styles.smallLabel}>F. Kosovë</Text>
           </View>
         </Card>
       </View>
@@ -233,40 +228,24 @@ const styles = StyleSheet.create({
   },
   statsRow: {
     flexDirection: 'row',
-    gap: Spacing.md,
+    flexWrap: 'wrap',
+    justifyContent: 'space-between',
     marginBottom: Spacing.lg,
-  },
-  statContent: {
-    alignItems: 'center',
-    paddingVertical: Spacing.md,
-    width: 100,
-  },
-  statNumber: {
-    fontSize: 26,
-    fontWeight: '800',
-    color: Colors.primary,
-  },
-  statLabel: {
-    marginTop: 4,
-    fontSize: 13,
-    color: Colors.textSecondary,
-    fontWeight: '600',
-    textAlign: 'center',
   },
   /* SMALL CARDS */
   smallStat: {
     alignItems: 'center',
     paddingVertical: Spacing.sm,
-    width: 100,
+    width: 72,
   },
   smallNumber: {
-    fontSize: 22,
+    fontSize: 20,
     fontWeight: '800',
     color: Colors.primary,
   },
   smallLabel: {
     marginTop: 2,
-    fontSize: 12,
+    fontSize: 11,
     color: Colors.textSecondary,
     fontWeight: '600',
     textAlign: 'center',
