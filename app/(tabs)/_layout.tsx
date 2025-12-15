@@ -180,6 +180,14 @@ export default function TabsLayout() {
           title: 'Manage Users',
         }}
       />
+
+      <Tabs.Screen
+        name="audit-logs"
+        options={{
+          href: null,
+          title: 'Audit Logs',
+        }}
+      />
     </Tabs>
   );
 }

@@ -90,7 +90,7 @@ export default function ManageUsersScreen() {
 
     if (Platform.OS === 'web') {
       const ok = window.confirm(message);
-      if (ok) updateRole(u.id, newRole);
+      if (ok) updateRole(u, newRole);
     } else {
       Alert.alert(
         'Confirm role change',
@@ -99,28 +99,40 @@ export default function ManageUsersScreen() {
           { text: 'Cancel', style: 'cancel' },
           {
             text: 'Confirm',
-            onPress: () => updateRole(u.id, newRole),
+            onPress: () => updateRole(u, newRole),
           },
         ]
       );
     }
   };
 
-  const updateRole = async (userId: string, role: Role) => {
+  const updateRole = async (target: UserRow, newRole: Role) => {
+    // 1️⃣ Update role
     const { error } = await supabase
       .from('profiles')
-      .update({ role })
-      .eq('id', userId);
+      .update({ role: newRole })
+      .eq('id', target.id);
 
     if (error) {
       Alert.alert('Error', error.message);
       return;
     }
 
-    // Reload list
+    // 2️⃣ AUDIT LOG ✅
+    await supabase.from('audit_logs').insert({
+      actor_id: user!.id,
+      action: 'CHANGE_ROLE',
+      target_id: target.id,
+      details: {
+        from: target.role,
+        to: newRole,
+      },
+    });
+
+    // 3️⃣ Update UI state
     setUsers((prev) =>
       prev.map((u) =>
-        u.id === userId ? { ...u, role } : u
+        u.id === target.id ? { ...u, role: newRole } : u
       )
     );
   };
