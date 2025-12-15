@@ -13,20 +13,6 @@ import { router } from 'expo-router';
 import { supabase } from '../../context/supabase';
 import { useAuth } from '../../context/AuthContext';
 
-/* ---------- TYPES ---------- */
-
-type Role = 'owner' | 'manager' | 'staff';
-
-type AuditLogRow = {
-  id: string;
-  action: string;
-  created_at: string;
-  actor_id: string | null;
-  target_id: string | null;
-};
-
-type ProfileMap = Record<string, string>;
-
 type AuditLog = {
   id: string;
   action: string;
@@ -34,8 +20,6 @@ type AuditLog = {
   actorEmail: string;
   targetEmail?: string;
 };
-
-/* ---------- HELPERS ---------- */
 
 const formatDateTime = (iso: string) => {
   const d = new Date(iso);
@@ -45,89 +29,80 @@ const formatDateTime = (iso: string) => {
   })}`;
 };
 
-/* ---------- SCREEN ---------- */
-
 export default function AuditLogScreen() {
   const { user } = useAuth();
 
   const [logs, setLogs] = useState<AuditLog[]>([]);
   const [loading, setLoading] = useState(true);
+  const [isOwner, setIsOwner] = useState<boolean | null>(null);
 
   useEffect(() => {
     if (!user) return;
+
+    const init = async () => {
+      setLoading(true);
+
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('role, email')
+        .eq('id', user.id)
+        .single();
+
+      if (!profile || profile.role !== 'owner') {
+        setIsOwner(false);
+        return;
+      }
+
+      setIsOwner(true);
+
+      const { data: rows } = await supabase
+        .from('audit_logs')
+        .select('id, action, created_at, actor_id, target_id')
+        .order('created_at', { ascending: false });
+
+      if (!rows) {
+        setLogs([]);
+        return;
+      }
+
+      const ids = Array.from(
+        new Set(
+          rows.flatMap(r => [r.actor_id, r.target_id]).filter(Boolean)
+        )
+      ) as string[];
+
+      const { data: profiles } = await supabase
+        .from('profiles')
+        .select('id, email')
+        .in('id', ids);
+
+      const map: Record<string, string> = {};
+      profiles?.forEach(p => (map[p.id] = p.email));
+
+      setLogs(
+        rows.map(r => ({
+          id: r.id,
+          action: r.action,
+          created_at: r.created_at,
+          actorEmail: r.actor_id ? map[r.actor_id] ?? 'Unknown' : 'System',
+          targetEmail: r.target_id ? map[r.target_id] : undefined,
+        }))
+      );
+
+      setLoading(false);
+    };
+
     init();
   }, [user]);
 
-  const init = async () => {
-    setLoading(true);
-
-    /* 🔐 OWNER CHECK */
-    const { data: profile } = await supabase
-      .from('profiles')
-      .select('role')
-      .eq('id', user!.id)
-      .single();
-
-    if (profile?.role !== 'owner') {
+  // 🔁 Redirect AFTER render (safe)
+  useEffect(() => {
+    if (isOwner === false) {
       router.replace('/(tabs)');
-      return;
     }
+  }, [isOwner]);
 
-    await loadLogs();
-    setLoading(false);
-  };
-
-  const loadLogs = async () => {
-    /* 1️⃣ LOAD AUDIT LOG ROWS */
-    const { data: rows, error } = await supabase
-      .from('audit_logs')
-      .select('id, action, created_at, actor_id, target_id')
-      .order('created_at', { ascending: false });
-
-    if (error || !rows) {
-      console.error('Failed to load audit logs:', error);
-      return;
-    }
-
-    /* 2️⃣ COLLECT PROFILE IDS */
-    const profileIds = Array.from(
-      new Set(
-        rows
-          .flatMap((r) => [r.actor_id, r.target_id])
-          .filter(Boolean) as string[]
-      )
-    );
-
-    /* 3️⃣ FETCH PROFILE EMAILS */
-    const { data: profiles } = await supabase
-      .from('profiles')
-      .select('id, email')
-      .in('id', profileIds);
-
-    const profileMap: ProfileMap = {};
-    profiles?.forEach((p) => {
-      profileMap[p.id] = p.email;
-    });
-
-    /* 4️⃣ MERGE DATA */
-    const formatted: AuditLog[] = rows.map((r) => ({
-      id: r.id,
-      action: r.action,
-      created_at: r.created_at,
-      actorEmail: r.actor_id
-        ? profileMap[r.actor_id] ?? 'Unknown'
-        : 'System',
-      targetEmail: r.target_id
-        ? profileMap[r.target_id] ?? undefined
-        : undefined,
-    }));
-
-    setLogs(formatted);
-  };
-
-  /* ---------- UI ---------- */
-
-  if (loading) {
+  if (!user || loading || isOwner === null) {
     return (
       <View style={styles.center}>
         <ActivityIndicator size="large" color="#C9A24D" />
@@ -143,18 +118,13 @@ export default function AuditLogScreen() {
       <FlatList
         data={logs}
         keyExtractor={(item) => item.id}
-        showsVerticalScrollIndicator={false}
-        contentContainerStyle={{ paddingBottom: 30 }}
         renderItem={({ item }) => (
           <View style={styles.card}>
             <Text style={styles.action}>{item.action}</Text>
-
             <Text style={styles.meta}>👤 {item.actorEmail}</Text>
-
             {item.targetEmail && (
               <Text style={styles.meta}>🎯 {item.targetEmail}</Text>
             )}
-
             <Text style={styles.time}>
               {formatDateTime(item.created_at)}
             </Text>
@@ -165,8 +135,6 @@ export default function AuditLogScreen() {
   );
 }
 
-/* ---------- STYLES ---------- */
-
 const styles = StyleSheet.create({
   container: {
     flex: 1,
@@ -176,14 +144,12 @@ const styles = StyleSheet.create({
   pageTitle: {
     fontSize: 26,
     fontWeight: '800',
-    color: '#2B2B2B',
     marginBottom: 16,
   },
   center: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: '#FAF8F4',
   },
   loadingText: {
     marginTop: 10,
@@ -198,7 +164,6 @@ const styles = StyleSheet.create({
   action: {
     fontSize: 15,
     fontWeight: '800',
-    color: '#2B2B2B',
   },
   meta: {
     fontSize: 13,
