@@ -31,8 +31,8 @@ export default function HomeTab() {
   const [fullName, setFullName] = useState<string>('User');
   const [totalCount, setTotalCount] = useState(0);
   const [upcomingCount, setUpcomingCount] = useState(0);
-  const [prishtinaCount, setPrishtinaCount] = useState(0);
-  const [fusheKosoveCount, setFusheKosoveCount] = useState(0);
+  const [prishtinaToday, setPrishtinaToday] = useState(0);
+  const [fusheToday, setFusheToday] = useState(0);
   const [staffStats, setStaffStats] = useState<StaffStat[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -43,6 +43,8 @@ export default function HomeTab() {
   const loadStats = async () => {
     setLoading(true);
 
+    const today = new Date().toISOString().split('T')[0];
+
     /* 👤 USER FULL NAME */
     const { data: profile } = await supabase
       .from('profiles')
@@ -52,7 +54,7 @@ export default function HomeTab() {
 
     setFullName(profile?.full_name ?? 'User');
 
-    /* 📊 TOTAL APPOINTMENTS CREATED BY USER */
+    /* 📊 TOTAL CREATED BY USER (MONTH) */
     const { count: total } = await supabase
       .from('appointments')
       .select('*', { count: 'exact', head: true })
@@ -61,8 +63,6 @@ export default function HomeTab() {
     setTotalCount(total ?? 0);
 
     /* ⏰ TODAY APPOINTMENTS */
-    const today = new Date().toISOString().split('T')[0];
-
     const { count: upcoming } = await supabase
       .from('appointments')
       .select('*', { count: 'exact', head: true })
@@ -70,19 +70,21 @@ export default function HomeTab() {
 
     setUpcomingCount(upcoming ?? 0);
 
-    /* 📍 LOCATION COUNTS */
+    /* 📍 LOCATION COUNTS (TODAY ONLY) */
     const { count: prishtina } = await supabase
       .from('appointments')
       .select('*', { count: 'exact', head: true })
+      .eq('appointment_date', today)
       .eq('location', 'Prishtinë');
 
     const { count: fushe } = await supabase
       .from('appointments')
       .select('*', { count: 'exact', head: true })
+      .eq('appointment_date', today)
       .eq('location', 'Fushë Kosovë');
 
-    setPrishtinaCount(prishtina ?? 0);
-    setFusheKosoveCount(fushe ?? 0);
+    setPrishtinaToday(prishtina ?? 0);
+    setFusheToday(fushe ?? 0);
 
     /* 📅 MONTHLY STAFF STATS */
     const firstDayOfMonth = new Date(
@@ -127,6 +129,13 @@ export default function HomeTab() {
     setLoading(false);
   };
 
+  const renderBadge = (index: number) => {
+    if (index === 0) return '🥇';
+    if (index === 1) return '🥈';
+    if (index === 2) return '🥉';
+    return `${index + 1}.`;
+  };
+
   if (loading) {
     return (
       <View style={styles.center}>
@@ -135,20 +144,13 @@ export default function HomeTab() {
     );
   }
 
-  const renderBadge = (index: number) => {
-    if (index === 0) return '🥇';
-    if (index === 1) return '🥈';
-    if (index === 2) return '🥉';
-    return `${index + 1}.`;
-  };
-
   return (
     <View style={styles.container}>
       {/* HEADER */}
       <Text style={styles.welcome}>Mirë se vini!</Text>
       <Text style={styles.name}>{fullName}</Text>
 
-      {/* USER STATS */}
+      {/* MAIN STATS */}
       <View style={styles.statsRow}>
         <Card>
           <View style={styles.statContent}>
@@ -167,19 +169,19 @@ export default function HomeTab() {
         </Card>
       </View>
 
-      {/* LOCATION STATS */}
+      {/* LOCATION TODAY (SMALL CARDS) */}
       <View style={styles.statsRow}>
         <Card>
-          <View style={styles.statContent}>
-            <Text style={styles.statNumber}>{prishtinaCount}</Text>
-            <Text style={styles.statLabel}>Prishtinë</Text>
+          <View style={styles.smallStat}>
+            <Text style={styles.smallNumber}>{prishtinaToday}</Text>
+            <Text style={styles.smallLabel}>Prishtinë Sot</Text>
           </View>
         </Card>
 
         <Card>
-          <View style={styles.statContent}>
-            <Text style={styles.statNumber}>{fusheKosoveCount}</Text>
-            <Text style={styles.statLabel}>Fushë Kosovë</Text>
+          <View style={styles.smallStat}>
+            <Text style={styles.smallNumber}>{fusheToday}</Text>
+            <Text style={styles.smallLabel}>Fushë Kosovë Sot</Text>
           </View>
         </Card>
       </View>
@@ -247,6 +249,24 @@ const styles = StyleSheet.create({
   statLabel: {
     marginTop: 4,
     fontSize: 13,
+    color: Colors.textSecondary,
+    fontWeight: '600',
+    textAlign: 'center',
+  },
+  /* SMALL CARDS */
+  smallStat: {
+    alignItems: 'center',
+    paddingVertical: Spacing.sm,
+    width: 120,
+  },
+  smallNumber: {
+    fontSize: 22,
+    fontWeight: '800',
+    color: Colors.primary,
+  },
+  smallLabel: {
+    marginTop: 2,
+    fontSize: 12,
     color: Colors.textSecondary,
     fontWeight: '600',
     textAlign: 'center',
