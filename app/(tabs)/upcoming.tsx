@@ -12,6 +12,8 @@ import {
   Platform,
 } from 'react-native';
 
+import { router } from 'expo-router';
+
 import { supabase } from '../../context/supabase';
 import { useAuth } from '../../context/AuthContext';
 
@@ -20,6 +22,7 @@ import { Card } from '../../components/Card';
 import { SectionTitle } from '../../components/SectionTitle';
 
 type Status = 'upcoming' | 'arrived' | 'canceled';
+type Role = 'owner' | 'manager' | 'staff';
 
 type Appointment = {
   id: string;
@@ -29,6 +32,7 @@ type Appointment = {
   appointment_time: string;
   location: string | null;
   comment: string | null;
+  phone: string | null;
   status: Status;
 };
 
@@ -47,12 +51,12 @@ export default function UpcomingAppointments() {
 
   const [appointments, setAppointments] = useState<Appointment[]>([]);
   const [loading, setLoading] = useState(true);
+  const [role, setRole] = useState<Role>('staff');
 
   const [locationFilter, setLocationFilter] = useState<
     'all' | 'Prishtinë' | 'Fushë Kosovë'
   >('all');
 
-  // ✅ shows button feedback + prevents double click
   const [processingId, setProcessingId] = useState<string | null>(null);
 
   useEffect(() => {
@@ -62,8 +66,21 @@ export default function UpcomingAppointments() {
   }, []);
 
   useEffect(() => {
-    if (user) loadData();
+    if (!user) return;
+
+    loadRole();
+    loadData();
   }, [user, locationFilter]);
+
+  const loadRole = async () => {
+    const { data } = await supabase
+      .from('profiles')
+      .select('role')
+      .eq('id', user!.id)
+      .single();
+
+    if (data?.role) setRole(data.role);
+  };
 
   const loadData = async () => {
     setLoading(true);
@@ -78,6 +95,7 @@ export default function UpcomingAppointments() {
         appointment_time,
         location,
         comment,
+        phone,
         status
       `)
       .eq('status', 'upcoming')
@@ -109,12 +127,10 @@ export default function UpcomingAppointments() {
         ? 'A jeni të sigurt që klienti ka ardhur?'
         : 'A jeni të sigurt që klienti e ka anuluar termin?';
 
-    // ✅ Web: confirm() is the most reliable
     if (Platform.OS === 'web') {
       return Promise.resolve(confirm(message));
     }
 
-    // ✅ Native: Alert.alert
     return new Promise<boolean>((resolve) => {
       Alert.alert('Konfirmim', message, [
         { text: 'Jo', style: 'cancel', onPress: () => resolve(false) },
@@ -131,7 +147,6 @@ export default function UpcomingAppointments() {
 
     setProcessingId(id);
 
-    // ✅ Optimistic UI: remove immediately (feels responsive)
     const prev = appointments;
     setAppointments((p) => p.filter((a) => a.id !== id));
 
@@ -139,24 +154,15 @@ export default function UpcomingAppointments() {
       .from('appointments')
       .update({ status })
       .eq('id', id)
+      .eq('status', 'upcoming')
       .eq('archived', false)
-      .eq('status', 'upcoming') // ✅ prevents updating already-processed items
-      .select('id, status'); // ✅ force return under RLS
+      .select('id');
 
-    if (error) {
-      // rollback UI if failed
-      setAppointments(prev);
-      Alert.alert('Gabim', error.message);
-      setProcessingId(null);
-      return;
-    }
-
-    // If 0 rows updated, tell user why (most common: RLS or missing column or row already changed)
-    if (!data || data.length === 0) {
+    if (error || !data || data.length === 0) {
       setAppointments(prev);
       Alert.alert(
         'Gabim',
-        'Nuk u përditësua asnjë rekord. Kontrollo: kolonën status, politikat RLS, ose nëse termini është ndryshuar më herët.'
+        'Nuk u përditësua termini. Kontrollo politikat ose nëse është ndryshuar më herët.'
       );
       setProcessingId(null);
       return;
@@ -164,6 +170,8 @@ export default function UpcomingAppointments() {
 
     setProcessingId(null);
   };
+
+  const canEdit = role === 'owner' || role === 'manager';
 
   if (!user || loading) {
     return (
@@ -212,11 +220,16 @@ export default function UpcomingAppointments() {
                 <Text style={styles.service}>{item.service}</Text>
 
                 <Text style={styles.datetime}>
-                  {formatDate(item.appointment_date)} • {formatTime(item.appointment_time)}
+                  {formatDate(item.appointment_date)} •{' '}
+                  {formatTime(item.appointment_time)}
                 </Text>
 
                 {item.location && (
                   <Text style={styles.location}>📍 {item.location}</Text>
+                )}
+
+                {item.phone && (
+                  <Text style={styles.phone}>📞 {item.phone}</Text>
                 )}
 
                 {item.comment && (
@@ -225,6 +238,20 @@ export default function UpcomingAppointments() {
               </View>
 
               <View style={styles.sideActions}>
+                {canEdit && (
+                  <TouchableOpacity
+                    style={styles.editBtn}
+                    onPress={() =>
+                      router.push({
+                        pathname: '../(tabs)/edit',
+                        params: { id: item.id },
+                      })
+                    }
+                  >
+                    <Text style={styles.editText}>Edit</Text>
+                  </TouchableOpacity>
+                )}
+
                 <TouchableOpacity
                   disabled={processingId === item.id}
                   style={[
@@ -320,6 +347,11 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: Colors.textSecondary,
   },
+  phone: {
+    marginTop: 4,
+    fontSize: 13,
+    color: Colors.textSecondary,
+  },
   comment: {
     marginTop: 6,
     fontSize: 13,
@@ -329,6 +361,17 @@ const styles = StyleSheet.create({
   sideActions: {
     justifyContent: 'center',
     gap: Spacing.sm,
+  },
+  editBtn: {
+    backgroundColor: '#C9A24D',
+    paddingVertical: 6,
+    borderRadius: 8,
+    alignItems: 'center',
+  },
+  editText: {
+    color: '#fff',
+    fontSize: 12,
+    fontWeight: '700',
   },
   statusBtn: {
     paddingVertical: 6,
