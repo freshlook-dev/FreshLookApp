@@ -107,13 +107,14 @@ export default function AuditLogsScreen() {
     setLoading(false);
   };
 
+  // ✅ ONLY CHANGE: load full_name instead of email
   const loadUsers = async () => {
     const { data } = await supabase
       .from('profiles')
-      .select('id, email');
+      .select('id, full_name');
 
     const map: Record<string, string> = {};
-    data?.forEach((u) => (map[u.id] = u.email));
+    data?.forEach((u: any) => (map[u.id] = u.full_name || 'Unknown'));
     setUsers(map);
   };
 
@@ -149,7 +150,7 @@ export default function AuditLogsScreen() {
         keyExtractor={(item) => item.id}
         contentContainerStyle={{ paddingBottom: 30 }}
         renderItem={({ item }) => {
-          const actorEmail =
+          const actorName =
             item.actor_id && users[item.actor_id]
               ? users[item.actor_id]
               : 'System';
@@ -160,7 +161,7 @@ export default function AuditLogsScreen() {
                 {prettyAction(item.action)}
               </Text>
 
-              <Text style={styles.meta}>👤 {actorEmail}</Text>
+              <Text style={styles.meta}>👤 {actorName}</Text>
 
               {renderMetadata(item.metadata)}
 
