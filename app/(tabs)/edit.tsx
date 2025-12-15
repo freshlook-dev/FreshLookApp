@@ -67,6 +67,9 @@ export default function EditAppointment() {
 
   const [showDatePicker, setShowDatePicker] = useState(false);
 
+  // ✅ NEW: store original values for audit diff
+  const [originalData, setOriginalData] = useState<any>(null);
+
   useEffect(() => {
     if (user && appointmentId) loadData();
   }, [user, appointmentId]);
@@ -104,10 +107,44 @@ export default function EditAppointment() {
     setTime(data.appointment_time);
     setComment(data.comment ?? '');
 
+    // ✅ NEW: save original values for audit
+    setOriginalData({
+      client_name: data.client_name,
+      phone: data.phone,
+      service: data.service,
+      appointment_date: data.appointment_date,
+      appointment_time: data.appointment_time,
+      location: data.location,
+      comment: data.comment ?? '',
+    });
+
     setLoading(false);
   };
 
   const formatDate = (d: Date) => d.toISOString().split('T')[0];
+
+  // ✅ NEW: build old → new changes safely
+  const buildChanges = () => {
+    if (!originalData) return null;
+
+    const changes: any = {};
+
+    const compare = (label: string, oldVal: any, newVal: any) => {
+      if (oldVal !== newVal) {
+        changes[label] = { old: oldVal, new: newVal };
+      }
+    };
+
+    compare('Name', originalData.client_name, fullName);
+    compare('Phone', originalData.phone, phone);
+    compare('Treatment', originalData.service, treatment);
+    compare('Date', originalData.appointment_date, formatDate(date));
+    compare('Time', originalData.appointment_time, time);
+    compare('Location', originalData.location, location);
+    compare('Comment', originalData.comment, comment);
+
+    return Object.keys(changes).length > 0 ? changes : null;
+  };
 
   const confirmSave = async () => {
     if (Platform.OS === 'web') {
@@ -150,7 +187,7 @@ export default function EditAppointment() {
         comment: comment || null,
       })
       .eq('id', appointmentId)
-      .select(); // ✅ FIX: REQUIRED TO AVOID 404
+      .select();
 
     if (error) {
       Alert.alert('Gabim', error.message);
@@ -158,11 +195,20 @@ export default function EditAppointment() {
       return;
     }
 
-    await supabase.from('audit_logs').insert({
-      actor_id: user!.id,
-      action: 'UPDATE_APPOINTMENT',
-      target_id: appointmentId,
-    });
+    // ✅ NEW: safe audit logging (cannot break edit)
+    try {
+      await supabase.from('audit_logs').insert({
+        actor_id: user!.id,
+        action: 'UPDATE_APPOINTMENT',
+        target_id: appointmentId,
+        metadata: {
+          source: 'edit.tsx',
+          changed: buildChanges(),
+        },
+      });
+    } catch (e) {
+      console.warn('Audit log failed', e);
+    }
 
     Alert.alert('Sukses', 'Termini u përditësua');
     router.replace('/(tabs)/upcoming');

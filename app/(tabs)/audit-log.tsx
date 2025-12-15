@@ -23,11 +23,6 @@ type AuditLogRow = {
   actor_id: string | null;
 };
 
-type Profile = {
-  id: string;
-  email: string;
-};
-
 /* ================= HELPERS ================= */
 
 const formatDateTime = (iso: string) => {
@@ -49,20 +44,32 @@ const prettyAction = (action: string) => {
   }
 };
 
+// ✅ ONLY THIS PART WAS IMPROVED
 const renderMetadata = (metadata: any) => {
   if (!metadata || typeof metadata !== 'object') return null;
 
-  const entries = Object.entries(metadata);
+  const changes = metadata.changed;
 
+  if (!changes || typeof changes !== 'object') return null;
+
+  const entries = Object.entries(changes);
   if (entries.length === 0) return null;
 
   return (
     <View style={styles.changesBox}>
-      {entries.map(([key, value]) => (
-        <Text key={key} style={styles.changeItem}>
-          • {key}: {typeof value === 'object' ? JSON.stringify(value) : String(value)}
-        </Text>
-      ))}
+      <Text style={[styles.changeItem, { fontWeight: '700', marginBottom: 4 }]}>
+        Changed:
+      </Text>
+
+      {entries.map(([field, value]: any) => {
+        if (!value || typeof value !== 'object') return null;
+
+        return (
+          <Text key={field} style={styles.changeItem}>
+            • {field}: {String(value.old)} → {String(value.new)}
+          </Text>
+        );
+      })}
     </View>
   );
 };
