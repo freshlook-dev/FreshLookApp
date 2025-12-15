@@ -62,19 +62,21 @@ export default function SignUpScreen() {
       const userId = signUpData.user.id;
 
       /* 3️⃣ UPSERT PROFILE */
-      const { error: profileError } = await supabase
-        .from('profiles')
-        .upsert({
-          id: userId,
-          full_name: fullName.trim(),
-          role: codeData.role,
-        });
+const { error: profileError } = await supabase
+  .from('profiles')
+  .upsert({
+    id: userId,
+    email: email.toLowerCase().trim(), // ✅ REQUIRED
+    full_name: fullName.trim(),
+    role: codeData.role,
+  });
 
-      if (profileError) {
-        setLoading(false);
-        Alert.alert('Profile error', profileError.message);
-        return;
-      }
+if (profileError) {
+  setLoading(false);
+  Alert.alert('Profile error', profileError.message);
+  return;
+}
+
 
       /* 4️⃣ MARK ACCESS CODE AS USED
          (used_at is set by DB trigger) */
