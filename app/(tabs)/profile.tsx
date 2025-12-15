@@ -8,6 +8,8 @@ import {
   ActivityIndicator,
   Pressable,
   ScrollView,
+  Alert,
+  Platform,
 } from 'react-native';
 import { router } from 'expo-router';
 
@@ -50,6 +52,26 @@ export default function ProfileTab() {
     setLoading(false);
   };
 
+  const handleLogout = () => {
+    if (Platform.OS === 'web') {
+      const ok = window.confirm('Are you sure you want to logout?');
+      if (ok) logout();
+    } else {
+      Alert.alert(
+        'Logout',
+        'Are you sure you want to logout?',
+        [
+          { text: 'Cancel', style: 'cancel' },
+          {
+            text: 'Logout',
+            style: 'destructive',
+            onPress: logout,
+          },
+        ]
+      );
+    }
+  };
+
   if (authLoading || loading) {
     return (
       <View style={styles.center}>
@@ -90,7 +112,7 @@ export default function ProfileTab() {
       {/* ACTION BUTTONS */}
       <View style={styles.card}>
         <Pressable
-          onPress={() => router.push('/(tabs)/change-password')}
+          onPress={() => router.push('../(tabs)/change-password')}
           style={styles.primaryButton}
         >
           <Text style={styles.primaryButtonText}>Change Password</Text>
@@ -98,7 +120,7 @@ export default function ProfileTab() {
 
         {isOwner && (
           <Pressable
-            onPress={() => router.push('/(tabs)/manage-users')}
+            onPress={() => router.push('../(tabs)/manage-users')}
             style={[styles.primaryButton, { marginTop: 12 }]}
           >
             <Text style={styles.primaryButtonText}>Manage Users</Text>
@@ -107,7 +129,7 @@ export default function ProfileTab() {
       </View>
 
       {/* LOGOUT */}
-      <Pressable onPress={logout} style={styles.logoutButton}>
+      <Pressable onPress={handleLogout} style={styles.logoutButton}>
         <Text style={styles.logoutText}>Logout</Text>
       </Pressable>
     </ScrollView>

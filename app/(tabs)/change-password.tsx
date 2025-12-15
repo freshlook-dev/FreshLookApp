@@ -9,6 +9,7 @@ import {
   Pressable,
   Alert,
   ActivityIndicator,
+  Platform,
 } from 'react-native';
 import { router } from 'expo-router';
 
@@ -25,24 +26,30 @@ export default function ChangePasswordScreen() {
 
   const handleChangePassword = async () => {
     if (!oldPassword || !newPassword || !confirmPassword) {
-      Alert.alert('Error', 'All fields are required');
+      Platform.OS === 'web'
+        ? window.alert('All fields are required')
+        : Alert.alert('Error', 'All fields are required');
       return;
     }
 
     if (newPassword.length < 6) {
-      Alert.alert('Error', 'Password must be at least 6 characters');
+      Platform.OS === 'web'
+        ? window.alert('Password must be at least 6 characters')
+        : Alert.alert('Error', 'Password must be at least 6 characters');
       return;
     }
 
     if (newPassword !== confirmPassword) {
-      Alert.alert('Error', 'Passwords do not match');
+      Platform.OS === 'web'
+        ? window.alert('Passwords do not match')
+        : Alert.alert('Error', 'Passwords do not match');
       return;
     }
 
     try {
       setLoading(true);
 
-      // Re-authenticate
+      // 🔐 Re-authenticate
       const { error: signInError } =
         await supabase.auth.signInWithPassword({
           email: user!.email!,
@@ -50,30 +57,40 @@ export default function ChangePasswordScreen() {
         });
 
       if (signInError) {
-        Alert.alert('Error', 'Old password is incorrect');
+        Platform.OS === 'web'
+          ? window.alert('Old password is incorrect')
+          : Alert.alert('Error', 'Old password is incorrect');
         return;
       }
 
-      // Update password
+      // 🔁 Update password
       const { error } = await supabase.auth.updateUser({
         password: newPassword,
       });
 
       if (error) {
-        Alert.alert('Error', error.message);
+        Platform.OS === 'web'
+          ? window.alert(error.message)
+          : Alert.alert('Error', error.message);
         return;
       }
 
-      Alert.alert(
-        'Success',
-        'Password changed successfully',
-        [
-          {
-            text: 'OK',
-            onPress: () => router.back(),
-          },
-        ]
-      );
+      // ✅ SUCCESS CONFIRMATION + REDIRECT
+      if (Platform.OS === 'web') {
+        window.alert('Password changed successfully');
+        router.replace('/(tabs)/profile');
+      } else {
+        Alert.alert(
+          'Success',
+          'Password changed successfully',
+          [
+            {
+              text: 'OK',
+              onPress: () => router.replace('/(tabs)/profile'),
+            },
+          ]
+        );
+      }
     } finally {
       setLoading(false);
     }
