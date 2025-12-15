@@ -119,12 +119,22 @@ export default function ProfileTab() {
         </Pressable>
 
         {isOwner && (
-          <Pressable
-            onPress={() => router.push('../(tabs)/manage-users')}
-            style={[styles.primaryButton, { marginTop: 12 }]}
-          >
-            <Text style={styles.primaryButtonText}>Manage Users</Text>
-          </Pressable>
+          <>
+            <Pressable
+              onPress={() => router.push('../(tabs)/manage-users')}
+              style={[styles.primaryButton, { marginTop: 12 }]}
+            >
+              <Text style={styles.primaryButtonText}>Manage Users</Text>
+            </Pressable>
+
+            {/* ✅ AUDIT LOGS BUTTON (OWNER ONLY) */}
+            <Pressable
+              onPress={() => router.push('../(tabs)/audit-log')}
+              style={[styles.primaryButton, { marginTop: 12 }]}
+            >
+              <Text style={styles.primaryButtonText}>Audit Logs</Text>
+            </Pressable>
+          </>
         )}
       </View>
 
