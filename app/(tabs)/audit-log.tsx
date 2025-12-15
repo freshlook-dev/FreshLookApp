@@ -13,27 +13,27 @@ import { router } from 'expo-router';
 import { supabase } from '../../context/supabase';
 import { useAuth } from '../../context/AuthContext';
 
-/* ---------------- TYPES ---------------- */
+type Role = 'owner' | 'manager' | 'staff';
 
-type Change = {
-  from: any;
-  to: any;
+type AuditLogRow = {
+  id: string;
+  action: string;
+  created_at: string;
+  details: any;
+  actor_id: string | null;
+  target_id: string | null;
 };
 
-type AuditDetails = {
-  changes?: Record<string, Change>;
-};
+type ProfileMap = Record<string, string>;
 
 type AuditLog = {
   id: string;
   action: string;
   created_at: string;
-  details: AuditDetails | null;
-  actor: { email: string | null }[] | null;
-  target: { email: string | null }[] | null;
+  details: any;
+  actorEmail: string;
+  targetEmail?: string;
 };
-
-/* ---------------- HELPERS ---------------- */
 
 const formatDateTime = (iso: string) => {
   const d = new Date(iso);
@@ -43,29 +43,21 @@ const formatDateTime = (iso: string) => {
   })}`;
 };
 
-const formatValue = (value: any) => {
-  if (value === null || value === undefined) return '—';
-  if (typeof value === 'string') return value;
-  return JSON.stringify(value);
-};
-
-/* ---------------- SCREEN ---------------- */
-
 export default function AuditLogScreen() {
   const { user } = useAuth();
 
   const [logs, setLogs] = useState<AuditLog[]>([]);
   const [loading, setLoading] = useState(true);
-  const [isOwner, setIsOwner] = useState(false);
 
   useEffect(() => {
     if (!user) return;
-    checkRoleAndLoad();
+    init();
   }, [user]);
 
-  const checkRoleAndLoad = async () => {
+  const init = async () => {
     setLoading(true);
 
+    // 🔐 Check owner role
     const { data: profile } = await supabase
       .from('profiles')
       .select('role')
@@ -77,30 +69,57 @@ export default function AuditLogScreen() {
       return;
     }
 
-    setIsOwner(true);
     await loadLogs();
     setLoading(false);
   };
 
   const loadLogs = async () => {
-    const { data, error } = await supabase
+    // 1️⃣ Load audit logs
+    const { data: rows, error } = await supabase
       .from('audit_logs')
-      .select(`
-        id,
-        action,
-        created_at,
-        details,
-        actor:profiles!audit_logs_actor_id_fkey ( email ),
-        target:profiles!audit_logs_target_id_fkey ( email )
-      `)
+      .select('id, action, created_at, details, actor_id, target_id')
       .order('created_at', { ascending: false });
 
-    if (error) {
+    if (error || !rows) {
       console.error(error);
       return;
     }
 
-    setLogs((data ?? []) as AuditLog[]);
+    // 2️⃣ Collect all profile IDs
+    const profileIds = Array.from(
+      new Set(
+        rows
+          .flatMap((r) => [r.actor_id, r.target_id])
+          .filter(Boolean) as string[]
+      )
+    );
+
+    // 3️⃣ Fetch profiles
+    const { data: profiles } = await supabase
+      .from('profiles')
+      .select('id, email')
+      .in('id', profileIds);
+
+    const profileMap: ProfileMap = {};
+    profiles?.forEach((p) => {
+      profileMap[p.id] = p.email;
+    });
+
+    // 4️⃣ Merge data
+    const formatted: AuditLog[] = rows.map((r) => ({
+      id: r.id,
+      action: r.action,
+      created_at: r.created_at,
+      details: r.details,
+      actorEmail: r.actor_id
+        ? profileMap[r.actor_id] ?? 'Unknown'
+        : 'System',
+      targetEmail: r.target_id
+        ? profileMap[r.target_id] ?? undefined
+        : undefined,
+    }));
+
+    setLogs(formatted);
   };
 
   if (loading) {
@@ -112,8 +131,6 @@ export default function AuditLogScreen() {
     );
   }
 
-  if (!isOwner) return null;
-
   return (
     <View style={styles.container}>
       <Text style={styles.pageTitle}>Audit Log</Text>
@@ -123,43 +140,21 @@ export default function AuditLogScreen() {
         keyExtractor={(item) => item.id}
         showsVerticalScrollIndicator={false}
         contentContainerStyle={{ paddingBottom: 30 }}
-        renderItem={({ item }) => {
-          const changes = item.details?.changes;
+        renderItem={({ item }) => (
+          <View style={styles.card}>
+            <Text style={styles.action}>{item.action}</Text>
 
-          return (
-            <View style={styles.card}>
-              <Text style={styles.action}>{item.action}</Text>
+            <Text style={styles.meta}>👤 {item.actorEmail}</Text>
 
-              <Text style={styles.meta}>
-                👤 {item.actor?.[0]?.email ?? 'System'}
-              </Text>
+            {item.targetEmail && (
+              <Text style={styles.meta}>🎯 {item.targetEmail}</Text>
+            )}
 
-              {item.target?.[0]?.email && (
-                <Text style={styles.meta}>
-                  🎯 {item.target[0].email}
-                </Text>
-              )}
-
-              {/* 🔍 WHAT CHANGED */}
-              {changes && (
-                <View style={styles.changesBox}>
-                  {Object.entries(changes).map(
-                    ([field, { from, to }]) => (
-                      <Text key={field} style={styles.changeLine}>
-                        • {field}: {formatValue(from)} →{' '}
-                        {formatValue(to)}
-                      </Text>
-                    )
-                  )}
-                </View>
-              )}
-
-              <Text style={styles.time}>
-                {formatDateTime(item.created_at)}
-              </Text>
-            </View>
-          );
-        }}
+            <Text style={styles.time}>
+              {formatDateTime(item.created_at)}
+            </Text>
+          </View>
+        )}
       />
     </View>
   );
@@ -204,17 +199,6 @@ const styles = StyleSheet.create({
     fontSize: 13,
     marginTop: 4,
     color: '#555',
-  },
-  changesBox: {
-    marginTop: 8,
-    paddingTop: 6,
-    borderTopWidth: 1,
-    borderTopColor: '#EEE',
-  },
-  changeLine: {
-    fontSize: 13,
-    color: '#2B2B2B',
-    marginTop: 2,
   },
   time: {
     fontSize: 12,
