@@ -182,7 +182,7 @@ export default function TabsLayout() {
       />
 
       <Tabs.Screen
-        name="audit-logs"
+        name="audit-log"
         options={{
           href: null,
           title: 'Audit Logs',
