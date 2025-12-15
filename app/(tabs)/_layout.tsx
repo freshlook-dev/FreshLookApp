@@ -1,57 +1,22 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { Alert, Pressable } from 'react-native';
 import { Tabs, Redirect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { supabase } from '../../context/supabase';
 import { useAuth } from '../../context/AuthContext';
 
 export default function TabsLayout() {
   const { user, loading } = useAuth();
   const insets = useSafeAreaInsets();
 
-  const [unreadCount, setUnreadCount] = useState<number>(0);
   const [refreshing, setRefreshing] = useState(false);
-
-  /* 🔔 LOAD UNREAD NOTIFICATIONS COUNT */
-  const loadUnread = async () => {
-    if (!user) return;
-
-    const { count } = await supabase
-      .from('notifications')
-      .select('*', { count: 'exact', head: true })
-      .eq('user_id', user.id)
-      .eq('read', false);
-
-    setUnreadCount(count ?? 0);
-  };
-
-  useEffect(() => {
-    if (!user) return;
-
-    loadUnread();
-
-    const channel = supabase
-      .channel('notifications-badge')
-      .on(
-        'postgres_changes',
-        { event: '*', schema: 'public', table: 'notifications' },
-        () => loadUnread()
-      )
-      .subscribe();
-
-    return () => {
-      supabase.removeChannel(channel);
-    };
-  }, [user]);
 
   /* 🔄 REFRESH ACTION */
   const handleRefresh = async () => {
     if (!user || refreshing) return;
 
     setRefreshing(true);
-    await loadUnread();
     Alert.alert('Updated', 'The latest data has been refreshed successfully.');
     setRefreshing(false);
   };
@@ -159,20 +124,15 @@ export default function TabsLayout() {
         }}
       />
 
+      {/* 🕒 HISTORY SCREEN (replaces notifications) */}
       <Tabs.Screen
-        name="notifications"
+        name="history"
         options={{
-          title: 'Njoftime',
+          title: 'Historia',
           headerRight: () => <RefreshButton />,
-          tabBarBadge: unreadCount > 0 ? unreadCount : undefined,
-          tabBarBadgeStyle: {
-            backgroundColor: '#C0392B',
-            color: '#FFFFFF',
-            fontWeight: '700',
-          },
           tabBarIcon: ({ color, size, focused }) => (
             <Ionicons
-              name={focused ? 'megaphone' : 'megaphone-outline'}
+              name={focused ? 'time' : 'time-outline'}
               size={size}
               color={color}
             />

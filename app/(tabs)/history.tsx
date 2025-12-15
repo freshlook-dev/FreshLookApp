@@ -10,6 +10,7 @@ import {
   Modal,
   Pressable,
   Alert,
+  Platform,
 } from 'react-native';
 
 import { supabase } from '../../context/supabase';
@@ -44,10 +45,16 @@ export default function HistoryScreen() {
   const [canceled, setCanceled] = useState<Appointment[]>([]);
   const [selected, setSelected] = useState<Appointment | null>(null);
 
+  const [isOwner, setIsOwner] = useState(false);
+
   useEffect(() => {
-    if (user) loadData();
+    if (user?.id) {
+      loadData();
+      checkUserRole();
+    }
   }, [user]);
 
+  // Load appointment data
   const loadData = async () => {
     setLoading(true);
 
@@ -79,31 +86,63 @@ export default function HistoryScreen() {
     setLoading(false);
   };
 
+  // Check if the user is an owner
+  const checkUserRole = async () => {
+    if (!user?.id) return;
+
+    const { data, error } = await supabase
+      .from('profiles')
+      .select('role')
+      .eq('id', user.id)
+      .single();
+
+    if (error) {
+      console.error('Error checking role:', error.message);
+      return;
+    }
+
+    if (data?.role === 'owner') {
+      setIsOwner(true);
+    } else {
+      setIsOwner(false);
+    }
+  };
+
+  // Archive (delete) record (only for owner)
   const archiveRecord = async (id: string) => {
-    Alert.alert(
-      'Fshih regjistrimin',
-      'A jeni të sigurt që doni ta fshihni këtë regjistrim?',
-      [
-        { text: 'Jo', style: 'cancel' },
-        {
-          text: 'Po',
-          onPress: async () => {
-            const { error } = await supabase
-              .from('appointments')
-              .update({ archived: true })
-              .eq('id', id);
+    if (!isOwner) {
+      Alert.alert(
+        'Access Denied',
+        'Only the owner can delete (archive) appointments.'
+      );
+      return;
+    }
 
-            if (error) {
-              Alert.alert('Error', error.message);
-              return;
-            }
+    // Web: confirm() is reliable
+    const message =
+      'A jeni të sigurt që doni ta fshihni këtë regjistrim?';
 
-            setSelected(null);
-            loadData();
-          },
-        },
-      ]
-    );
+    const isConfirmed = Platform.OS === 'web' ? confirm(message) : await new Promise<boolean>((resolve) => {
+      Alert.alert('Fshih regjistrimin', message, [
+        { text: 'Jo', style: 'cancel', onPress: () => resolve(false) },
+        { text: 'Po', onPress: () => resolve(true) },
+      ]);
+    });
+
+    if (!isConfirmed) return;
+
+    const { error } = await supabase
+      .from('appointments')
+      .update({ archived: true })
+      .eq('id', id);
+
+    if (error) {
+      Alert.alert('Error', error.message);
+      return;
+    }
+
+    setSelected(null);
+    loadData();
   };
 
   const renderItem = (item: Appointment) => (
@@ -180,12 +219,14 @@ export default function HistoryScreen() {
                   </Text>
                 )}
 
-                <Pressable
-                  onPress={() => archiveRecord(selected.id)}
-                  style={styles.hideBtn}
-                >
-                  <Text style={styles.hideText}>Fshih</Text>
-                </Pressable>
+                {isOwner && (
+                  <Pressable
+                    onPress={() => archiveRecord(selected.id)}
+                    style={styles.hideBtn}
+                  >
+                    <Text style={styles.hideText}>Fshih</Text>
+                  </Pressable>
+                )}
               </>
             )}
           </View>
@@ -272,3 +313,4 @@ const styles = StyleSheet.create({
     fontWeight: '700',
   },
 });
+
