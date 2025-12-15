@@ -7,313 +7,268 @@ import {
   StyleSheet,
   ActivityIndicator,
   FlatList,
-  Alert,
+  Modal,
   Pressable,
-  Platform,
+  Alert,
 } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { supabase } from '../../context/supabase';
 import { useAuth } from '../../context/AuthContext';
 
-/* ---------------- TYPES ---------------- */
+type Status = 'arrived' | 'canceled';
 
-type NotificationRow = {
+type Appointment = {
   id: string;
-  title: string;
-  message: string;
-  created_at: string;
-  author: {
-    full_name: string | null;
-  }[];
+  client_name: string;
+  service: string;
+  appointment_date: string;
+  appointment_time: string;
+  location: string | null;
+  phone: string | null;
+  comment: string | null;
+  status: Status;
 };
 
-type NotificationItem = {
-  id: string;
-  title: string;
-  message: string;
-  created_at: string;
-  author_name: string;
+const formatDate = (date: string) => {
+  const d = new Date(date);
+  return `${String(d.getDate()).padStart(2, '0')}.${String(
+    d.getMonth() + 1
+  ).padStart(2, '0')}.${d.getFullYear()}`;
 };
 
-/* ---------------- COMPONENT ---------------- */
-
-export default function NotificationsTab() {
+export default function HistoryScreen() {
   const { user } = useAuth();
-  const insets = useSafeAreaInsets(); // ✅ FIX
 
-  const [notifications, setNotifications] = useState<NotificationItem[]>([]);
   const [loading, setLoading] = useState(true);
-  const [role, setRole] = useState<'owner' | 'manager' | 'staff'>('staff');
+  const [arrived, setArrived] = useState<Appointment[]>([]);
+  const [canceled, setCanceled] = useState<Appointment[]>([]);
+  const [selected, setSelected] = useState<Appointment | null>(null);
 
-  /* 🔐 LOAD ROLE */
   useEffect(() => {
-    if (!user) return;
-
-    supabase
-      .from('profiles')
-      .select('role')
-      .eq('id', user.id)
-      .single()
-      .then(({ data }) => {
-        if (data?.role) setRole(data.role);
-      });
+    if (user) loadData();
   }, [user]);
 
-  /* 📥 LOAD NOTIFICATIONS */
-  useEffect(() => {
-    if (!user) {
-      setLoading(false);
-      return;
-    }
-
-    loadNotifications();
-    markAsRead();
-  }, [user]);
-
-  const loadNotifications = async () => {
-    if (!user) return;
-
+  const loadData = async () => {
     setLoading(true);
 
     const { data, error } = await supabase
-      .from('notifications')
+      .from('appointments')
       .select(`
         id,
-        title,
-        message,
-        created_at,
-        author:profiles (
-          full_name
-        )
+        client_name,
+        service,
+        appointment_date,
+        appointment_time,
+        location,
+        phone,
+        comment,
+        status
       `)
-      .eq('type', 'custom')
-      .eq('user_id', user.id)
-      .order('created_at', { ascending: false });
+      .in('status', ['arrived', 'canceled'])
+      .eq('archived', false)
+      .order('appointment_date', { ascending: false });
 
     if (error) {
-      console.error('Failed to load notifications:', error.message);
+      Alert.alert('Error', error.message);
       setLoading(false);
       return;
     }
 
-    if (data) {
-      const mapped: NotificationItem[] = (data as NotificationRow[]).map(
-        (n) => ({
-          id: n.id,
-          title: n.title,
-          message: n.message,
-          created_at: n.created_at,
-          author_name: n.author?.[0]?.full_name ?? 'Owner',
-        })
-      );
-
-      setNotifications(mapped);
-    }
-
+    setArrived(data.filter((a) => a.status === 'arrived'));
+    setCanceled(data.filter((a) => a.status === 'canceled'));
     setLoading(false);
   };
 
-  /* 👁 MARK AS READ */
-  const markAsRead = async () => {
-    if (!user) return;
+  const archiveRecord = async (id: string) => {
+    Alert.alert(
+      'Fshih regjistrimin',
+      'A jeni të sigurt që doni ta fshihni këtë regjistrim?',
+      [
+        { text: 'Jo', style: 'cancel' },
+        {
+          text: 'Po',
+          onPress: async () => {
+            const { error } = await supabase
+              .from('appointments')
+              .update({ archived: true })
+              .eq('id', id);
 
-    await supabase
-      .from('notifications')
-      .update({ read: true })
-      .eq('user_id', user.id)
-      .eq('read', false);
+            if (error) {
+              Alert.alert('Error', error.message);
+              return;
+            }
+
+            setSelected(null);
+            loadData();
+          },
+        },
+      ]
+    );
   };
 
-  /* 🗑 DELETE (OWNER ONLY) */
-  const deleteNotification = async (id: string) => {
-    if (Platform.OS === 'web') {
-      const ok = confirm('Are you sure you want to delete this notification?');
-      if (!ok) return;
-    } else {
-      const confirmed = await new Promise<boolean>((resolve) => {
-        Alert.alert(
-          'Delete announcement',
-          'Are you sure you want to delete this notification?',
-          [
-            { text: 'Cancel', style: 'cancel', onPress: () => resolve(false) },
-            {
-              text: 'Delete',
-              style: 'destructive',
-              onPress: () => resolve(true),
-            },
-          ]
-        );
-      });
-
-      if (!confirmed) return;
-    }
-
-    const { error } = await supabase
-      .from('notifications')
-      .delete()
-      .eq('id', id);
-
-    if (error) {
-      Alert.alert('Delete failed', error.message);
-      console.error('Delete failed:', error);
-      return;
-    }
-
-    setNotifications((prev) => prev.filter((n) => n.id !== id));
-  };
-
-  const formatDateTime = (iso: string) => {
-    const d = new Date(iso);
-    return `${d.toLocaleDateString()} • ${d.toLocaleTimeString([], {
-      hour: '2-digit',
-      minute: '2-digit',
-    })}`;
-  };
-
-  /* ---------------- UI ---------------- */
+  const renderItem = (item: Appointment) => (
+    <Pressable onPress={() => setSelected(item)} style={styles.row}>
+      <Text style={styles.client}>{item.client_name}</Text>
+    </Pressable>
+  );
 
   if (loading) {
     return (
       <View style={styles.center}>
-        <ActivityIndicator size="large" color="#C9A24D" />
-        <Text style={styles.loadingText}>Loading announcements…</Text>
+        <ActivityIndicator size="large" />
       </View>
     );
   }
 
   return (
-    <View
-      style={[
-        styles.container,
-        { paddingTop: Math.max(20, insets.top) }, // ✅ KEY FIX
-      ]}
-    >
-      <Text style={styles.pageTitle}>Announcements</Text>
+    <View style={styles.container}>
+      <Text style={styles.title}>Ka ardhur</Text>
+      <FlatList
+        data={arrived}
+        keyExtractor={(item) => item.id}
+        renderItem={({ item }) => renderItem(item)}
+        ListEmptyComponent={<Text style={styles.empty}>Asnjë regjistrim</Text>}
+      />
 
-      {notifications.length === 0 ? (
-        <View style={styles.emptyBox}>
-          <Text style={styles.emptyTitle}>No announcements yet</Text>
-          <Text style={styles.emptyText}>
-            When the owner sends a notification, it will appear here.
-          </Text>
-        </View>
-      ) : (
-        <FlatList
-          data={notifications}
-          keyExtractor={(item) => item.id}
-          showsVerticalScrollIndicator={false}
-          contentContainerStyle={{ paddingBottom: 30 }}
-          renderItem={({ item }) => (
-            <View style={styles.card}>
-              <Text style={styles.title}>{item.title}</Text>
-              <Text style={styles.message}>{item.message}</Text>
+      <Text style={[styles.title, { marginTop: 24 }]}>Anulim</Text>
+      <FlatList
+        data={canceled}
+        keyExtractor={(item) => item.id}
+        renderItem={({ item }) => renderItem(item)}
+        ListEmptyComponent={<Text style={styles.empty}>Asnjë regjistrim</Text>}
+      />
 
-              <View style={styles.meta}>
-                <View>
-                  <Text style={styles.author}>{item.author_name}</Text>
-                  <Text style={styles.time}>
-                    {formatDateTime(item.created_at)}
+      {/* MODAL */}
+      <Modal visible={!!selected} transparent animationType="fade">
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalCard}>
+            <Pressable
+              onPress={() => setSelected(null)}
+              style={styles.close}
+            >
+              <Text style={styles.closeText}>✕</Text>
+            </Pressable>
+
+            {selected && (
+              <>
+                <Text style={styles.modalName}>
+                  {selected.client_name}
+                </Text>
+
+                <Text style={styles.modalText}>{selected.service}</Text>
+
+                <Text style={styles.modalText}>
+                  {formatDate(selected.appointment_date)} •{' '}
+                  {selected.appointment_time}
+                </Text>
+
+                {selected.location && (
+                  <Text style={styles.modalText}>
+                    📍 {selected.location}
                   </Text>
-                </View>
-
-                {role === 'owner' && (
-                  <Pressable
-                    onPress={() => deleteNotification(item.id)}
-                    hitSlop={12}
-                  >
-                    <Text style={styles.delete}>Delete</Text>
-                  </Pressable>
                 )}
-              </View>
-            </View>
-          )}
-        />
-      )}
+
+                {selected.phone && (
+                  <Text style={styles.modalText}>
+                    📞 {selected.phone}
+                  </Text>
+                )}
+
+                {selected.comment && (
+                  <Text style={styles.modalText}>
+                    📝 {selected.comment}
+                  </Text>
+                )}
+
+                <Pressable
+                  onPress={() => archiveRecord(selected.id)}
+                  style={styles.hideBtn}
+                >
+                  <Text style={styles.hideText}>Fshih</Text>
+                </Pressable>
+              </>
+            )}
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }
 
-/* ---------------- STYLES ---------------- */
+/* ---------- STYLES ---------- */
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#FAF8F4',
-    paddingHorizontal: 20,
-    paddingBottom: 20,
-  },
-  pageTitle: {
-    fontSize: 26,
-    fontWeight: '800',
-    color: '#2B2B2B',
-    marginBottom: 16,
+    padding: 20,
   },
   center: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: '#FAF8F4',
-  },
-  loadingText: {
-    marginTop: 10,
-    color: '#7A7A7A',
-  },
-  emptyBox: {
-    marginTop: 60,
-    alignItems: 'center',
-    paddingHorizontal: 20,
-  },
-  emptyTitle: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: '#2B2B2B',
-    marginBottom: 6,
-  },
-  emptyText: {
-    fontSize: 14,
-    color: '#7A7A7A',
-    textAlign: 'center',
-  },
-  card: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 16,
-    padding: 16,
-    marginBottom: 14,
-    shadowColor: '#000',
-    shadowOpacity: 0.05,
-    shadowRadius: 10,
-    elevation: 2,
   },
   title: {
-    fontSize: 16,
+    fontSize: 20,
     fontWeight: '800',
     color: '#2B2B2B',
+    marginBottom: 8,
   },
-  message: {
-    fontSize: 14,
-    marginTop: 6,
+  row: {
+    backgroundColor: '#FFFFFF',
+    padding: 14,
+    borderRadius: 14,
+    marginBottom: 8,
+  },
+  client: {
+    fontSize: 15,
+    fontWeight: '700',
     color: '#2B2B2B',
-    lineHeight: 20,
   },
-  meta: {
-    marginTop: 12,
-    flexDirection: 'row',
-    justifyContent: 'space-between',
+  empty: {
+    fontSize: 13,
+    color: '#7A7A7A',
+    marginBottom: 12,
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.4)',
+    justifyContent: 'center',
     alignItems: 'center',
   },
-  author: {
-    fontSize: 12,
-    fontWeight: '700',
-    color: '#C9A24D',
+  modalCard: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 16,
+    padding: 20,
+    width: '90%',
   },
-  time: {
-    fontSize: 12,
-    color: '#7A7A7A',
+  close: {
+    position: 'absolute',
+    top: 10,
+    right: 14,
   },
-  delete: {
-    fontSize: 12,
+  closeText: {
+    fontSize: 18,
+    fontWeight: '800',
+  },
+  modalName: {
+    fontSize: 18,
+    fontWeight: '800',
+    marginBottom: 6,
+  },
+  modalText: {
+    fontSize: 14,
+    marginBottom: 4,
+  },
+  hideBtn: {
+    marginTop: 16,
+    backgroundColor: '#C9A24D',
+    paddingVertical: 10,
+    borderRadius: 10,
+    alignItems: 'center',
+  },
+  hideText: {
+    color: '#FFFFFF',
     fontWeight: '700',
-    color: '#C0392B',
   },
 });

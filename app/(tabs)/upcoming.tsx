@@ -10,7 +10,6 @@ import {
   TouchableOpacity,
   Alert,
 } from 'react-native';
-import { router } from 'expo-router';
 
 import { supabase } from '../../context/supabase';
 import { useAuth } from '../../context/AuthContext';
@@ -19,7 +18,7 @@ import { Colors, Spacing } from '../../constants/theme';
 import { Card } from '../../components/Card';
 import { SectionTitle } from '../../components/SectionTitle';
 
-type Role = 'owner' | 'manager' | 'staff';
+type Status = 'upcoming' | 'arrived' | 'canceled';
 
 type Appointment = {
   id: string;
@@ -29,13 +28,7 @@ type Appointment = {
   appointment_time: string;
   location: string | null;
   comment: string | null;
-  created_by: string;
-  creator_name: string | null;
-};
-
-type Profile = {
-  id: string;
-  role: Role;
+  status: Status;
 };
 
 const formatDate = (date: string) => {
@@ -49,12 +42,13 @@ const formatTime = (time: string) => time.slice(0, 5);
 
 export default function UpcomingAppointments() {
   const { user } = useAuth();
-
   const isMounted = useRef(true);
 
   const [appointments, setAppointments] = useState<Appointment[]>([]);
-  const [profile, setProfile] = useState<Profile | null>(null);
   const [loading, setLoading] = useState(true);
+  const [locationFilter, setLocationFilter] = useState<
+    'all' | 'Prishtinë' | 'Fushë Kosovë'
+  >('all');
 
   useEffect(() => {
     return () => {
@@ -63,23 +57,13 @@ export default function UpcomingAppointments() {
   }, []);
 
   useEffect(() => {
-    if (!user) return;
-    loadData();
-  }, [user]);
+    if (user) loadData();
+  }, [user, locationFilter]);
 
   const loadData = async () => {
     setLoading(true);
 
-    const { data: profileData } = await supabase
-      .from('profiles')
-      .select('id, role')
-      .eq('id', user!.id)
-      .single();
-
-    if (!isMounted.current) return;
-    setProfile(profileData);
-
-    const { data } = await supabase
+    let query = supabase
       .from('appointments')
       .select(`
         id,
@@ -89,54 +73,50 @@ export default function UpcomingAppointments() {
         appointment_time,
         location,
         comment,
-        created_by,
-        profiles:created_by ( full_name )
+        status
       `)
+      .eq('status', 'upcoming')
+      .eq('archived', false)
       .order('appointment_date', { ascending: true })
       .order('appointment_time', { ascending: true });
 
-    if (!isMounted.current) return;
-
-    if (data) {
-      setAppointments(
-        data.map((a: any) => ({
-          ...a,
-          creator_name: a.profiles?.full_name ?? 'Unknown',
-        }))
-      );
+    if (locationFilter !== 'all') {
+      query = query.eq('location', locationFilter);
     }
 
+    const { data } = await query;
+
+    if (!isMounted.current) return;
+
+    setAppointments(data ?? []);
     setLoading(false);
   };
 
-  const canEdit = profile?.role === 'owner' || profile?.role === 'manager';
+  const confirmStatus = (id: string, status: Status) => {
+    const message =
+      status === 'arrived'
+        ? 'A jeni të sigurt që klienti ka ardhur?'
+        : 'A jeni të sigurt që klienti e ka anuluar termin?';
 
-  const handleDelete = (id: string) => {
-    Alert.alert(
-      'Delete appointment',
-      'Are you sure you want to delete this appointment?',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Delete',
-          style: 'destructive',
-          onPress: async () => {
-            const { error } = await supabase
-              .from('appointments')
-              .delete()
-              .eq('id', id);
+    Alert.alert('Konfirmim', message, [
+      { text: 'Jo', style: 'cancel' },
+      {
+        text: 'Po',
+        onPress: async () => {
+          const { error } = await supabase
+            .from('appointments')
+            .update({ status })
+            .eq('id', id);
 
-            if (error) {
-              Alert.alert('Delete failed', error.message);
-              return;
-            }
+          if (error) {
+            Alert.alert('Gabim', error.message);
+            return;
+          }
 
-            if (!isMounted.current) return;
-            loadData();
-          },
+          setAppointments((prev) => prev.filter((a) => a.id !== id));
         },
-      ]
-    );
+      },
+    ]);
   };
 
   if (!user || loading) {
@@ -151,60 +131,78 @@ export default function UpcomingAppointments() {
     <View style={styles.container}>
       <SectionTitle>Upcoming Appointments</SectionTitle>
 
+      {/* FILTERS */}
+      <View style={styles.filters}>
+        {['all', 'Prishtinë', 'Fushë Kosovë'].map((loc) => (
+          <TouchableOpacity
+            key={loc}
+            onPress={() => setLocationFilter(loc as any)}
+            style={[
+              styles.filterBtn,
+              locationFilter === loc && styles.filterActive,
+            ]}
+          >
+            <Text
+              style={[
+                styles.filterText,
+                locationFilter === loc && styles.filterTextActive,
+              ]}
+            >
+              {loc === 'all' ? 'Të gjitha' : loc}
+            </Text>
+          </TouchableOpacity>
+        ))}
+      </View>
+
       <FlatList
         data={appointments}
         keyExtractor={(item) => item.id}
         contentContainerStyle={{ paddingBottom: 40 }}
         renderItem={({ item }) => (
           <Card>
-            <Text style={styles.client}>{item.client_name}</Text>
-            <Text style={styles.service}>{item.service}</Text>
+            <View style={styles.row}>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.client}>{item.client_name}</Text>
+                <Text style={styles.service}>{item.service}</Text>
 
-            <Text style={styles.datetime}>
-              {formatDate(item.appointment_date)} • {formatTime(item.appointment_time)}
-            </Text>
+                <Text style={styles.datetime}>
+                  {formatDate(item.appointment_date)} •{' '}
+                  {formatTime(item.appointment_time)}
+                </Text>
 
-            {item.location && (
-              <Text style={styles.location}>📍 {item.location}</Text>
-            )}
+                {item.location && (
+                  <Text style={styles.location}>📍 {item.location}</Text>
+                )}
 
-            <Text style={styles.creator}>
-              👤 Created by: {item.creator_name}
-            </Text>
+                {item.comment && (
+                  <Text style={styles.comment}>📝 {item.comment}</Text>
+                )}
+              </View>
 
-            {/* 📝 COMMENT */}
-            {item.comment && (
-              <Text style={styles.comment}>📝 {item.comment}</Text>
-            )}
-
-            {canEdit && (
-              <View style={styles.actions}>
+              <View style={styles.sideActions}>
                 <TouchableOpacity
-                  onPress={() =>
-                    router.push({
-                      pathname: '/(tabs)/edit',
-                      params: { id: item.id },
-                    })
-                  }
-                  style={styles.actionBtn}
+                  style={[styles.statusBtn, styles.arrived]}
+                  onPress={() => confirmStatus(item.id, 'arrived')}
                 >
-                  <Text style={styles.edit}>Edit</Text>
+                  <Text style={styles.statusText}>Ka ardhur</Text>
                 </TouchableOpacity>
 
                 <TouchableOpacity
-                  onPress={() => handleDelete(item.id)}
-                  style={styles.actionBtn}
+                  style={[styles.statusBtn, styles.canceled]}
+                  onPress={() => confirmStatus(item.id, 'canceled')}
                 >
-                  <Text style={styles.delete}>Delete</Text>
+                  <Text style={styles.statusText}>Anulim</Text>
                 </TouchableOpacity>
               </View>
-            )}
+            </View>
           </Card>
         )}
       />
     </View>
   );
 }
+
+/* ---------- STYLES ---------- */
 
 const styles = StyleSheet.create({
   container: {
@@ -216,6 +214,33 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
+  },
+  filters: {
+    flexDirection: 'row',
+    gap: Spacing.sm,
+    marginBottom: Spacing.md,
+  },
+  filterBtn: {
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: Colors.textSecondary,
+  },
+  filterActive: {
+    backgroundColor: Colors.primary,
+  },
+  filterText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: Colors.textSecondary,
+  },
+  filterTextActive: {
+    color: '#fff',
+  },
+  row: {
+    flexDirection: 'row',
+    gap: Spacing.md,
   },
   client: {
     fontSize: 16,
@@ -236,32 +261,30 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: Colors.textSecondary,
   },
-  creator: {
-    marginTop: 6,
-    fontSize: 12,
-    color: Colors.textSecondary,
-  },
   comment: {
     marginTop: 6,
     fontSize: 13,
     fontStyle: 'italic',
     color: Colors.textSecondary,
   },
-  actions: {
-    flexDirection: 'row',
-    marginTop: Spacing.sm,
+  sideActions: {
+    justifyContent: 'center',
+    gap: Spacing.sm,
   },
-  actionBtn: {
+  statusBtn: {
     paddingVertical: 6,
     paddingHorizontal: 10,
+    borderRadius: 8,
   },
-  edit: {
-    marginRight: Spacing.md,
-    color: Colors.accent,
-    fontWeight: '700',
+  arrived: {
+    backgroundColor: '#2ecc71',
   },
-  delete: {
-    color: Colors.danger,
+  canceled: {
+    backgroundColor: '#e74c3c',
+  },
+  statusText: {
+    color: '#fff',
+    fontSize: 12,
     fontWeight: '700',
   },
 });
