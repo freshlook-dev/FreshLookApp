@@ -18,16 +18,6 @@ import { useLocalSearchParams, router } from 'expo-router';
 import { supabase } from '../../context/supabase';
 import { useAuth } from '../../context/AuthContext';
 
-/* ---------------- WEB / NATIVE ALERT HELPER ---------------- */
-
-const showMessage = (message: string) => {
-  if (Platform.OS === 'web') {
-    window.confirm(message); // confirm works on web
-  } else {
-    Alert.alert(message);
-  }
-};
-
 /* ---------------- OPTIONS ---------------- */
 
 const TREATMENTS = [
@@ -48,7 +38,9 @@ const generateTimeSlots = () => {
   for (let h = 9; h <= 21; h++) {
     for (let m of [0, 30]) {
       if (h === 21 && m === 30) continue;
-      slots.push(`${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`);
+      slots.push(
+        `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`
+      );
     }
   }
   return slots;
@@ -59,10 +51,7 @@ const TIME_SLOTS = generateTimeSlots();
 type Role = 'owner' | 'manager' | 'staff';
 
 export default function EditAppointment() {
-  const params = useLocalSearchParams();
-  const appointmentId =
-    typeof params.id === 'string' ? params.id : params.id?.[0];
-
+  const { id } = useLocalSearchParams<{ id: string }>();
   const { user } = useAuth();
 
   const [loading, setLoading] = useState(true);
@@ -78,8 +67,8 @@ export default function EditAppointment() {
   const [showDatePicker, setShowDatePicker] = useState(false);
 
   useEffect(() => {
-    if (user && appointmentId) loadData();
-  }, [user, appointmentId]);
+    if (user && id) loadData();
+  }, [user, id]);
 
   const loadData = async () => {
     const { data: profile } = await supabase
@@ -89,7 +78,7 @@ export default function EditAppointment() {
       .single();
 
     if (!profile || (profile.role as Role) === 'staff') {
-      showMessage('You cannot edit appointments');
+      Alert.alert('Access denied', 'You cannot edit appointments');
       router.replace('/(tabs)/upcoming');
       return;
     }
@@ -97,11 +86,11 @@ export default function EditAppointment() {
     const { data, error } = await supabase
       .from('appointments')
       .select('*')
-      .eq('id', appointmentId)
+      .eq('id', id)
       .single();
 
     if (error || !data) {
-      showMessage('Appointment not found');
+      Alert.alert('Error', 'Appointment not found');
       router.replace('/(tabs)/upcoming');
       return;
     }
@@ -121,7 +110,7 @@ export default function EditAppointment() {
 
   const handleSave = async () => {
     if (!fullName || !phone || !treatment || !location || !time) {
-      showMessage('Ju lutem plotësoni të gjitha fushat');
+      Alert.alert('Gabim', 'Ju lutem plotësoni të gjitha fushat');
       return;
     }
 
@@ -138,11 +127,10 @@ export default function EditAppointment() {
         location,
         comment: comment || null,
       })
-      .eq('id', appointmentId)
-      .select('id');
+      .eq('id', id);
 
     if (error) {
-      showMessage(error.message);
+      Alert.alert('Gabim', error.message);
       setLoading(false);
       return;
     }
@@ -150,10 +138,10 @@ export default function EditAppointment() {
     await supabase.from('audit_logs').insert({
       actor_id: user!.id,
       action: 'UPDATE_APPOINTMENT',
-      target_id: appointmentId,
+      target_id: id,
     });
 
-    showMessage('Termini u përditësua');
+    Alert.alert('Sukses', 'Termini u përditësua');
     router.replace('/(tabs)/upcoming');
   };
 
@@ -174,11 +162,13 @@ export default function EditAppointment() {
     >
       <Text style={styles.title}>Edito Termin</Text>
 
+      {/* Name */}
       <View style={styles.card}>
         <Text style={styles.label}>Emri dhe Mbiemri</Text>
         <TextInput value={fullName} onChangeText={setFullName} style={styles.input} />
       </View>
 
+      {/* Phone */}
       <View style={styles.card}>
         <Text style={styles.label}>Numri kontaktues</Text>
         <TextInput
@@ -189,6 +179,7 @@ export default function EditAppointment() {
         />
       </View>
 
+      {/* Treatment */}
       <View style={styles.card}>
         <Text style={styles.label}>Tretmani</Text>
         {TREATMENTS.map((item) => (
@@ -212,14 +203,106 @@ export default function EditAppointment() {
         ))}
       </View>
 
+      {/* Comment */}
       <View style={styles.card}>
         <Text style={styles.label}>Koment</Text>
         <TextInput
           value={comment}
           onChangeText={setComment}
+          placeholder="Shënime shtesë…"
           multiline
           style={[styles.input, { height: 90 }]}
         />
+      </View>
+
+      {/* Date */}
+      <View style={styles.card}>
+        <Text style={styles.label}>Data</Text>
+
+        {Platform.OS === 'web' ? (
+          <input
+            type="date"
+            value={formatDate(date)}
+            onChange={(e) => setDate(new Date(e.target.value))}
+            style={{
+              borderWidth: 1,
+              borderColor: '#E6D3A3',
+              borderRadius: 12,
+              padding: 14,
+              fontSize: 15,
+              backgroundColor: '#FAF8F4',
+              fontFamily: 'inherit',
+            }}
+          />
+        ) : (
+          <>
+            <Pressable onPress={() => setShowDatePicker(true)} style={styles.input}>
+              <Text style={styles.valueText}>{formatDate(date)}</Text>
+            </Pressable>
+
+            {showDatePicker && (
+              <DateTimePicker
+                value={date}
+                mode="date"
+                display={Platform.OS === 'ios' ? 'spinner' : 'default'}
+                onChange={(_, selectedDate) => {
+                  setShowDatePicker(false);
+                  if (selectedDate) setDate(selectedDate);
+                }}
+              />
+            )}
+          </>
+        )}
+      </View>
+
+      {/* Time */}
+      <View style={styles.card}>
+        <Text style={styles.label}>Ora</Text>
+        <View style={styles.timeGrid}>
+          {TIME_SLOTS.map((slot) => (
+            <Pressable
+              key={slot}
+              onPress={() => setTime(slot)}
+              style={[
+                styles.timeSlot,
+                time === slot && styles.timeSlotActive,
+              ]}
+            >
+              <Text
+                style={[
+                  styles.timeText,
+                  time === slot && styles.timeTextActive,
+                ]}
+              >
+                {slot}
+              </Text>
+            </Pressable>
+          ))}
+        </View>
+      </View>
+
+      {/* Location */}
+      <View style={styles.card}>
+        <Text style={styles.label}>Lokacioni</Text>
+        {LOCATIONS.map((loc) => (
+          <Pressable
+            key={loc}
+            style={[
+              styles.option,
+              location === loc && styles.optionActive,
+            ]}
+            onPress={() => setLocation(loc)}
+          >
+            <Text
+              style={[
+                styles.optionText,
+                location === loc && styles.optionTextActive,
+              ]}
+            >
+              {loc}
+            </Text>
+          </Pressable>
+        ))}
       </View>
 
       <Pressable style={styles.button} onPress={handleSave}>
@@ -229,7 +312,7 @@ export default function EditAppointment() {
   );
 }
 
-/* ---------------- STYLES (UNCHANGED) ---------------- */
+/* ---------------- STYLES ---------------- */
 
 const styles = StyleSheet.create({
   container: {
@@ -249,6 +332,10 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     padding: 16,
     marginBottom: 16,
+    shadowColor: '#000',
+    shadowOpacity: 0.05,
+    shadowRadius: 10,
+    elevation: 2,
   },
   label: {
     fontSize: 13,
@@ -263,6 +350,11 @@ const styles = StyleSheet.create({
     padding: 14,
     fontSize: 15,
     backgroundColor: '#FAF8F4',
+  },
+  valueText: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: '#2B2B2B',
   },
   option: {
     padding: 12,
@@ -282,6 +374,30 @@ const styles = StyleSheet.create({
   optionTextActive: {
     color: '#FFFFFF',
   },
+  timeGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+  },
+  timeSlot: {
+    width: '30%',
+    paddingVertical: 10,
+    margin: '1.5%',
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: '#E6D3A3',
+    alignItems: 'center',
+  },
+  timeSlotActive: {
+    backgroundColor: '#C9A24D',
+  },
+  timeText: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#2B2B2B',
+  },
+  timeTextActive: {
+    color: '#FFFFFF',
+  },
   button: {
     backgroundColor: '#C9A24D',
     paddingVertical: 18,
@@ -298,6 +414,7 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
+    backgroundColor: '#FAF8F4',
   },
   loadingText: {
     marginTop: 10,
