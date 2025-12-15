@@ -124,45 +124,32 @@ export default function TabsLayout() {
         }}
       />
 
-      {/* 🕒 HISTORY SCREEN (replaces notifications) */}
-      <Tabs.Screen
-        name="history"
-        options={{
-          title: 'Historia',
-          headerRight: () => <RefreshButton />,
-          tabBarIcon: ({ color, size, focused }) => (
-            <Ionicons
-              name={focused ? 'time' : 'time-outline'}
-              size={size}
-              color={color}
-            />
-          ),
-        }}
-      />
+     {/* Hidden edit screen */}
+<Tabs.Screen
+  name="edit"
+  options={{
+    href: null,
+    title: 'Edit Appointment',
+  }}
+/>
 
-      <Tabs.Screen
-        name="profile"
-        options={{
-          title: 'Profili',
-          headerRight: () => <RefreshButton />,
-          tabBarIcon: ({ color, size, focused }) => (
-            <Ionicons
-              name={focused ? 'person' : 'person-outline'}
-              size={size}
-              color={color}
-            />
-          ),
-        }}
-      />
+{/* 🔒 Hidden change password screen */}
+<Tabs.Screen
+  name="change-password"
+  options={{
+    href: null,
+    title: 'Change Password',
+  }}
+/>
 
-      {/* Hidden edit screen */}
-      <Tabs.Screen
-        name="edit"
-        options={{
-          href: null,
-          title: 'Edit Appointment',
-        }}
-      />
+{/* 🔒 Hidden manage roles screen (OWNER ONLY UI will handle access) */}
+<Tabs.Screen
+  name="manage-roles"
+  options={{
+    href: null,
+    title: 'Manage Roles',
+  }}
+/>
     </Tabs>
   );
 }
