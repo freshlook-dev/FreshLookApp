@@ -38,9 +38,7 @@ const generateTimeSlots = () => {
   for (let h = 9; h <= 21; h++) {
     for (let m of [0, 30]) {
       if (h === 21 && m === 30) continue;
-      slots.push(
-        `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`
-      );
+      slots.push(`${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`);
     }
   }
   return slots;
@@ -51,7 +49,10 @@ const TIME_SLOTS = generateTimeSlots();
 type Role = 'owner' | 'manager' | 'staff';
 
 export default function EditAppointment() {
-  const { id } = useLocalSearchParams<{ id: string }>();
+  const params = useLocalSearchParams();
+  const appointmentId =
+    typeof params.id === 'string' ? params.id : params.id?.[0];
+
   const { user } = useAuth();
 
   const [loading, setLoading] = useState(true);
@@ -67,8 +68,8 @@ export default function EditAppointment() {
   const [showDatePicker, setShowDatePicker] = useState(false);
 
   useEffect(() => {
-    if (user && id) loadData();
-  }, [user, id]);
+    if (user && appointmentId) loadData();
+  }, [user, appointmentId]);
 
   const loadData = async () => {
     const { data: profile } = await supabase
@@ -86,7 +87,7 @@ export default function EditAppointment() {
     const { data, error } = await supabase
       .from('appointments')
       .select('*')
-      .eq('id', id)
+      .eq('id', appointmentId)
       .single();
 
     if (error || !data) {
@@ -108,11 +109,27 @@ export default function EditAppointment() {
 
   const formatDate = (d: Date) => d.toISOString().split('T')[0];
 
+  const confirmSave = async () => {
+    if (Platform.OS === 'web') {
+      return window.confirm('A jeni të sigurt që doni të ruani ndryshimet?');
+    }
+
+    return new Promise<boolean>((resolve) => {
+      Alert.alert('Konfirmim', 'A jeni të sigurt?', [
+        { text: 'Jo', style: 'cancel', onPress: () => resolve(false) },
+        { text: 'Po', onPress: () => resolve(true) },
+      ]);
+    });
+  };
+
   const handleSave = async () => {
     if (!fullName || !phone || !treatment || !location || !time) {
       Alert.alert('Gabim', 'Ju lutem plotësoni të gjitha fushat');
       return;
     }
+
+    const ok = await confirmSave();
+    if (!ok) return;
 
     setLoading(true);
 
@@ -127,7 +144,7 @@ export default function EditAppointment() {
         location,
         comment: comment || null,
       })
-      .eq('id', id);
+      .eq('id', appointmentId);
 
     if (error) {
       Alert.alert('Gabim', error.message);
@@ -138,7 +155,7 @@ export default function EditAppointment() {
     await supabase.from('audit_logs').insert({
       actor_id: user!.id,
       action: 'UPDATE_APPOINTMENT',
-      target_id: id,
+      target_id: appointmentId,
     });
 
     Alert.alert('Sukses', 'Termini u përditësua');
@@ -155,67 +172,44 @@ export default function EditAppointment() {
   }
 
   return (
-    <ScrollView
-      contentContainerStyle={styles.container}
-      keyboardShouldPersistTaps="handled"
-      showsVerticalScrollIndicator={false}
-    >
+    <ScrollView contentContainerStyle={styles.container} showsVerticalScrollIndicator={false}>
       <Text style={styles.title}>Edito Termin</Text>
 
-      {/* Name */}
       <View style={styles.card}>
         <Text style={styles.label}>Emri dhe Mbiemri</Text>
         <TextInput value={fullName} onChangeText={setFullName} style={styles.input} />
       </View>
 
-      {/* Phone */}
       <View style={styles.card}>
         <Text style={styles.label}>Numri kontaktues</Text>
-        <TextInput
-          value={phone}
-          onChangeText={setPhone}
-          keyboardType="phone-pad"
-          style={styles.input}
-        />
+        <TextInput value={phone} onChangeText={setPhone} keyboardType="phone-pad" style={styles.input} />
       </View>
 
-      {/* Treatment */}
       <View style={styles.card}>
         <Text style={styles.label}>Tretmani</Text>
         {TREATMENTS.map((item) => (
           <Pressable
             key={item}
-            style={[
-              styles.option,
-              treatment === item && styles.optionActive,
-            ]}
+            style={[styles.option, treatment === item && styles.optionActive]}
             onPress={() => setTreatment(item)}
           >
-            <Text
-              style={[
-                styles.optionText,
-                treatment === item && styles.optionTextActive,
-              ]}
-            >
+            <Text style={[styles.optionText, treatment === item && styles.optionTextActive]}>
               {item}
             </Text>
           </Pressable>
         ))}
       </View>
 
-      {/* Comment */}
       <View style={styles.card}>
         <Text style={styles.label}>Koment</Text>
         <TextInput
           value={comment}
           onChangeText={setComment}
-          placeholder="Shënime shtesë…"
           multiline
           style={[styles.input, { height: 90 }]}
         />
       </View>
 
-      {/* Date */}
       <View style={styles.card}>
         <Text style={styles.label}>Data</Text>
 
@@ -231,23 +225,21 @@ export default function EditAppointment() {
               padding: 14,
               fontSize: 15,
               backgroundColor: '#FAF8F4',
-              fontFamily: 'inherit',
             }}
           />
         ) : (
           <>
             <Pressable onPress={() => setShowDatePicker(true)} style={styles.input}>
-              <Text style={styles.valueText}>{formatDate(date)}</Text>
+              <Text>{formatDate(date)}</Text>
             </Pressable>
 
             {showDatePicker && (
               <DateTimePicker
                 value={date}
                 mode="date"
-                display={Platform.OS === 'ios' ? 'spinner' : 'default'}
-                onChange={(_, selectedDate) => {
+                onChange={(_, d) => {
                   setShowDatePicker(false);
-                  if (selectedDate) setDate(selectedDate);
+                  if (d) setDate(d);
                 }}
               />
             )}
@@ -255,7 +247,6 @@ export default function EditAppointment() {
         )}
       </View>
 
-      {/* Time */}
       <View style={styles.card}>
         <Text style={styles.label}>Ora</Text>
         <View style={styles.timeGrid}>
@@ -263,17 +254,9 @@ export default function EditAppointment() {
             <Pressable
               key={slot}
               onPress={() => setTime(slot)}
-              style={[
-                styles.timeSlot,
-                time === slot && styles.timeSlotActive,
-              ]}
+              style={[styles.timeSlot, time === slot && styles.timeSlotActive]}
             >
-              <Text
-                style={[
-                  styles.timeText,
-                  time === slot && styles.timeTextActive,
-                ]}
-              >
+              <Text style={[styles.timeText, time === slot && styles.timeTextActive]}>
                 {slot}
               </Text>
             </Pressable>
@@ -281,24 +264,15 @@ export default function EditAppointment() {
         </View>
       </View>
 
-      {/* Location */}
       <View style={styles.card}>
         <Text style={styles.label}>Lokacioni</Text>
         {LOCATIONS.map((loc) => (
           <Pressable
             key={loc}
-            style={[
-              styles.option,
-              location === loc && styles.optionActive,
-            ]}
+            style={[styles.option, location === loc && styles.optionActive]}
             onPress={() => setLocation(loc)}
           >
-            <Text
-              style={[
-                styles.optionText,
-                location === loc && styles.optionTextActive,
-              ]}
-            >
+            <Text style={[styles.optionText, location === loc && styles.optionTextActive]}>
               {loc}
             </Text>
           </Pressable>
@@ -315,109 +289,22 @@ export default function EditAppointment() {
 /* ---------------- STYLES ---------------- */
 
 const styles = StyleSheet.create({
-  container: {
-    flexGrow: 1,
-    backgroundColor: '#FAF8F4',
-    padding: 20,
-    paddingBottom: 40,
-  },
-  title: {
-    fontSize: 26,
-    fontWeight: '800',
-    color: '#2B2B2B',
-    marginBottom: 20,
-  },
-  card: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 16,
-    padding: 16,
-    marginBottom: 16,
-    shadowColor: '#000',
-    shadowOpacity: 0.05,
-    shadowRadius: 10,
-    elevation: 2,
-  },
-  label: {
-    fontSize: 13,
-    color: '#7A7A7A',
-    marginBottom: 6,
-    fontWeight: '600',
-  },
-  input: {
-    borderWidth: 1,
-    borderColor: '#E6D3A3',
-    borderRadius: 12,
-    padding: 14,
-    fontSize: 15,
-    backgroundColor: '#FAF8F4',
-  },
-  valueText: {
-    fontSize: 15,
-    fontWeight: '600',
-    color: '#2B2B2B',
-  },
-  option: {
-    padding: 12,
-    borderRadius: 10,
-    borderWidth: 1,
-    borderColor: '#E6D3A3',
-    marginBottom: 8,
-  },
-  optionActive: {
-    backgroundColor: '#C9A24D',
-  },
-  optionText: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#2B2B2B',
-  },
-  optionTextActive: {
-    color: '#FFFFFF',
-  },
-  timeGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-  },
-  timeSlot: {
-    width: '30%',
-    paddingVertical: 10,
-    margin: '1.5%',
-    borderRadius: 10,
-    borderWidth: 1,
-    borderColor: '#E6D3A3',
-    alignItems: 'center',
-  },
-  timeSlotActive: {
-    backgroundColor: '#C9A24D',
-  },
-  timeText: {
-    fontSize: 13,
-    fontWeight: '700',
-    color: '#2B2B2B',
-  },
-  timeTextActive: {
-    color: '#FFFFFF',
-  },
-  button: {
-    backgroundColor: '#C9A24D',
-    paddingVertical: 18,
-    borderRadius: 16,
-    alignItems: 'center',
-    marginTop: 8,
-  },
-  buttonText: {
-    color: '#FFFFFF',
-    fontSize: 16,
-    fontWeight: '800',
-  },
-  center: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: '#FAF8F4',
-  },
-  loadingText: {
-    marginTop: 10,
-    color: '#7A7A7A',
-  },
+  container: { padding: 20, backgroundColor: '#FAF8F4' },
+  title: { fontSize: 26, fontWeight: '800', marginBottom: 20 },
+  card: { backgroundColor: '#fff', padding: 16, borderRadius: 16, marginBottom: 16 },
+  label: { fontSize: 13, marginBottom: 6, color: '#7A7A7A' },
+  input: { borderWidth: 1, borderColor: '#E6D3A3', borderRadius: 12, padding: 14 },
+  option: { padding: 12, borderRadius: 10, borderWidth: 1, borderColor: '#E6D3A3', marginBottom: 8 },
+  optionActive: { backgroundColor: '#C9A24D' },
+  optionText: { fontWeight: '600' },
+  optionTextActive: { color: '#fff' },
+  timeGrid: { flexDirection: 'row', flexWrap: 'wrap' },
+  timeSlot: { width: '30%', margin: '1.5%', padding: 10, borderWidth: 1, borderRadius: 10 },
+  timeSlotActive: { backgroundColor: '#C9A24D' },
+  timeText: { fontWeight: '600', textAlign: 'center' },
+  timeTextActive: { color: '#fff' },
+  button: { backgroundColor: '#C9A24D', padding: 18, borderRadius: 16, alignItems: 'center' },
+  buttonText: { color: '#fff', fontWeight: '800' },
+  center: { flex: 1, justifyContent: 'center', alignItems: 'center' },
+  loadingText: { marginTop: 10 },
 });
