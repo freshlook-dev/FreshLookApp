@@ -119,18 +119,21 @@ export default function EditAppointment() {
 
     setLoading(true);
 
-    const { error } = await supabase
-      .from('appointments')
-      .update({
-        client_name: fullName,
-        phone,
-        service: treatment,
-        appointment_date: formatDate(date),
-        appointment_time: time,
-        location,
-        comment: comment || null,
-      })
-      .eq('id', appointmentId);
+    const { data, error } = await supabase
+  .from('appointments')
+  .update({
+    client_name: fullName,
+    phone,
+    service: treatment,
+    appointment_date: formatDate(date),
+    appointment_time: time,
+    location,
+    comment: comment || null,
+  })
+  .eq('id', appointmentId)
+  .select('id');
+
+
 
     if (error) {
       Alert.alert('Gabim', error.message);
