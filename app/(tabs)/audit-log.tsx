@@ -13,14 +13,27 @@ import { router } from 'expo-router';
 import { supabase } from '../../context/supabase';
 import { useAuth } from '../../context/AuthContext';
 
+/* ---------------- TYPES ---------------- */
+
+type Change = {
+  from: any;
+  to: any;
+};
+
+type AuditDetails = {
+  changes?: Record<string, Change>;
+};
+
 type AuditLog = {
   id: string;
   action: string;
   created_at: string;
-  details: any;
+  details: AuditDetails | null;
   actor: { email: string | null }[] | null;
   target: { email: string | null }[] | null;
 };
+
+/* ---------------- HELPERS ---------------- */
 
 const formatDateTime = (iso: string) => {
   const d = new Date(iso);
@@ -29,6 +42,14 @@ const formatDateTime = (iso: string) => {
     minute: '2-digit',
   })}`;
 };
+
+const formatValue = (value: any) => {
+  if (value === null || value === undefined) return '—';
+  if (typeof value === 'string') return value;
+  return JSON.stringify(value);
+};
+
+/* ---------------- SCREEN ---------------- */
 
 export default function AuditLogScreen() {
   const { user } = useAuth();
@@ -39,7 +60,6 @@ export default function AuditLogScreen() {
 
   useEffect(() => {
     if (!user) return;
-
     checkRoleAndLoad();
   }, [user]);
 
@@ -80,7 +100,7 @@ export default function AuditLogScreen() {
       return;
     }
 
-    setLogs(data ?? []);
+    setLogs((data ?? []) as AuditLog[]);
   };
 
   if (loading) {
@@ -103,25 +123,43 @@ export default function AuditLogScreen() {
         keyExtractor={(item) => item.id}
         showsVerticalScrollIndicator={false}
         contentContainerStyle={{ paddingBottom: 30 }}
-        renderItem={({ item }) => (
-          <View style={styles.card}>
-            <Text style={styles.action}>{item.action}</Text>
+        renderItem={({ item }) => {
+          const changes = item.details?.changes;
 
-            <Text style={styles.meta}>
-              👤 {item.actor?.[0]?.email ?? 'System'}
-            </Text>
+          return (
+            <View style={styles.card}>
+              <Text style={styles.action}>{item.action}</Text>
 
-            {item.target?.[0]?.email && (
               <Text style={styles.meta}>
-                🎯 {item.target[0].email}
+                👤 {item.actor?.[0]?.email ?? 'System'}
               </Text>
-            )}
 
-            <Text style={styles.time}>
-              {formatDateTime(item.created_at)}
-            </Text>
-          </View>
-        )}
+              {item.target?.[0]?.email && (
+                <Text style={styles.meta}>
+                  🎯 {item.target[0].email}
+                </Text>
+              )}
+
+              {/* 🔍 WHAT CHANGED */}
+              {changes && (
+                <View style={styles.changesBox}>
+                  {Object.entries(changes).map(
+                    ([field, { from, to }]) => (
+                      <Text key={field} style={styles.changeLine}>
+                        • {field}: {formatValue(from)} →{' '}
+                        {formatValue(to)}
+                      </Text>
+                    )
+                  )}
+                </View>
+              )}
+
+              <Text style={styles.time}>
+                {formatDateTime(item.created_at)}
+              </Text>
+            </View>
+          );
+        }}
       />
     </View>
   );
@@ -166,6 +204,17 @@ const styles = StyleSheet.create({
     fontSize: 13,
     marginTop: 4,
     color: '#555',
+  },
+  changesBox: {
+    marginTop: 8,
+    paddingTop: 6,
+    borderTopWidth: 1,
+    borderTopColor: '#EEE',
+  },
+  changeLine: {
+    fontSize: 13,
+    color: '#2B2B2B',
+    marginTop: 2,
   },
   time: {
     fontSize: 12,
