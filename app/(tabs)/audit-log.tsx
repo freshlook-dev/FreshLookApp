@@ -7,7 +7,6 @@ import {
   StyleSheet,
   ActivityIndicator,
   FlatList,
-  Pressable,
 } from 'react-native';
 import { router } from 'expo-router';
 
@@ -50,6 +49,24 @@ const prettyAction = (action: string) => {
   }
 };
 
+const renderMetadata = (metadata: any) => {
+  if (!metadata || typeof metadata !== 'object') return null;
+
+  const entries = Object.entries(metadata);
+
+  if (entries.length === 0) return null;
+
+  return (
+    <View style={styles.changesBox}>
+      {entries.map(([key, value]) => (
+        <Text key={key} style={styles.changeItem}>
+          • {key}: {typeof value === 'object' ? JSON.stringify(value) : String(value)}
+        </Text>
+      ))}
+    </View>
+  );
+};
+
 /* ================= SCREEN ================= */
 
 export default function AuditLogsScreen() {
@@ -79,8 +96,7 @@ export default function AuditLogsScreen() {
       return;
     }
 
-    await loadUsers();
-    await loadLogs();
+    await Promise.all([loadUsers(), loadLogs()]);
     setLoading(false);
   };
 
@@ -131,12 +147,6 @@ export default function AuditLogsScreen() {
               ? users[item.actor_id]
               : 'System';
 
-          const changed =
-            item.metadata?.changed &&
-            typeof item.metadata.changed === 'object'
-              ? Object.entries(item.metadata.changed)
-              : [];
-
           return (
             <View style={styles.card}>
               <Text style={styles.action}>
@@ -145,15 +155,7 @@ export default function AuditLogsScreen() {
 
               <Text style={styles.meta}>👤 {actorEmail}</Text>
 
-              {changed.length > 0 && (
-                <View style={styles.changesBox}>
-                  {changed.map(([key, value]) => (
-                    <Text key={key} style={styles.changeItem}>
-                      • {key}: {String(value)}
-                    </Text>
-                  ))}
-                </View>
-              )}
+              {renderMetadata(item.metadata)}
 
               <Text style={styles.time}>
                 {formatDateTime(item.created_at)}
