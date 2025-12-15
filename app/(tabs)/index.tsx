@@ -239,7 +239,7 @@ const styles = StyleSheet.create({
   statContent: {
     alignItems: 'center',
     paddingVertical: Spacing.md,
-    width: 140,
+    width: 100,
   },
   statNumber: {
     fontSize: 26,
@@ -257,7 +257,7 @@ const styles = StyleSheet.create({
   smallStat: {
     alignItems: 'center',
     paddingVertical: Spacing.sm,
-    width: 120,
+    width: 100,
   },
   smallNumber: {
     fontSize: 22,
