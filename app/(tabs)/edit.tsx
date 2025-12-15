@@ -9,7 +9,6 @@ import {
   Pressable,
   Alert,
   ActivityIndicator,
-  Platform,
   ScrollView,
 } from 'react-native';
 import DateTimePicker from '@react-native-community/datetimepicker';
@@ -110,12 +109,8 @@ export default function EditAppointment() {
   const formatDate = (d: Date) => d.toISOString().split('T')[0];
 
   const confirmSave = async () => {
-    if (Platform.OS === 'web') {
-      return window.confirm('A jeni të sigurt që doni të ruani ndryshimet?');
-    }
-
     return new Promise<boolean>((resolve) => {
-      Alert.alert('Konfirmim', 'A jeni të sigurt?', [
+      Alert.alert('Konfirmim', 'A jeni të sigurt që doni të ruani ndryshimet?', [
         { text: 'Jo', style: 'cancel', onPress: () => resolve(false) },
         { text: 'Po', onPress: () => resolve(true) },
       ]);
@@ -150,7 +145,7 @@ export default function EditAppointment() {
         comment: comment || null,
       })
       .eq('id', appointmentId)
-      .select(); // ✅ FIX: REQUIRED TO AVOID 404
+      .select();
 
     if (error) {
       Alert.alert('Gabim', error.message);
@@ -219,37 +214,19 @@ export default function EditAppointment() {
       <View style={styles.card}>
         <Text style={styles.label}>Data</Text>
 
-        {Platform.OS === 'web' ? (
-          <input
-            type="date"
-            value={formatDate(date)}
-            onChange={(e) => setDate(new Date(e.target.value))}
-            style={{
-              borderWidth: 1,
-              borderColor: '#E6D3A3',
-              borderRadius: 12,
-              padding: 14,
-              fontSize: 15,
-              backgroundColor: '#FAF8F4',
+        <Pressable onPress={() => setShowDatePicker(true)} style={styles.input}>
+          <Text>{formatDate(date)}</Text>
+        </Pressable>
+
+        {showDatePicker && (
+          <DateTimePicker
+            value={date}
+            mode="date"
+            onChange={(_, d) => {
+              setShowDatePicker(false);
+              if (d) setDate(d);
             }}
           />
-        ) : (
-          <>
-            <Pressable onPress={() => setShowDatePicker(true)} style={styles.input}>
-              <Text>{formatDate(date)}</Text>
-            </Pressable>
-
-            {showDatePicker && (
-              <DateTimePicker
-                value={date}
-                mode="date"
-                onChange={(_, d) => {
-                  setShowDatePicker(false);
-                  if (d) setDate(d);
-                }}
-              />
-            )}
-          </>
         )}
       </View>
 
