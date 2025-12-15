@@ -31,6 +31,8 @@ export default function HomeTab() {
   const [fullName, setFullName] = useState<string>('User');
   const [totalCount, setTotalCount] = useState(0);
   const [upcomingCount, setUpcomingCount] = useState(0);
+  const [prishtinaCount, setPrishtinaCount] = useState(0);
+  const [fusheKosoveCount, setFusheKosoveCount] = useState(0);
   const [staffStats, setStaffStats] = useState<StaffStat[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -58,7 +60,7 @@ export default function HomeTab() {
 
     setTotalCount(total ?? 0);
 
-    /* ⏰ UPCOMING APPOINTMENTS (TODAY ONLY) */
+    /* ⏰ TODAY APPOINTMENTS */
     const today = new Date().toISOString().split('T')[0];
 
     const { count: upcoming } = await supabase
@@ -67,6 +69,20 @@ export default function HomeTab() {
       .eq('appointment_date', today);
 
     setUpcomingCount(upcoming ?? 0);
+
+    /* 📍 LOCATION COUNTS */
+    const { count: prishtina } = await supabase
+      .from('appointments')
+      .select('*', { count: 'exact', head: true })
+      .eq('location', 'Prishtinë');
+
+    const { count: fushe } = await supabase
+      .from('appointments')
+      .select('*', { count: 'exact', head: true })
+      .eq('location', 'Fushë Kosovë');
+
+    setPrishtinaCount(prishtina ?? 0);
+    setFusheKosoveCount(fushe ?? 0);
 
     /* 📅 MONTHLY STAFF STATS */
     const firstDayOfMonth = new Date(
@@ -77,7 +93,7 @@ export default function HomeTab() {
       .toISOString()
       .split('T')[0];
 
-    const { data: monthlyAppointments, error } = await supabase
+    const { data: monthlyAppointments } = await supabase
       .from('appointments')
       .select(
         `
@@ -89,7 +105,7 @@ export default function HomeTab() {
       )
       .gte('created_at', firstDayOfMonth);
 
-    if (!error && monthlyAppointments) {
+    if (monthlyAppointments) {
       const map: Record<string, StaffStat> = {};
 
       monthlyAppointments.forEach((a: any) => {
@@ -97,17 +113,15 @@ export default function HomeTab() {
         const name = a.profiles?.full_name ?? 'Unknown';
 
         if (!map[id]) {
-          map[id] = {
-            user_id: id,
-            full_name: name,
-            count: 0,
-          };
+          map[id] = { user_id: id, full_name: name, count: 0 };
         }
 
         map[id].count += 1;
       });
 
-      setStaffStats(Object.values(map));
+      setStaffStats(
+        Object.values(map).sort((a, b) => b.count - a.count)
+      );
     }
 
     setLoading(false);
@@ -120,6 +134,13 @@ export default function HomeTab() {
       </View>
     );
   }
+
+  const renderBadge = (index: number) => {
+    if (index === 0) return '🥇';
+    if (index === 1) return '🥈';
+    if (index === 2) return '🥉';
+    return `${index + 1}.`;
+  };
 
   return (
     <View style={styles.container}>
@@ -139,7 +160,26 @@ export default function HomeTab() {
         <Card>
           <View style={styles.statContent}>
             <Text style={styles.statNumber}>{totalCount}</Text>
-            <Text style={styles.statLabel}>Terminet e krijuara nga ju këtë muaj</Text>
+            <Text style={styles.statLabel}>
+              Terminet e krijuara nga ju këtë muaj
+            </Text>
+          </View>
+        </Card>
+      </View>
+
+      {/* LOCATION STATS */}
+      <View style={styles.statsRow}>
+        <Card>
+          <View style={styles.statContent}>
+            <Text style={styles.statNumber}>{prishtinaCount}</Text>
+            <Text style={styles.statLabel}>Prishtinë</Text>
+          </View>
+        </Card>
+
+        <Card>
+          <View style={styles.statContent}>
+            <Text style={styles.statNumber}>{fusheKosoveCount}</Text>
+            <Text style={styles.statLabel}>Fushë Kosovë</Text>
           </View>
         </Card>
       </View>
@@ -151,10 +191,12 @@ export default function HomeTab() {
         data={staffStats}
         keyExtractor={(item) => item.user_id}
         showsVerticalScrollIndicator={false}
-        renderItem={({ item }) => (
+        renderItem={({ item, index }) => (
           <Card>
             <View style={styles.staffRow}>
-              <Text style={styles.staffName}>{item.full_name}</Text>
+              <Text style={styles.staffName}>
+                {renderBadge(index)} {item.full_name}
+              </Text>
               <Text style={styles.staffCount}>{item.count}</Text>
             </View>
           </Card>
