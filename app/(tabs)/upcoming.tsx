@@ -84,7 +84,13 @@ export default function UpcomingAppointments() {
       query = query.eq('location', locationFilter);
     }
 
-    const { data } = await query;
+    const { data, error } = await query;
+
+    if (error) {
+      Alert.alert('Gabim', error.message);
+      setLoading(false);
+      return;
+    }
 
     if (!isMounted.current) return;
 
@@ -106,7 +112,8 @@ export default function UpcomingAppointments() {
           const { error } = await supabase
             .from('appointments')
             .update({ status })
-            .eq('id', id);
+            .eq('id', id)
+            .select(); // ✅ REQUIRED FOR RLS
 
           if (error) {
             Alert.alert('Gabim', error.message);
