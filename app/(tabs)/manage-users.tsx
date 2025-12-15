@@ -7,16 +7,18 @@ import {
   StyleSheet,
   FlatList,
   Pressable,
-  Alert,
   ActivityIndicator,
+  Alert,
+  Platform,
 } from 'react-native';
+import { router } from 'expo-router';
 
 import { supabase } from '../../context/supabase';
 import { useAuth } from '../../context/AuthContext';
 
 type Role = 'owner' | 'manager' | 'staff';
 
-type UserProfile = {
+type UserRow = {
   id: string;
   email: string;
   role: Role;
@@ -25,49 +27,105 @@ type UserProfile = {
 export default function ManageUsersScreen() {
   const { user } = useAuth();
 
-  const [users, setUsers] = useState<UserProfile[]>([]);
+  const [myRole, setMyRole] = useState<Role | null>(null);
+  const [users, setUsers] = useState<UserRow[]>([]);
   const [loading, setLoading] = useState(true);
 
+  /* ---------------- LOAD OWNER ROLE ---------------- */
+
   useEffect(() => {
-    if (user) loadUsers();
+    if (!user) return;
+
+    const init = async () => {
+      setLoading(true);
+
+      // 1️⃣ Load MY role
+      const { data: me, error: meError } = await supabase
+        .from('profiles')
+        .select('role')
+        .eq('id', user.id)
+        .single();
+
+      if (meError || !me) {
+        Alert.alert('Error', 'Failed to load your role');
+        setLoading(false);
+        return;
+      }
+
+      // ❌ Not owner → kick out
+      if (me.role !== 'owner') {
+        router.replace('/(tabs)/profile');
+        return;
+      }
+
+      setMyRole(me.role);
+
+      // 2️⃣ Load all OTHER users
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('id, email, role')
+        .neq('id', user.id)
+        .order('email');
+
+      if (error) {
+        Alert.alert('Error', error.message);
+        setLoading(false);
+        return;
+      }
+
+      setUsers(data ?? []);
+      setLoading(false);
+    };
+
+    init();
   }, [user]);
 
-  const loadUsers = async () => {
-    setLoading(true);
+  /* ---------------- CHANGE ROLE ---------------- */
 
-    const { data } = await supabase
-      .from('profiles')
-      .select('id, email, role')
-      .neq('id', user!.id)
-      .order('email');
+  const confirmChange = (u: UserRow) => {
+    const newRole: Role =
+      u.role === 'staff' ? 'manager' : 'staff';
 
-    setUsers(data ?? []);
-    setLoading(false);
+    const message = `Change ${u.email} to ${newRole.toUpperCase()}?`;
+
+    if (Platform.OS === 'web') {
+      const ok = window.confirm(message);
+      if (ok) updateRole(u.id, newRole);
+    } else {
+      Alert.alert(
+        'Confirm role change',
+        message,
+        [
+          { text: 'Cancel', style: 'cancel' },
+          {
+            text: 'Confirm',
+            onPress: () => updateRole(u.id, newRole),
+          },
+        ]
+      );
+    }
   };
 
-  const changeRole = (target: UserProfile) => {
-    const newRole: Role =
-      target.role === 'staff' ? 'manager' : 'staff';
+  const updateRole = async (userId: string, role: Role) => {
+    const { error } = await supabase
+      .from('profiles')
+      .update({ role })
+      .eq('id', userId);
 
-    Alert.alert(
-      'Change role',
-      `Change ${target.email} to ${newRole.toUpperCase()}?`,
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Confirm',
-          onPress: async () => {
-            await supabase
-              .from('profiles')
-              .update({ role: newRole })
-              .eq('id', target.id);
+    if (error) {
+      Alert.alert('Error', error.message);
+      return;
+    }
 
-            loadUsers();
-          },
-        },
-      ]
+    // Reload list
+    setUsers((prev) =>
+      prev.map((u) =>
+        u.id === userId ? { ...u, role } : u
+      )
     );
   };
+
+  /* ---------------- UI ---------------- */
 
   if (loading) {
     return (
@@ -75,6 +133,10 @@ export default function ManageUsersScreen() {
         <ActivityIndicator size="large" />
       </View>
     );
+  }
+
+  if (myRole !== 'owner') {
+    return null;
   }
 
   return (
@@ -88,7 +150,7 @@ export default function ManageUsersScreen() {
           <View style={styles.card}>
             <Text style={styles.email}>{item.email}</Text>
 
-            <Pressable onPress={() => changeRole(item)}>
+            <Pressable onPress={() => confirmChange(item)}>
               <Text style={styles.roleBtn}>
                 {item.role.toUpperCase()} → CHANGE
               </Text>
@@ -99,6 +161,8 @@ export default function ManageUsersScreen() {
     </View>
   );
 }
+
+/* ---------------- STYLES ---------------- */
 
 const styles = StyleSheet.create({
   container: {

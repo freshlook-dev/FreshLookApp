@@ -236,7 +236,7 @@ const styles = StyleSheet.create({
   smallStat: {
     alignItems: 'center',
     paddingVertical: Spacing.sm,
-    width: 60,
+    width: 58,
   },
   smallNumber: {
     fontSize: 20,
