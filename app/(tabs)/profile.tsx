@@ -16,7 +16,6 @@ import { router } from 'expo-router';
 
 import * as ImagePicker from 'expo-image-picker';
 import * as ImageManipulator from 'expo-image-manipulator';
-
 import Cropper from 'react-easy-crop';
 
 import { useAuth } from '../../context/AuthContext';
@@ -39,7 +38,7 @@ export default function ProfileTab() {
   const [loading, setLoading] = useState(true);
   const [uploading, setUploading] = useState(false);
 
-  /* 🟢 CROP STATES (WEB ONLY) */
+  /* 🔲 CROP STATES (WEB ONLY) */
   const [imageToCrop, setImageToCrop] = useState<string | null>(null);
   const [crop, setCrop] = useState({ x: 0, y: 0 });
   const [zoom, setZoom] = useState(1);
@@ -84,13 +83,11 @@ export default function ProfileTab() {
     const uri = result.assets[0].uri;
 
     if (Platform.OS === 'web') {
-      // 👉 OPEN CUSTOM CROP UI (WEB + PHONE BROWSER)
       setImageToCrop(uri);
       setCrop({ x: 0, y: 0 });
       setZoom(1);
       setShowCropper(true);
     } else {
-      // 👉 NATIVE FALLBACK (UNCHANGED)
       uploadFinalImage(uri);
     }
   };
@@ -193,9 +190,11 @@ export default function ProfileTab() {
     );
   }
 
+  const isOwner = profile.role === 'owner';
+
   return (
     <>
-      {/* 🔲 FULL DRAGGABLE CROP UI (WEB ONLY) */}
+      {/* 🔲 CROP OVERLAY (WEB ONLY) */}
       {Platform.OS === 'web' && showCropper && (
         <div
           style={{
@@ -261,10 +260,11 @@ export default function ProfileTab() {
         </div>
       )}
 
-      {/* MAIN SCREEN (UNCHANGED) */}
+      {/* ================= MAIN UI (RESTORED) ================= */}
       <ScrollView contentContainerStyle={styles.container}>
         <Text style={styles.pageTitle}>My Profile</Text>
 
+        {/* PROFILE PHOTO */}
         <Pressable
           onPress={pickAndUploadAvatar}
           style={{ alignItems: 'center', marginBottom: 20 }}
@@ -280,6 +280,7 @@ export default function ProfileTab() {
               height: 110,
               borderRadius: 55,
               marginBottom: 8,
+              backgroundColor: '#EAEAEA',
             }}
           />
           <Text style={{ fontSize: 12, color: '#7A7A7A' }}>
@@ -287,7 +288,52 @@ export default function ProfileTab() {
           </Text>
         </Pressable>
 
-        {/* EVERYTHING BELOW IS UNCHANGED */}
+        {/* BASIC INFO */}
+        <View style={styles.card}>
+          <Text style={styles.label}>Email</Text>
+          <Text style={styles.value}>{profile.email}</Text>
+
+          <Text style={[styles.label, { marginTop: 12 }]}>Full name</Text>
+          <Text style={styles.value}>{profile.full_name || 'Not set'}</Text>
+
+          <Text style={[styles.label, { marginTop: 12 }]}>Role</Text>
+          <Text style={[styles.value, isOwner ? styles.owner : styles.staff]}>
+            {profile.role.toUpperCase()}
+          </Text>
+        </View>
+
+        {/* ACTION BUTTONS (RESTORED) */}
+        <View style={styles.card}>
+          <Pressable
+            onPress={() => router.push('../(tabs)/change-password')}
+            style={styles.primaryButton}
+          >
+            <Text style={styles.primaryButtonText}>Change Password</Text>
+          </Pressable>
+
+          {isOwner && (
+            <>
+              <Pressable
+                onPress={() => router.push('../(tabs)/manage-users')}
+                style={[styles.primaryButton, { marginTop: 12 }]}
+              >
+                <Text style={styles.primaryButtonText}>Manage Users</Text>
+              </Pressable>
+
+              <Pressable
+                onPress={() => router.push('../(tabs)/audit-log')}
+                style={[styles.primaryButton, { marginTop: 12 }]}
+              >
+                <Text style={styles.primaryButtonText}>Audit Logs</Text>
+              </Pressable>
+            </>
+          )}
+        </View>
+
+        {/* LOGOUT */}
+        <Pressable onPress={handleLogout} style={styles.logoutButton}>
+          <Text style={styles.logoutText}>Logout</Text>
+        </Pressable>
       </ScrollView>
     </>
   );
@@ -307,6 +353,51 @@ const styles = StyleSheet.create({
     fontWeight: '800',
     color: '#2B2B2B',
     marginBottom: 20,
+  },
+  card: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 16,
+    padding: 16,
+    marginBottom: 12,
+  },
+  label: {
+    fontSize: 12,
+    color: '#7A7A7A',
+  },
+  value: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: '#2B2B2B',
+    marginTop: 4,
+  },
+  owner: {
+    color: '#C9A24D',
+  },
+  staff: {
+    color: '#2B2B2B',
+  },
+  primaryButton: {
+    backgroundColor: '#C9A24D',
+    paddingVertical: 14,
+    borderRadius: 14,
+    alignItems: 'center',
+  },
+  primaryButtonText: {
+    color: '#FFFFFF',
+    fontWeight: '700',
+    fontSize: 15,
+  },
+  logoutButton: {
+    marginTop: 30,
+    backgroundColor: '#D64545',
+    paddingVertical: 16,
+    borderRadius: 16,
+    alignItems: 'center',
+  },
+  logoutText: {
+    color: '#FFFFFF',
+    fontWeight: '800',
+    fontSize: 16,
   },
   center: {
     flex: 1,
