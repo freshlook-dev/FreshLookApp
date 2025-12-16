@@ -38,7 +38,7 @@ export default function ProfileTab() {
   const [loading, setLoading] = useState(true);
   const [uploading, setUploading] = useState(false);
 
-  /* 🔲 CROP STATES (WEB ONLY) */
+  /* 🟢 CROP STATES (WEB ONLY) */
   const [imageToCrop, setImageToCrop] = useState<string | null>(null);
   const [crop, setCrop] = useState({ x: 0, y: 0 });
   const [zoom, setZoom] = useState(1);
@@ -105,13 +105,14 @@ export default function ProfileTab() {
       );
 
       const response = await fetch(manipulated.uri);
-      const blob = await response.blob();
+      const arrayBuffer = await response.arrayBuffer();
 
+      // ✅ REQUIRED
       const filePath = `${user!.id}.jpg`;
 
       await supabase.storage
         .from('avatars')
-        .upload(filePath, blob, {
+        .upload(filePath, arrayBuffer, {
           upsert: true,
           contentType: 'image/jpeg',
         });
@@ -128,7 +129,8 @@ export default function ProfileTab() {
       setProfile((p) =>
         p ? { ...p, avatar_url: data.publicUrl } : p
       );
-    } catch {
+    } catch (err) {
+      console.error(err);
       Alert.alert('Error', 'Failed to upload photo');
     } finally {
       setUploading(false);
@@ -194,7 +196,7 @@ export default function ProfileTab() {
 
   return (
     <>
-      {/* 🔲 CROP OVERLAY (WEB ONLY) */}
+      {/* 🔲 FULL DRAGGABLE CROP UI (WEB + PHONE BROWSER) */}
       {Platform.OS === 'web' && showCropper && (
         <div
           style={{
@@ -260,11 +262,10 @@ export default function ProfileTab() {
         </div>
       )}
 
-      {/* ================= MAIN UI (RESTORED) ================= */}
+      {/* ================= MAIN UI (UNCHANGED) ================= */}
       <ScrollView contentContainerStyle={styles.container}>
         <Text style={styles.pageTitle}>My Profile</Text>
 
-        {/* PROFILE PHOTO */}
         <Pressable
           onPress={pickAndUploadAvatar}
           style={{ alignItems: 'center', marginBottom: 20 }}
@@ -302,7 +303,7 @@ export default function ProfileTab() {
           </Text>
         </View>
 
-        {/* ACTION BUTTONS (RESTORED) */}
+        {/* ACTION BUTTONS */}
         <View style={styles.card}>
           <Pressable
             onPress={() => router.push('../(tabs)/change-password')}
