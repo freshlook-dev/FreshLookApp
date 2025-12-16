@@ -105,17 +105,19 @@ export default function ProfileTab() {
       );
 
       const response = await fetch(manipulated.uri);
-      const arrayBuffer = await response.arrayBuffer();
+      const blob = await response.blob();
 
-      // ✅ REQUIRED
       const filePath = `${user!.id}.jpg`;
 
-      await supabase.storage
+      const { error } = await supabase.storage
         .from('avatars')
-        .upload(filePath, arrayBuffer, {
+       .upload(filePath, blob, {
           upsert: true,
           contentType: 'image/jpeg',
-        });
+     });
+
+if (error) throw error;
+
 
       const { data } = supabase.storage
         .from('avatars')
