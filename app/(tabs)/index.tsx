@@ -7,7 +7,7 @@ import {
   StyleSheet,
   ActivityIndicator,
   FlatList,
-  Image, // ✅ added
+  Image,
 } from 'react-native';
 
 import { useAuth } from '../../context/AuthContext';
@@ -21,7 +21,7 @@ import { Colors, Spacing } from '../../constants/theme';
 type StaffStat = {
   user_id: string;
   full_name: string;
-  avatar_url?: string | null; // ✅ added
+  avatar_url?: string | null;
   count: number;
 };
 
@@ -64,26 +64,32 @@ export default function HomeTab() {
 
     setTotalCount(total ?? 0);
 
-    /* ⏰ TODAY APPOINTMENTS */
+    /* ⏰ TODAY APPOINTMENTS (FIXED) */
     const { count: upcoming } = await supabase
       .from('appointments')
       .select('*', { count: 'exact', head: true })
-      .eq('appointment_date', today);
+      .eq('appointment_date', today)
+      .eq('archived', false)
+      .in('status', ['upcoming', 'arrived']);
 
     setUpcomingCount(upcoming ?? 0);
 
-    /* 📍 LOCATION COUNTS (TODAY ONLY) */
+    /* 📍 LOCATION COUNTS (TODAY ONLY – FIXED) */
     const { count: prishtina } = await supabase
       .from('appointments')
       .select('*', { count: 'exact', head: true })
       .eq('appointment_date', today)
-      .eq('location', 'Prishtinë');
+      .eq('location', 'Prishtinë')
+      .eq('archived', false)
+      .in('status', ['upcoming', 'arrived']);
 
     const { count: fushe } = await supabase
       .from('appointments')
       .select('*', { count: 'exact', head: true })
       .eq('appointment_date', today)
-      .eq('location', 'Fushë Kosovë');
+      .eq('location', 'Fushë Kosovë')
+      .eq('archived', false)
+      .in('status', ['upcoming', 'arrived']);
 
     setPrishtinaToday(prishtina ?? 0);
     setFusheToday(fushe ?? 0);
