@@ -21,10 +21,21 @@ export default function ResetPasswordScreen() {
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [ready, setReady] = useState(false); // 🔑 recovery ready
 
   useEffect(() => {
-    // Required so Supabase reads token from URL
-    supabase.auth.getSession();
+    // ✅ REQUIRED for mobile browsers (Safari, iOS, Android)
+    const { data: listener } = supabase.auth.onAuthStateChange(
+      (event) => {
+        if (event === 'PASSWORD_RECOVERY') {
+          setReady(true);
+        }
+      }
+    );
+
+    return () => {
+      listener.subscription.unsubscribe();
+    };
   }, []);
 
   const handleUpdate = async () => {
@@ -35,6 +46,14 @@ export default function ResetPasswordScreen() {
 
     if (password !== confirmPassword) {
       Alert.alert('Error', 'Passwords do not match');
+      return;
+    }
+
+    if (!ready) {
+      Alert.alert(
+        'Please wait',
+        'Preparing secure session. Try again in a moment.'
+      );
       return;
     }
 
@@ -104,9 +123,12 @@ export default function ResetPasswordScreen() {
       </View>
 
       <Pressable
-        style={[styles.button, loading && { opacity: 0.7 }]}
+        style={[
+          styles.button,
+          (loading || !ready) && { opacity: 0.6 },
+        ]}
         onPress={handleUpdate}
-        disabled={loading}
+        disabled={loading || !ready}
       >
         {loading ? (
           <ActivityIndicator color="#fff" />
@@ -140,11 +162,11 @@ const styles = StyleSheet.create({
     borderColor: '#E6D3A3',
     paddingVertical: 14,
     paddingHorizontal: 16,
+    paddingRight: 44,
     borderRadius: 12,
     backgroundColor: '#FFFFFF',
     color: '#2B2B2B',
     fontSize: 15,
-    paddingRight: 44, // space for eye icon
   },
   eye: {
     position: 'absolute',
