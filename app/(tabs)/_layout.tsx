@@ -1,5 +1,4 @@
-import { useState } from 'react';
-import { Alert, Pressable, Platform, Image } from 'react-native';
+import { Image } from 'react-native';
 import { Tabs, Redirect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -11,8 +10,8 @@ const HeaderLogo = () => (
   <Image
     source={require('../../assets/images/logo.png')}
     style={{
-      width: 65,
-      height: 65,
+      width: 75,
+      height: 75,
       marginLeft: 20,
     }}
     resizeMode="contain"
@@ -22,33 +21,6 @@ const HeaderLogo = () => (
 export default function TabsLayout() {
   const { user, loading } = useAuth();
   const insets = useSafeAreaInsets();
-
-  const [refreshing, setRefreshing] = useState(false);
-
-  /* 🔄 REFRESH ACTION */
-  const handleRefresh = async () => {
-    if (!user || refreshing) return;
-
-    setRefreshing(true);
-
-    if (Platform.OS === 'web') {
-      window.alert('Updated: refreshed!');
-    } else {
-      Alert.alert('Updated', 'Refreshed!');
-    }
-
-    setRefreshing(false);
-  };
-
-  const RefreshButton = () => (
-    <Pressable onPress={handleRefresh} style={{ marginRight: 14 }}>
-      <Ionicons
-        name={refreshing ? 'refresh-circle' : 'refresh'}
-        size={24}
-        color="#2B2B2B"
-      />
-    </Pressable>
-  );
 
   // ✅ Redirects AFTER hooks
   if (loading) return null;
@@ -90,7 +62,6 @@ export default function TabsLayout() {
         name="index"
         options={{
           title: 'Kryefaqja',
-          headerRight: () => <RefreshButton />,
           tabBarIcon: ({ color, size, focused }) => (
             <Ionicons
               name={focused ? 'home' : 'home-outline'}
@@ -105,7 +76,6 @@ export default function TabsLayout() {
         name="upcoming"
         options={{
           title: 'Në ardhje',
-          headerRight: () => <RefreshButton />,
           tabBarIcon: ({ color, size, focused }) => (
             <Ionicons
               name={focused ? 'list' : 'list-outline'}
@@ -120,7 +90,6 @@ export default function TabsLayout() {
         name="calendar"
         options={{
           title: 'Kalendari',
-          headerRight: () => <RefreshButton />,
           tabBarIcon: ({ color, size, focused }) => (
             <Ionicons
               name={focused ? 'calendar' : 'calendar-outline'}
@@ -135,7 +104,6 @@ export default function TabsLayout() {
         name="create"
         options={{
           title: 'Termin i ri',
-          headerRight: () => <RefreshButton />,
           tabBarIcon: ({ color, size, focused }) => (
             <Ionicons
               name={focused ? 'add-circle' : 'add-circle-outline'}
@@ -151,7 +119,6 @@ export default function TabsLayout() {
         name="history"
         options={{
           title: 'Historia',
-          headerRight: () => <RefreshButton />,
           tabBarIcon: ({ color, size, focused }) => (
             <Ionicons
               name={focused ? 'time' : 'time-outline'}
@@ -166,7 +133,6 @@ export default function TabsLayout() {
         name="profile"
         options={{
           title: 'Profili',
-          headerRight: () => <RefreshButton />,
           tabBarIcon: ({ color, size, focused }) => (
             <Ionicons
               name={focused ? 'person' : 'person-outline'}
