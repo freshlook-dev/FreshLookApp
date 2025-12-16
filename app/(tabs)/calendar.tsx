@@ -25,9 +25,10 @@ type Appointment = {
   appointment_date: string;
   appointment_time: string;
   phone: string | null;
-  location: string | null; // ✅ added
+  location: string | null;
   comment: string | null;
   creator_name: string | null;
+  status: 'upcoming'; // 👈 important
 };
 
 /* 🔹 HELPERS */
@@ -62,10 +63,13 @@ export default function CalendarTab() {
         phone,
         location,
         comment,
+        status,
         profiles:created_by (
           full_name
         )
-      `);
+      `)
+      .eq('status', 'upcoming') // ✅ KEY FIX
+      .eq('archived', false);
 
     if (!error && data) {
       setAppointments(
@@ -158,21 +162,19 @@ export default function CalendarTab() {
               {formatTime(item.appointment_time)}
             </Text>
 
-            {/* 📞 PHONE */}
             {item.phone && (
-              <Text style={styles.phone}>
-                📞 {item.phone}
-              </Text>
+              <Text style={styles.phone}>📞 {item.phone}</Text>
             )}
 
-            {/* 📍 LOCATION */}
             {item.location && (
               <Text style={styles.location}>
                 📍 {item.location}
               </Text>
             )}
 
-            <Text style={styles.creator}>👤 {item.creator_name}</Text>
+            <Text style={styles.creator}>
+              👤 {item.creator_name}
+            </Text>
 
             {item.comment && (
               <Text style={styles.comment}>📝 {item.comment}</Text>
@@ -183,6 +185,8 @@ export default function CalendarTab() {
     </View>
   );
 }
+
+/* ---------- STYLES ---------- */
 
 const styles = StyleSheet.create({
   container: {
