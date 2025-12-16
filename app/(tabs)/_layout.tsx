@@ -1,10 +1,23 @@
 import { useState } from 'react';
-import { Alert, Pressable } from 'react-native';
+import { Alert, Pressable, Platform, Image } from 'react-native';
 import { Tabs, Redirect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { useAuth } from '../../context/AuthContext';
+
+/* 🖼 HEADER LOGO */
+const HeaderLogo = () => (
+  <Image
+    source={require('../../assets/images/logo.png')}
+    style={{
+      width: 28,
+      height: 28,
+      marginLeft: 14,
+    }}
+    resizeMode="contain"
+  />
+);
 
 export default function TabsLayout() {
   const { user, loading } = useAuth();
@@ -17,7 +30,13 @@ export default function TabsLayout() {
     if (!user || refreshing) return;
 
     setRefreshing(true);
-    Alert.alert('Updated', 'The latest data has been refreshed successfully.');
+
+    if (Platform.OS === 'web') {
+      window.alert('Updated: refreshed!');
+    } else {
+      Alert.alert('Updated', 'Refreshed!');
+    }
+
     setRefreshing(false);
   };
 
@@ -40,6 +59,9 @@ export default function TabsLayout() {
       screenOptions={{
         headerShown: true,
         headerTitleAlign: 'center',
+
+        /* 🖼 LOGO ON LEFT */
+        headerLeft: () => <HeaderLogo />,
 
         tabBarActiveTintColor: '#C9A24D',
         tabBarInactiveTintColor: '#9A9A9A',
