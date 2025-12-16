@@ -7,6 +7,7 @@ import {
   StyleSheet,
   ActivityIndicator,
   FlatList,
+  Image, // ✅ added
 } from 'react-native';
 
 import { useAuth } from '../../context/AuthContext';
@@ -20,6 +21,7 @@ import { Colors, Spacing } from '../../constants/theme';
 type StaffStat = {
   user_id: string;
   full_name: string;
+  avatar_url?: string | null; // ✅ added
   count: number;
 };
 
@@ -86,7 +88,7 @@ export default function HomeTab() {
     setPrishtinaToday(prishtina ?? 0);
     setFusheToday(fushe ?? 0);
 
-    /* 📅 MONTHLY STAFF STATS */
+    /* 📅 MONTHLY STAFF STATS (WITH AVATARS) */
     const firstDayOfMonth = new Date(
       new Date().getFullYear(),
       new Date().getMonth(),
@@ -101,7 +103,8 @@ export default function HomeTab() {
         `
         created_by,
         profiles:created_by (
-          full_name
+          full_name,
+          avatar_url
         )
       `
       )
@@ -113,9 +116,15 @@ export default function HomeTab() {
       monthlyAppointments.forEach((a: any) => {
         const id = a.created_by;
         const name = a.profiles?.full_name ?? 'Unknown';
+        const avatar = a.profiles?.avatar_url ?? null;
 
         if (!map[id]) {
-          map[id] = { user_id: id, full_name: name, count: 0 };
+          map[id] = {
+            user_id: id,
+            full_name: name,
+            avatar_url: avatar,
+            count: 0,
+          };
         }
 
         map[id].count += 1;
@@ -191,9 +200,19 @@ export default function HomeTab() {
         renderItem={({ item, index }) => (
           <Card>
             <View style={styles.staffRow}>
-              <Text style={styles.staffName}>
-                {renderBadge(index)} {item.full_name}
-              </Text>
+              <View style={styles.staffLeft}>
+                <Image
+                  source={
+                    item.avatar_url
+                      ? { uri: item.avatar_url }
+                      : require('../../assets/images/avatar-placeholder.png')
+                  }
+                  style={styles.avatar}
+                />
+                <Text style={styles.staffName}>
+                  {renderBadge(index)} {item.full_name}
+                </Text>
+              </View>
               <Text style={styles.staffCount}>{item.count}</Text>
             </View>
           </Card>
@@ -232,7 +251,6 @@ const styles = StyleSheet.create({
     gap: Spacing.sm,
     marginBottom: Spacing.lg,
   },
-  /* SMALL CARDS */
   smallStat: {
     alignItems: 'center',
     paddingVertical: Spacing.sm,
@@ -260,6 +278,17 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
+  },
+  staffLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  avatar: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    marginRight: 10,
+    backgroundColor: '#EAEAEA',
   },
   staffName: {
     fontSize: 15,

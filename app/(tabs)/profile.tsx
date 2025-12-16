@@ -10,11 +10,12 @@ import {
   ScrollView,
   Alert,
   Platform,
-  Image, // ✅ added
+  Image,
 } from 'react-native';
 import { router } from 'expo-router';
 
-import * as ImagePicker from 'expo-image-picker'; // ✅ added
+import * as ImagePicker from 'expo-image-picker';
+import * as ImageManipulator from 'expo-image-manipulator'; // ✅ added
 
 import { useAuth } from '../../context/AuthContext';
 import { supabase } from '../../context/supabase';
@@ -26,7 +27,7 @@ type Profile = {
   email: string;
   full_name: string | null;
   role: Role;
-  avatar_url?: string | null; // ✅ added
+  avatar_url?: string | null;
 };
 
 export default function ProfileTab() {
@@ -34,8 +35,7 @@ export default function ProfileTab() {
 
   const [profile, setProfile] = useState<Profile | null>(null);
   const [loading, setLoading] = useState(true);
-
-  const [uploading, setUploading] = useState(false); // ✅ added
+  const [uploading, setUploading] = useState(false);
 
   useEffect(() => {
     if (!authLoading && !user) {
@@ -50,7 +50,7 @@ export default function ProfileTab() {
 
     const { data } = await supabase
       .from('profiles')
-      .select('id, email, full_name, role, avatar_url') // ✅ updated
+      .select('id, email, full_name, role, avatar_url')
       .eq('id', user!.id)
       .single();
 
@@ -58,7 +58,7 @@ export default function ProfileTab() {
     setLoading(false);
   };
 
-  /* ================= AVATAR UPLOAD ================= */
+  /* ================= AVATAR UPLOAD (RESIZE + CROP SAFE) ================= */
 
   const pickAndUploadAvatar = async () => {
     try {
@@ -66,16 +66,26 @@ export default function ProfileTab() {
 
       const result = await ImagePicker.launchImageLibraryAsync({
         mediaTypes: ImagePicker.MediaTypeOptions.Images,
-        allowsEditing: true,
+        allowsEditing: true, // user can crop & zoom
         aspect: [1, 1],
-        quality: 0.7,
+        quality: 1,
       });
 
       if (result.canceled) return;
 
       const image = result.assets[0];
 
-      const response = await fetch(image.uri);
+      // 🔧 Resize & normalize image
+      const manipulated = await ImageManipulator.manipulateAsync(
+        image.uri,
+        [{ resize: { width: 512, height: 512 } }],
+        {
+          compress: 0.8,
+          format: ImageManipulator.SaveFormat.JPEG,
+        }
+      );
+
+      const response = await fetch(manipulated.uri);
       const blob = await response.blob();
 
       const filePath = `${user!.id}.jpg`;
@@ -156,8 +166,11 @@ export default function ProfileTab() {
     <ScrollView contentContainerStyle={styles.container}>
       <Text style={styles.pageTitle}>My Profile</Text>
 
-      {/* ================= PROFILE PHOTO ================= */}
-      <Pressable onPress={pickAndUploadAvatar} style={{ alignItems: 'center', marginBottom: 20 }}>
+      {/* PROFILE PHOTO */}
+      <Pressable
+        onPress={pickAndUploadAvatar}
+        style={{ alignItems: 'center', marginBottom: 20 }}
+      >
         <Image
           source={
             profile.avatar_url
