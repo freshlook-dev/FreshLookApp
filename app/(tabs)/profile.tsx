@@ -10,8 +10,11 @@ import {
   ScrollView,
   Alert,
   Platform,
+  Image, // ✅ added
 } from 'react-native';
 import { router } from 'expo-router';
+
+import * as ImagePicker from 'expo-image-picker'; // ✅ added
 
 import { useAuth } from '../../context/AuthContext';
 import { supabase } from '../../context/supabase';
@@ -23,6 +26,7 @@ type Profile = {
   email: string;
   full_name: string | null;
   role: Role;
+  avatar_url?: string | null; // ✅ added
 };
 
 export default function ProfileTab() {
@@ -30,6 +34,8 @@ export default function ProfileTab() {
 
   const [profile, setProfile] = useState<Profile | null>(null);
   const [loading, setLoading] = useState(true);
+
+  const [uploading, setUploading] = useState(false); // ✅ added
 
   useEffect(() => {
     if (!authLoading && !user) {
@@ -44,13 +50,68 @@ export default function ProfileTab() {
 
     const { data } = await supabase
       .from('profiles')
-      .select('id, email, full_name, role')
+      .select('id, email, full_name, role, avatar_url') // ✅ updated
       .eq('id', user!.id)
       .single();
 
     setProfile(data ?? null);
     setLoading(false);
   };
+
+  /* ================= AVATAR UPLOAD ================= */
+
+  const pickAndUploadAvatar = async () => {
+    try {
+      setUploading(true);
+
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        allowsEditing: true,
+        aspect: [1, 1],
+        quality: 0.7,
+      });
+
+      if (result.canceled) return;
+
+      const image = result.assets[0];
+
+      const response = await fetch(image.uri);
+      const blob = await response.blob();
+
+      const filePath = `${user!.id}.jpg`;
+
+      const { error: uploadError } = await supabase.storage
+        .from('avatars')
+        .upload(filePath, blob, {
+          upsert: true,
+          contentType: 'image/jpeg',
+        });
+
+      if (uploadError) throw uploadError;
+
+      const { data } = supabase.storage
+        .from('avatars')
+        .getPublicUrl(filePath);
+
+      const publicUrl = data.publicUrl;
+
+      await supabase
+        .from('profiles')
+        .update({ avatar_url: publicUrl })
+        .eq('id', user!.id);
+
+      setProfile((prev) =>
+        prev ? { ...prev, avatar_url: publicUrl } : prev
+      );
+    } catch (err) {
+      console.error(err);
+      Alert.alert('Error', 'Failed to upload profile photo');
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  /* ================= LOGOUT ================= */
 
   const handleLogout = () => {
     if (Platform.OS === 'web') {
@@ -95,6 +156,27 @@ export default function ProfileTab() {
     <ScrollView contentContainerStyle={styles.container}>
       <Text style={styles.pageTitle}>My Profile</Text>
 
+      {/* ================= PROFILE PHOTO ================= */}
+      <Pressable onPress={pickAndUploadAvatar} style={{ alignItems: 'center', marginBottom: 20 }}>
+        <Image
+          source={
+            profile.avatar_url
+              ? { uri: profile.avatar_url }
+              : require('../../assets/images/avatar-placeholder.png')
+          }
+          style={{
+            width: 110,
+            height: 110,
+            borderRadius: 55,
+            marginBottom: 8,
+            backgroundColor: '#EAEAEA',
+          }}
+        />
+        <Text style={{ fontSize: 12, color: '#7A7A7A' }}>
+          {uploading ? 'Uploading…' : 'Tap to change photo'}
+        </Text>
+      </Pressable>
+
       {/* BASIC INFO */}
       <View style={styles.card}>
         <Text style={styles.label}>Email</Text>
@@ -127,7 +209,6 @@ export default function ProfileTab() {
               <Text style={styles.primaryButtonText}>Manage Users</Text>
             </Pressable>
 
-            {/* ✅ AUDIT LOGS BUTTON (OWNER ONLY) */}
             <Pressable
               onPress={() => router.push('../(tabs)/audit-log')}
               style={[styles.primaryButton, { marginTop: 12 }]}
