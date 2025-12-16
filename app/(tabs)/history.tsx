@@ -28,6 +28,7 @@ type Appointment = {
   phone: string | null;
   comment: string | null;
   status: Status;
+  archived: boolean;
 };
 
 const formatDate = (date: string) => {
@@ -43,9 +44,10 @@ export default function HistoryScreen() {
   const [loading, setLoading] = useState(true);
   const [arrived, setArrived] = useState<Appointment[]>([]);
   const [canceled, setCanceled] = useState<Appointment[]>([]);
+  const [archived, setArchived] = useState<Appointment[]>([]);
   const [selected, setSelected] = useState<Appointment | null>(null);
 
-  const [isOwner, setIsOwner] = useState(false);
+  const [canManage, setCanManage] = useState(false);
 
   useEffect(() => {
     if (user?.id) {
@@ -54,7 +56,8 @@ export default function HistoryScreen() {
     }
   }, [user]);
 
-  // Load appointment data
+  /* ---------------- LOAD DATA ---------------- */
+
   const loadData = async () => {
     setLoading(true);
 
@@ -69,10 +72,10 @@ export default function HistoryScreen() {
         location,
         phone,
         comment,
-        status
+        status,
+        archived
       `)
       .in('status', ['arrived', 'canceled'])
-      .eq('archived', false)
       .order('appointment_date', { ascending: false });
 
     if (error) {
@@ -81,55 +84,63 @@ export default function HistoryScreen() {
       return;
     }
 
-    setArrived(data.filter((a) => a.status === 'arrived'));
-    setCanceled(data.filter((a) => a.status === 'canceled'));
+    setArrived(data.filter((a) => a.status === 'arrived' && !a.archived));
+    setCanceled(data.filter((a) => a.status === 'canceled' && !a.archived));
+    setArchived(data.filter((a) => a.archived));
+
     setLoading(false);
   };
 
-  // Check if the user is an owner
+  /* ---------------- ROLE ---------------- */
+
   const checkUserRole = async () => {
     if (!user?.id) return;
 
-    const { data, error } = await supabase
+    const { data } = await supabase
       .from('profiles')
       .select('role')
       .eq('id', user.id)
       .single();
 
-    if (error) {
-      console.error('Error checking role:', error.message);
-      return;
-    }
-
-    if (data?.role === 'owner') {
-      setIsOwner(true);
-    } else {
-      setIsOwner(false);
-    }
+    setCanManage(data?.role === 'owner' || data?.role === 'manager');
   };
 
-  // Archive (delete) record (only for owner)
-  const archiveRecord = async (id: string) => {
-    if (!isOwner) {
-      Alert.alert(
-        'Access Denied',
-        'Only the owner can delete (archive) appointments.'
-      );
+  /* ---------------- ACTIONS ---------------- */
+
+  const updateStatus = async (id: string, status: Status) => {
+    const { error } = await supabase
+      .from('appointments')
+      .update({ status })
+      .eq('id', id);
+
+    if (error) {
+      Alert.alert('Error', error.message);
       return;
     }
 
-    // Web: confirm() is reliable
-    const message =
-      'A jeni të sigurt që doni ta fshihni këtë regjistrim?';
+    setSelected(null);
+    loadData();
+  };
 
-    const isConfirmed = Platform.OS === 'web' ? confirm(message) : await new Promise<boolean>((resolve) => {
-      Alert.alert('Fshih regjistrimin', message, [
-        { text: 'Jo', style: 'cancel', onPress: () => resolve(false) },
-        { text: 'Po', onPress: () => resolve(true) },
-      ]);
-    });
+  const archiveRecord = async (id: string) => {
+    if (!canManage) {
+      Alert.alert('Access Denied', 'Nuk keni leje për këtë veprim.');
+      return;
+    }
 
-    if (!isConfirmed) return;
+    const message = 'A jeni të sigurt që doni ta fshihni këtë regjistrim?';
+
+    const confirmed =
+      Platform.OS === 'web'
+        ? confirm(message)
+        : await new Promise<boolean>((resolve) => {
+            Alert.alert('Fshih regjistrimin', message, [
+              { text: 'Jo', style: 'cancel', onPress: () => resolve(false) },
+              { text: 'Po', onPress: () => resolve(true) },
+            ]);
+          });
+
+    if (!confirmed) return;
 
     const { error } = await supabase
       .from('appointments')
@@ -144,6 +155,28 @@ export default function HistoryScreen() {
     setSelected(null);
     loadData();
   };
+
+  const unarchiveRecord = async (id: string) => {
+    if (!canManage) {
+      Alert.alert('Access Denied', 'Nuk keni leje për këtë veprim.');
+      return;
+    }
+
+    const { error } = await supabase
+      .from('appointments')
+      .update({ archived: false })
+      .eq('id', id);
+
+    if (error) {
+      Alert.alert('Error', error.message);
+      return;
+    }
+
+    setSelected(null);
+    loadData();
+  };
+
+  /* ---------------- RENDER ---------------- */
 
   const renderItem = (item: Appointment) => (
     <Pressable onPress={() => setSelected(item)} style={styles.row}>
@@ -177,55 +210,76 @@ export default function HistoryScreen() {
         ListEmptyComponent={<Text style={styles.empty}>Asnjë regjistrim</Text>}
       />
 
-      {/* MODAL */}
+      <Text style={[styles.title, { marginTop: 24 }]}>Arkivuar</Text>
+      <FlatList
+        data={archived}
+        keyExtractor={(item) => item.id}
+        renderItem={({ item }) => renderItem(item)}
+        ListEmptyComponent={<Text style={styles.empty}>Asnjë regjistrim</Text>}
+      />
+
+      {/* ---------------- MODAL ---------------- */}
+
       <Modal visible={!!selected} transparent animationType="fade">
         <View style={styles.modalOverlay}>
           <View style={styles.modalCard}>
-            <Pressable
-              onPress={() => setSelected(null)}
-              style={styles.close}
-            >
+            <Pressable onPress={() => setSelected(null)} style={styles.close}>
               <Text style={styles.closeText}>✕</Text>
             </Pressable>
 
             {selected && (
               <>
-                <Text style={styles.modalName}>
-                  {selected.client_name}
-                </Text>
-
+                <Text style={styles.modalName}>{selected.client_name}</Text>
                 <Text style={styles.modalText}>{selected.service}</Text>
-
                 <Text style={styles.modalText}>
                   {formatDate(selected.appointment_date)} •{' '}
                   {selected.appointment_time}
                 </Text>
 
                 {selected.location && (
-                  <Text style={styles.modalText}>
-                    📍 {selected.location}
-                  </Text>
+                  <Text style={styles.modalText}>📍 {selected.location}</Text>
                 )}
-
                 {selected.phone && (
-                  <Text style={styles.modalText}>
-                    📞 {selected.phone}
-                  </Text>
+                  <Text style={styles.modalText}>📞 {selected.phone}</Text>
                 )}
-
                 {selected.comment && (
-                  <Text style={styles.modalText}>
-                    📝 {selected.comment}
-                  </Text>
+                  <Text style={styles.modalText}>📝 {selected.comment}</Text>
                 )}
 
-                {isOwner && (
-                  <Pressable
-                    onPress={() => archiveRecord(selected.id)}
-                    style={styles.hideBtn}
-                  >
-                    <Text style={styles.hideText}>Fshih</Text>
-                  </Pressable>
+                {!selected.archived ? (
+                  <>
+                    <Pressable
+                      onPress={() => updateStatus(selected.id, 'arrived')}
+                      style={styles.statusBtn}
+                    >
+                      <Text style={styles.statusText}>Ka ardhur</Text>
+                    </Pressable>
+
+                    <Pressable
+                      onPress={() => updateStatus(selected.id, 'canceled')}
+                      style={styles.statusBtn}
+                    >
+                      <Text style={styles.statusText}>Anulim</Text>
+                    </Pressable>
+
+                    {canManage && (
+                      <Pressable
+                        onPress={() => archiveRecord(selected.id)}
+                        style={styles.hideBtn}
+                      >
+                        <Text style={styles.hideText}>Fshih</Text>
+                      </Pressable>
+                    )}
+                  </>
+                ) : (
+                  canManage && (
+                    <Pressable
+                      onPress={() => unarchiveRecord(selected.id)}
+                      style={styles.unarchiveBtn}
+                    >
+                      <Text style={styles.unarchiveText}>Ç’arkivo</Text>
+                    </Pressable>
+                  )
                 )}
               </>
             )}
@@ -236,7 +290,7 @@ export default function HistoryScreen() {
   );
 }
 
-/* ---------- STYLES ---------- */
+/* ---------------- STYLES ---------------- */
 
 const styles = StyleSheet.create({
   container: {
@@ -301,8 +355,18 @@ const styles = StyleSheet.create({
     fontSize: 14,
     marginBottom: 4,
   },
+  statusBtn: {
+    marginTop: 10,
+    backgroundColor: '#EDEDED',
+    paddingVertical: 10,
+    borderRadius: 10,
+    alignItems: 'center',
+  },
+  statusText: {
+    fontWeight: '700',
+  },
   hideBtn: {
-    marginTop: 16,
+    marginTop: 12,
     backgroundColor: '#C9A24D',
     paddingVertical: 10,
     borderRadius: 10,
@@ -312,5 +376,15 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     fontWeight: '700',
   },
+  unarchiveBtn: {
+    marginTop: 16,
+    backgroundColor: '#2B2B2B',
+    paddingVertical: 10,
+    borderRadius: 10,
+    alignItems: 'center',
+  },
+  unarchiveText: {
+    color: '#FFFFFF',
+    fontWeight: '700',
+  },
 });
-
