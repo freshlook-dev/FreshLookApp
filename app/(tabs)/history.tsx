@@ -12,11 +12,13 @@ import {
   Alert,
   Platform,
 } from 'react-native';
+import { router } from 'expo-router'; // ✅ ADDED
 
 import { supabase } from '../../context/supabase';
 import { useAuth } from '../../context/AuthContext';
 
 type Status = 'arrived' | 'canceled' | 'upcoming';
+type Filter = 'arrived' | 'canceled'; // ✅ ADDED
 
 type Appointment = {
   id: string;
@@ -49,6 +51,7 @@ export default function HistoryScreen() {
   const [selected, setSelected] = useState<Appointment | null>(null);
 
   const [canManage, setCanManage] = useState(false);
+  const [filter, setFilter] = useState<Filter>('arrived'); // ✅ ADDED
 
   useEffect(() => {
     if (user?.id) {
@@ -215,26 +218,55 @@ export default function HistoryScreen() {
 
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>Ka ardhur</Text>
-      <FlatList
-        data={arrived}
-        keyExtractor={(item) => item.id}
-        renderItem={({ item }) => renderItem(item)}
-      />
 
-      <Text style={[styles.title, { marginTop: 24 }]}>Anulim</Text>
-      <FlatList
-        data={canceled}
-        keyExtractor={(item) => item.id}
-        renderItem={({ item }) => renderItem(item)}
-      />
+      {/* ✅ FILTER BUTTONS */}
+      <View style={styles.filterRow}>
+        <Pressable
+          onPress={() => setFilter('arrived')}
+          style={[
+            styles.filterBtn,
+            filter === 'arrived' && styles.filterActive,
+          ]}
+        >
+          <Text style={styles.filterText}>Ka ardhur</Text>
+        </Pressable>
 
-      <Text style={[styles.title, { marginTop: 24 }]}>Arkivuar</Text>
-      <FlatList
-        data={archived}
-        keyExtractor={(item) => item.id}
-        renderItem={({ item }) => renderItem(item)}
-      />
+        <Pressable
+          onPress={() => setFilter('canceled')}
+          style={[
+            styles.filterBtn,
+            filter === 'canceled' && styles.filterActive,
+          ]}
+        >
+          <Text style={styles.filterText}>Anulim</Text>
+        </Pressable>
+
+        {/* ✅ REDIRECT BUTTON */}
+        {canManage && (
+          <Pressable
+            onPress={() => router.push('/archived')}
+            style={styles.archiveNavBtn}
+          >
+            <Text style={styles.archiveNavText}>Arkivuar</Text>
+          </Pressable>
+        )}
+      </View>
+
+      {filter === 'arrived' && (
+        <FlatList
+          data={arrived}
+          keyExtractor={(item) => item.id}
+          renderItem={({ item }) => renderItem(item)}
+        />
+      )}
+
+      {filter === 'canceled' && (
+        <FlatList
+          data={canceled}
+          keyExtractor={(item) => item.id}
+          renderItem={({ item }) => renderItem(item)}
+        />
+      )}
 
       {/* ---------------- MODAL ---------------- */}
 
@@ -328,11 +360,34 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
-  title: {
-    fontSize: 20,
-    fontWeight: '800',
-    color: '#2B2B2B',
-    marginBottom: 8,
+  filterRow: {
+    flexDirection: 'row',
+    marginBottom: 16,
+  },
+  filterBtn: {
+    flex: 1,
+    backgroundColor: '#EDEDED',
+    paddingVertical: 10,
+    borderRadius: 10,
+    alignItems: 'center',
+    marginRight: 6,
+  },
+  filterActive: {
+    backgroundColor: '#C9A24D',
+  },
+  filterText: {
+    fontWeight: '700',
+  },
+  archiveNavBtn: {
+    backgroundColor: '#2B2B2B',
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    borderRadius: 10,
+    alignItems: 'center',
+  },
+  archiveNavText: {
+    color: '#FFFFFF',
+    fontWeight: '700',
   },
   row: {
     backgroundColor: '#FFFFFF',

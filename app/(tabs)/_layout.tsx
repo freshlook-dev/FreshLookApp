@@ -176,6 +176,14 @@ export default function TabsLayout() {
           title: 'Audit Logs',
         }}
       />
+
+      <Tabs.Screen
+        name="archived"
+        options={{
+          href: null,
+          title: 'Arkiva',
+        }}
+      />
     </Tabs>
   );
 }
