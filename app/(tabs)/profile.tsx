@@ -120,13 +120,20 @@ if (error) throw error;
 
 
       const { data } = supabase.storage
-        .from('avatars')
-        .getPublicUrl(filePath);
+  .from('avatars')
+  .getPublicUrl(filePath);
 
-      await supabase
-        .from('profiles')
-        .update({ avatar_url: data.publicUrl })
-        .eq('id', user!.id);
+// 🔥 CACHE BUSTER
+const publicUrl = `${data.publicUrl}?t=${Date.now()}`;
+
+await supabase
+  .from('profiles')
+  .update({ avatar_url: publicUrl })
+  .eq('id', user!.id);
+
+setProfile((p) =>
+  p ? { ...p, avatar_url: publicUrl } : p
+);
 
       setProfile((p) =>
         p ? { ...p, avatar_url: data.publicUrl } : p
@@ -273,19 +280,21 @@ if (error) throw error;
           style={{ alignItems: 'center', marginBottom: 20 }}
         >
           <Image
-            source={
-              profile.avatar_url
-                ? { uri: profile.avatar_url }
-                : require('../../assets/images/avatar-placeholder.png')
-            }
-            style={{
-              width: 110,
-              height: 110,
-              borderRadius: 55,
-              marginBottom: 8,
-              backgroundColor: '#EAEAEA',
-            }}
-          />
+  key={profile.avatar_url} // 🔥 forces re-render when URL changes
+  source={
+    profile.avatar_url
+      ? { uri: profile.avatar_url }
+      : require('../../assets/images/avatar-placeholder.png')
+  }
+  style={{
+    width: 110,
+    height: 110,
+    borderRadius: 55,
+    marginBottom: 8,
+    backgroundColor: '#EAEAEA',
+  }}
+/>
+
           <Text style={{ fontSize: 12, color: '#7A7A7A' }}>
             {uploading ? 'Uploading…' : 'Tap to change photo'}
           </Text>
