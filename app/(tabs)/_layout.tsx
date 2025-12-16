@@ -11,8 +11,8 @@ const HeaderLogo = () => (
   <Image
     source={require('../../assets/images/logo.png')}
     style={{
-      width: 28,
-      height: 28,
+      width: 50,
+      height: 50,
       marginLeft: 14,
     }}
     resizeMode="contain"
