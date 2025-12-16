@@ -104,36 +104,33 @@ export default function ProfileTab() {
         { compress: 0.8, format: ImageManipulator.SaveFormat.JPEG }
       );
 
-      const response = await fetch(manipulated.uri);
-      const blob = await response.blob();
+     const response = await fetch(manipulated.uri);
+const blob = await response.blob();
 
-      const filePath = `${user!.id}.jpg`;
+const filePath = `${user!.id}-${Date.now()}.jpg`;
 
-      const { error } = await supabase.storage
-        .from('avatars')
-       .upload(filePath, blob, {
-          upsert: true,
-          contentType: 'image/jpeg',
-     });
+const { error } = await supabase.storage
+  .from('avatars')
+  .upload(filePath, blob, {
+    upsert: false, // 👈 important now
+    contentType: 'image/jpeg',
+  });
 
 if (error) throw error;
 
-
-      const { data } = supabase.storage
+const { data } = supabase.storage
   .from('avatars')
   .getPublicUrl(filePath);
 
-// 🔥 CACHE BUSTER
-const publicUrl = `${data.publicUrl}?t=${Date.now()}`;
-
 await supabase
   .from('profiles')
-  .update({ avatar_url: publicUrl })
+  .update({ avatar_url: data.publicUrl })
   .eq('id', user!.id);
 
 setProfile((p) =>
-  p ? { ...p, avatar_url: publicUrl } : p
+  p ? { ...p, avatar_url: data.publicUrl } : p
 );
+
 
       setProfile((p) =>
         p ? { ...p, avatar_url: data.publicUrl } : p
