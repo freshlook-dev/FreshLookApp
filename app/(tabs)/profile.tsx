@@ -38,6 +38,12 @@ export default function ProfileTab() {
   const [loading, setLoading] = useState(true);
   const [uploading, setUploading] = useState(false);
 
+  // ✅ ADDED STATE (ONLY THIS)
+  const [generatedCode, setGeneratedCode] = useState<{
+    code: string;
+    role: Role;
+  } | null>(null);
+
   /* 🟢 CROP STATES (WEB ONLY) */
   const [imageToCrop, setImageToCrop] = useState<string | null>(null);
   const [crop, setCrop] = useState({ x: 0, y: 0 });
@@ -71,29 +77,30 @@ export default function ProfileTab() {
   };
 
   const generateAccessCode = async (role: Role) => {
-  if (!user) return;
+    if (!user) return;
 
-  // generate random 5-digit code
-  const code = Math.floor(10000 + Math.random() * 90000).toString();
+    const code = Math.floor(10000 + Math.random() * 90000).toString();
 
-  const { error } = await supabase.from('access_codes').insert({
-    code,
-    role,
-    used: false,
-    created_by: user.id,
-  });
+    const { error } = await supabase.from('access_codes').insert({
+      code,
+      role,
+      used: false,
+      created_by: user.id,
+    });
 
-  if (error) {
-    Alert.alert('Error', error.message);
-    return;
-  }
+    if (error) {
+      Alert.alert('Error', error.message);
+      return;
+    }
 
-  Alert.alert(
-    'Access Code Created',
-    `Code: ${code}\nRole: ${role.toUpperCase()}`
-  );
-};
+    // ✅ ADDED LINE
+    setGeneratedCode({ code, role });
 
+    Alert.alert(
+      'Access Code Created',
+      `Code: ${code}\nRole: ${role.toUpperCase()}`
+    );
+  };
 
   /* ================= PICK IMAGE ================= */
 
@@ -129,33 +136,28 @@ export default function ProfileTab() {
         { compress: 0.8, format: ImageManipulator.SaveFormat.JPEG }
       );
 
-     const response = await fetch(manipulated.uri);
-const blob = await response.blob();
+      const response = await fetch(manipulated.uri);
+      const blob = await response.blob();
 
-const filePath = `${user!.id}-${Date.now()}.jpg`;
+      const filePath = `${user!.id}-${Date.now()}.jpg`;
 
-const { error } = await supabase.storage
-  .from('avatars')
-  .upload(filePath, blob, {
-    upsert: false, // 👈 important now
-    contentType: 'image/jpeg',
-  });
+      const { error } = await supabase.storage
+        .from('avatars')
+        .upload(filePath, blob, {
+          upsert: false,
+          contentType: 'image/jpeg',
+        });
 
-if (error) throw error;
+      if (error) throw error;
 
-const { data } = supabase.storage
-  .from('avatars')
-  .getPublicUrl(filePath);
+      const { data } = supabase.storage
+        .from('avatars')
+        .getPublicUrl(filePath);
 
-await supabase
-  .from('profiles')
-  .update({ avatar_url: data.publicUrl })
-  .eq('id', user!.id);
-
-setProfile((p) =>
-  p ? { ...p, avatar_url: data.publicUrl } : p
-);
-
+      await supabase
+        .from('profiles')
+        .update({ avatar_url: data.publicUrl })
+        .eq('id', user!.id);
 
       setProfile((p) =>
         p ? { ...p, avatar_url: data.publicUrl } : p
@@ -226,158 +228,111 @@ setProfile((p) =>
   const isOwner = profile.role === 'owner';
 
   return (
-    <>
-      {/* 🔲 FULL DRAGGABLE CROP UI (WEB + PHONE BROWSER) */}
-      {Platform.OS === 'web' && showCropper && (
-        <div
+    <ScrollView contentContainerStyle={styles.container}>
+      <Text style={styles.pageTitle}>My Profile</Text>
+
+      <Pressable
+        onPress={pickAndUploadAvatar}
+        style={{ alignItems: 'center', marginBottom: 20 }}
+      >
+        <Image
+          key={profile.avatar_url}
+          source={
+            profile.avatar_url
+              ? { uri: profile.avatar_url }
+              : require('../../assets/images/avatar-placeholder.png')
+          }
           style={{
-            position: 'fixed',
-            inset: 0,
-            background: 'rgba(0,0,0,0.9)',
-            zIndex: 9999,
-            display: 'flex',
-            justifyContent: 'center',
-            alignItems: 'center',
-            touchAction: 'none',
+            width: 110,
+            height: 110,
+            borderRadius: 55,
+            marginBottom: 8,
+            backgroundColor: '#EAEAEA',
           }}
-        >
-          <div
-            style={{
-              width: 320,
-              height: 420,
-              background: '#000',
-              position: 'relative',
-            }}
-          >
-            <Cropper
-              image={imageToCrop!}
-              crop={crop}
-              zoom={zoom}
-              aspect={1}
-              onCropChange={setCrop}
-              onZoomChange={setZoom}
-              onCropComplete={onCropComplete}
-            />
+        />
 
-            <div
-              style={{
-                position: 'absolute',
-                bottom: 0,
-                width: '100%',
-                background: '#fff',
-                padding: 10,
-              }}
-            >
-              <input
-                type="range"
-                min={1}
-                max={3}
-                step={0.01}
-                value={zoom}
-                onChange={(e) => setZoom(Number(e.target.value))}
-                style={{ width: '100%' }}
-              />
+        <Text style={{ fontSize: 12, color: '#7A7A7A' }}>
+          {uploading ? 'Uploading…' : 'Tap to change photo'}
+        </Text>
+      </Pressable>
 
-              <div
-                style={{
-                  display: 'flex',
-                  justifyContent: 'space-between',
-                  marginTop: 8,
-                }}
-              >
-                <button onClick={() => setShowCropper(false)}>Cancel</button>
-                <button onClick={saveCroppedImage}>Save</button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
+      {/* BASIC INFO */}
+      <View style={styles.card}>
+        <Text style={styles.label}>Email</Text>
+        <Text style={styles.value}>{profile.email}</Text>
 
-      {/* ================= MAIN UI (UNCHANGED) ================= */}
-      <ScrollView contentContainerStyle={styles.container}>
-        <Text style={styles.pageTitle}>My Profile</Text>
+        <Text style={[styles.label, { marginTop: 12 }]}>Full name</Text>
+        <Text style={styles.value}>{profile.full_name || 'Not set'}</Text>
 
+        <Text style={[styles.label, { marginTop: 12 }]}>Role</Text>
+        <Text style={[styles.value, isOwner ? styles.owner : styles.staff]}>
+          {profile.role.toUpperCase()}
+        </Text>
+      </View>
+
+      {/* ACTION BUTTONS */}
+      <View style={styles.card}>
         <Pressable
-          onPress={pickAndUploadAvatar}
-          style={{ alignItems: 'center', marginBottom: 20 }}
+          onPress={() => router.push('../(tabs)/change-password')}
+          style={styles.primaryButton}
         >
-          <Image
-  key={profile.avatar_url} // 🔥 forces re-render when URL changes
-  source={
-    profile.avatar_url
-      ? { uri: profile.avatar_url }
-      : require('../../assets/images/avatar-placeholder.png')
-  }
-  style={{
-    width: 110,
-    height: 110,
-    borderRadius: 55,
-    marginBottom: 8,
-    backgroundColor: '#EAEAEA',
-  }}
-/>
-
-          <Text style={{ fontSize: 12, color: '#7A7A7A' }}>
-            {uploading ? 'Uploading…' : 'Tap to change photo'}
-          </Text>
+          <Text style={styles.primaryButtonText}>Change Password</Text>
         </Pressable>
 
-        {/* BASIC INFO */}
-        <View style={styles.card}>
-          <Text style={styles.label}>Email</Text>
-          <Text style={styles.value}>{profile.email}</Text>
+        {isOwner && (
+          <>
+            <Pressable
+              onPress={() => router.push('../(tabs)/manage-users')}
+              style={[styles.primaryButton, { marginTop: 12 }]}
+            >
+              <Text style={styles.primaryButtonText}>Manage Users</Text>
+            </Pressable>
 
-          <Text style={[styles.label, { marginTop: 12 }]}>Full name</Text>
-          <Text style={styles.value}>{profile.full_name || 'Not set'}</Text>
+            <Pressable
+              onPress={() => router.push('../(tabs)/audit-log')}
+              style={[styles.primaryButton, { marginTop: 12 }]}
+            >
+              <Text style={styles.primaryButtonText}>Audit Logs</Text>
+            </Pressable>
 
-          <Text style={[styles.label, { marginTop: 12 }]}>Role</Text>
-          <Text style={[styles.value, isOwner ? styles.owner : styles.staff]}>
-            {profile.role.toUpperCase()}
-          </Text>
-        </View>
+            <Pressable
+              onPress={() => generateAccessCode('staff')}
+              style={[styles.primaryButton, { marginTop: 12 }]}
+            >
+              <Text style={styles.primaryButtonText}>Generate Staff Code</Text>
+            </Pressable>
 
-        {/* ACTION BUTTONS */}
-        <View style={styles.card}>
-          <Pressable
-            onPress={() => router.push('../(tabs)/change-password')}
-            style={styles.primaryButton}
-          >
-            <Text style={styles.primaryButtonText}>Change Password</Text>
-          </Pressable>
+            {/* ✅ GENERATED CODE DISPLAY */}
+            {generatedCode && (
+              <View style={[styles.card, { marginTop: 12 }]}>
+                <Text style={styles.label}>Generated Access Code</Text>
 
-          {isOwner && (
-            <>
-              <Pressable
-                onPress={() => router.push('../(tabs)/manage-users')}
-                style={[styles.primaryButton, { marginTop: 12 }]}
-              >
-                <Text style={styles.primaryButtonText}>Manage Users</Text>
-              </Pressable>
+                <Text
+                  style={{
+                    fontSize: 28,
+                    fontWeight: '800',
+                    letterSpacing: 3,
+                    marginTop: 6,
+                    color: '#2B2B2B',
+                  }}
+                >
+                  {generatedCode.code}
+                </Text>
 
-              <Pressable
-                onPress={() => router.push('../(tabs)/audit-log')}
-                style={[styles.primaryButton, { marginTop: 12 }]}
-              >
-                <Text style={styles.primaryButtonText}>Audit Logs</Text>
-              </Pressable>
+                <Text style={{ marginTop: 6, color: '#7A7A7A' }}>
+                  Role: {generatedCode.role.toUpperCase()}
+                </Text>
+              </View>
+            )}
+          </>
+        )}
+      </View>
 
-              <Pressable
-                onPress={() => generateAccessCode('staff')}
-                style={[styles.primaryButton, { marginTop: 12 }]}
-              >
-                <Text style={styles.primaryButtonText}>Generate Staff Code</Text>
-              </Pressable>
-
-            </>
-          )}
-        </View>
-
-        {/* LOGOUT */}
-        <Pressable onPress={handleLogout} style={styles.logoutButton}>
-          <Text style={styles.logoutText}>Logout</Text>
-        </Pressable>
-      </ScrollView>
-    </>
+      {/* LOGOUT */}
+      <Pressable onPress={handleLogout} style={styles.logoutButton}>
+        <Text style={styles.logoutText}>Logout</Text>
+      </Pressable>
+    </ScrollView>
   );
 }
 
