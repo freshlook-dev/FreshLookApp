@@ -16,7 +16,7 @@ import {
 import { supabase } from '../../context/supabase';
 import { useAuth } from '../../context/AuthContext';
 
-type Status = 'arrived' | 'canceled';
+type Status = 'arrived' | 'canceled' | 'upcoming';
 
 type Appointment = {
   id: string;
@@ -29,6 +29,7 @@ type Appointment = {
   comment: string | null;
   status: Status;
   archived: boolean;
+  creator_name: string | null;
 };
 
 const formatDate = (date: string) => {
@@ -56,6 +57,23 @@ export default function HistoryScreen() {
     }
   }, [user]);
 
+  /* ---------------- AUDIT LOG ---------------- */
+
+  const logAction = async (
+    action: 'STATUS_CHANGE' | 'ARCHIVE' | 'UNARCHIVE',
+    targetId: string,
+    metadata?: any
+  ) => {
+    if (!user?.id) return;
+
+    await supabase.from('audit_logs').insert({
+      actor_id: user.id,
+      action,
+      target_id: targetId,
+      metadata,
+    });
+  };
+
   /* ---------------- LOAD DATA ---------------- */
 
   const loadData = async () => {
@@ -73,7 +91,8 @@ export default function HistoryScreen() {
         phone,
         comment,
         status,
-        archived
+        archived,
+        creator:profiles!appointments_created_by_fkey(full_name)
       `)
       .in('status', ['arrived', 'canceled'])
       .order('appointment_date', { ascending: false });
@@ -84,9 +103,14 @@ export default function HistoryScreen() {
       return;
     }
 
-    setArrived(data.filter((a) => a.status === 'arrived' && !a.archived));
-    setCanceled(data.filter((a) => a.status === 'canceled' && !a.archived));
-    setArchived(data.filter((a) => a.archived));
+    const mapped = data.map((a: any) => ({
+      ...a,
+      creator_name: a.creator?.full_name ?? null,
+    }));
+
+    setArrived(mapped.filter((a) => a.status === 'arrived' && !a.archived));
+    setCanceled(mapped.filter((a) => a.status === 'canceled' && !a.archived));
+    setArchived(mapped.filter((a) => a.archived));
 
     setLoading(false);
   };
@@ -118,15 +142,14 @@ export default function HistoryScreen() {
       return;
     }
 
+    await logAction('STATUS_CHANGE', id, { status });
+
     setSelected(null);
     loadData();
   };
 
   const archiveRecord = async (id: string) => {
-    if (!canManage) {
-      Alert.alert('Access Denied', 'Nuk keni leje për këtë veprim.');
-      return;
-    }
+    if (!canManage) return;
 
     const message = 'A jeni të sigurt që doni ta fshihni këtë regjistrim?';
 
@@ -147,9 +170,8 @@ export default function HistoryScreen() {
       .update({ archived: true })
       .eq('id', id);
 
-    if (error) {
-      Alert.alert('Error', error.message);
-      return;
+    if (!error) {
+      await logAction('ARCHIVE', id);
     }
 
     setSelected(null);
@@ -157,19 +179,15 @@ export default function HistoryScreen() {
   };
 
   const unarchiveRecord = async (id: string) => {
-    if (!canManage) {
-      Alert.alert('Access Denied', 'Nuk keni leje për këtë veprim.');
-      return;
-    }
+    if (!canManage) return;
 
     const { error } = await supabase
       .from('appointments')
       .update({ archived: false })
       .eq('id', id);
 
-    if (error) {
-      Alert.alert('Error', error.message);
-      return;
+    if (!error) {
+      await logAction('UNARCHIVE', id);
     }
 
     setSelected(null);
@@ -181,6 +199,9 @@ export default function HistoryScreen() {
   const renderItem = (item: Appointment) => (
     <Pressable onPress={() => setSelected(item)} style={styles.row}>
       <Text style={styles.client}>{item.client_name}</Text>
+      {item.creator_name && (
+        <Text style={styles.creator}>Krijuar nga: {item.creator_name}</Text>
+      )}
     </Pressable>
   );
 
@@ -199,7 +220,6 @@ export default function HistoryScreen() {
         data={arrived}
         keyExtractor={(item) => item.id}
         renderItem={({ item }) => renderItem(item)}
-        ListEmptyComponent={<Text style={styles.empty}>Asnjë regjistrim</Text>}
       />
 
       <Text style={[styles.title, { marginTop: 24 }]}>Anulim</Text>
@@ -207,7 +227,6 @@ export default function HistoryScreen() {
         data={canceled}
         keyExtractor={(item) => item.id}
         renderItem={({ item }) => renderItem(item)}
-        ListEmptyComponent={<Text style={styles.empty}>Asnjë regjistrim</Text>}
       />
 
       <Text style={[styles.title, { marginTop: 24 }]}>Arkivuar</Text>
@@ -215,7 +234,6 @@ export default function HistoryScreen() {
         data={archived}
         keyExtractor={(item) => item.id}
         renderItem={({ item }) => renderItem(item)}
-        ListEmptyComponent={<Text style={styles.empty}>Asnjë regjistrim</Text>}
       />
 
       {/* ---------------- MODAL ---------------- */}
@@ -236,30 +254,37 @@ export default function HistoryScreen() {
                   {selected.appointment_time}
                 </Text>
 
-                {selected.location && (
-                  <Text style={styles.modalText}>📍 {selected.location}</Text>
-                )}
-                {selected.phone && (
-                  <Text style={styles.modalText}>📞 {selected.phone}</Text>
-                )}
-                {selected.comment && (
-                  <Text style={styles.modalText}>📝 {selected.comment}</Text>
+                {selected.creator_name && (
+                  <Text style={styles.modalText}>
+                    👤 {selected.creator_name}
+                  </Text>
                 )}
 
-                {!selected.archived ? (
+                {!selected.archived && (
                   <>
-                    <Pressable
-                      onPress={() => updateStatus(selected.id, 'arrived')}
-                      style={styles.statusBtn}
-                    >
-                      <Text style={styles.statusText}>Ka ardhur</Text>
-                    </Pressable>
+                    {selected.status !== 'arrived' && (
+                      <Pressable
+                        onPress={() => updateStatus(selected.id, 'arrived')}
+                        style={styles.statusBtn}
+                      >
+                        <Text style={styles.statusText}>Ka ardhur</Text>
+                      </Pressable>
+                    )}
+
+                    {selected.status !== 'canceled' && (
+                      <Pressable
+                        onPress={() => updateStatus(selected.id, 'canceled')}
+                        style={styles.statusBtn}
+                      >
+                        <Text style={styles.statusText}>Anulim</Text>
+                      </Pressable>
+                    )}
 
                     <Pressable
-                      onPress={() => updateStatus(selected.id, 'canceled')}
+                      onPress={() => updateStatus(selected.id, 'upcoming')}
                       style={styles.statusBtn}
                     >
-                      <Text style={styles.statusText}>Anulim</Text>
+                      <Text style={styles.statusText}>Ne pritje</Text>
                     </Pressable>
 
                     {canManage && (
@@ -271,15 +296,15 @@ export default function HistoryScreen() {
                       </Pressable>
                     )}
                   </>
-                ) : (
-                  canManage && (
-                    <Pressable
-                      onPress={() => unarchiveRecord(selected.id)}
-                      style={styles.unarchiveBtn}
-                    >
-                      <Text style={styles.unarchiveText}>Ç’arkivo</Text>
-                    </Pressable>
-                  )
+                )}
+
+                {selected.archived && canManage && (
+                  <Pressable
+                    onPress={() => unarchiveRecord(selected.id)}
+                    style={styles.unarchiveBtn}
+                  >
+                    <Text style={styles.unarchiveText}>Ç’arkivo</Text>
+                  </Pressable>
                 )}
               </>
             )}
@@ -320,10 +345,10 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: '#2B2B2B',
   },
-  empty: {
-    fontSize: 13,
+  creator: {
+    fontSize: 12,
     color: '#7A7A7A',
-    marginBottom: 12,
+    marginTop: 4,
   },
   modalOverlay: {
     flex: 1,
