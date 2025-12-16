@@ -70,6 +70,31 @@ export default function ProfileTab() {
     setCroppedAreaPixels(croppedPixels);
   };
 
+  const generateAccessCode = async (role: Role) => {
+  if (!user) return;
+
+  // generate random 5-digit code
+  const code = Math.floor(10000 + Math.random() * 90000).toString();
+
+  const { error } = await supabase.from('access_codes').insert({
+    code,
+    role,
+    used: false,
+    created_by: user.id,
+  });
+
+  if (error) {
+    Alert.alert('Error', error.message);
+    return;
+  }
+
+  Alert.alert(
+    'Access Code Created',
+    `Code: ${code}\nRole: ${role.toUpperCase()}`
+  );
+};
+
+
   /* ================= PICK IMAGE ================= */
 
   const pickAndUploadAvatar = async () => {
@@ -335,6 +360,14 @@ setProfile((p) =>
               >
                 <Text style={styles.primaryButtonText}>Audit Logs</Text>
               </Pressable>
+
+              <Pressable
+                onPress={() => generateAccessCode('staff')}
+                style={[styles.primaryButton, { marginTop: 12 }]}
+              >
+                <Text style={styles.primaryButtonText}>Generate Staff Code</Text>
+              </Pressable>
+
             </>
           )}
         </View>
