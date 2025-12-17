@@ -36,20 +36,20 @@ const formatDateTime = (iso: string) => {
 const prettyAction = (action: string) => {
   switch (action) {
     case 'CREATE_APPOINTMENT':
-      return 'Appointment created';
+      return 'Appointment Created';
     case 'UPDATE_APPOINTMENT':
-      return 'Appointment updated';
+      return 'Appointment Updated';
     default:
       return action.replaceAll('_', ' ');
   }
 };
 
-// ✅ ONLY THIS PART WAS IMPROVED
+/* ================= METADATA RENDER ================= */
+
 const renderMetadata = (metadata: any) => {
   if (!metadata || typeof metadata !== 'object') return null;
 
   const changes = metadata.changed;
-
   if (!changes || typeof changes !== 'object') return null;
 
   const entries = Object.entries(changes);
@@ -57,17 +57,27 @@ const renderMetadata = (metadata: any) => {
 
   return (
     <View style={styles.changesBox}>
-      <Text style={[styles.changeItem, { fontWeight: '700', marginBottom: 4 }]}>
-        Changed:
-      </Text>
+      <Text style={styles.changesTitle}>Changes</Text>
 
       {entries.map(([field, value]: any) => {
         if (!value || typeof value !== 'object') return null;
 
         return (
-          <Text key={field} style={styles.changeItem}>
-            • {field}: {String(value.old)} → {String(value.new)}
-          </Text>
+          <View key={field} style={styles.changeRow}>
+            <Text style={styles.changeField}>{field}</Text>
+
+            <View style={styles.changeValues}>
+              <Text style={styles.oldValue}>
+                {String(value.old ?? '—')}
+              </Text>
+
+              <Text style={styles.arrow}>→</Text>
+
+              <Text style={styles.newValue}>
+                {String(value.new ?? '—')}
+              </Text>
+            </View>
+          </View>
         );
       })}
     </View>
@@ -91,7 +101,6 @@ export default function AuditLogsScreen() {
   const init = async () => {
     setLoading(true);
 
-    // 🔐 OWNER CHECK
     const { data: profile } = await supabase
       .from('profiles')
       .select('role')
@@ -107,7 +116,6 @@ export default function AuditLogsScreen() {
     setLoading(false);
   };
 
-  // ✅ ONLY CHANGE: load full_name instead of email
   const loadUsers = async () => {
     const { data } = await supabase
       .from('profiles')
@@ -148,7 +156,7 @@ export default function AuditLogsScreen() {
       <FlatList
         data={logs}
         keyExtractor={(item) => item.id}
-        contentContainerStyle={{ paddingBottom: 30 }}
+        contentContainerStyle={{ paddingBottom: 40 }}
         renderItem={({ item }) => {
           const actorName =
             item.actor_id && users[item.actor_id]
@@ -157,14 +165,20 @@ export default function AuditLogsScreen() {
 
           return (
             <View style={styles.card}>
-              <Text style={styles.action}>
-                {prettyAction(item.action)}
-              </Text>
+              {/* ACTION */}
+              <View style={styles.actionBadge}>
+                <Text style={styles.actionText}>
+                  {prettyAction(item.action)}
+                </Text>
+              </View>
 
+              {/* ACTOR */}
               <Text style={styles.meta}>👤 {actorName}</Text>
 
+              {/* CHANGES */}
               {renderMetadata(item.metadata)}
 
+              {/* TIME */}
               <Text style={styles.time}>
                 {formatDateTime(item.created_at)}
               </Text>
@@ -200,35 +214,79 @@ const styles = StyleSheet.create({
     marginTop: 10,
     color: '#7A7A7A',
   },
+
   card: {
     backgroundColor: '#FFFFFF',
-    borderRadius: 16,
-    padding: 14,
-    marginBottom: 12,
+    borderRadius: 18,
+    padding: 16,
+    marginBottom: 14,
   },
-  action: {
-    fontSize: 15,
+
+  actionBadge: {
+    alignSelf: 'flex-start',
+    backgroundColor: '#F1E6CF',
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 8,
+    marginBottom: 6,
+  },
+  actionText: {
+    fontSize: 13,
     fontWeight: '800',
-    color: '#2B2B2B',
+    color: '#7A5A10',
   },
+
   meta: {
     fontSize: 13,
-    marginTop: 4,
     color: '#555',
+    marginBottom: 6,
   },
+
   changesBox: {
     marginTop: 8,
-    padding: 10,
+    padding: 12,
     backgroundColor: '#F4F1EC',
-    borderRadius: 10,
+    borderRadius: 12,
   },
-  changeItem: {
+  changesTitle: {
     fontSize: 13,
+    fontWeight: '800',
     color: '#333',
+    marginBottom: 6,
   },
+  changeRow: {
+    marginBottom: 6,
+  },
+  changeField: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#555',
+    marginBottom: 2,
+    textTransform: 'capitalize',
+  },
+  changeValues: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  oldValue: {
+    fontSize: 13,
+    color: '#B00020',
+    textDecorationLine: 'line-through',
+  },
+  arrow: {
+    marginHorizontal: 6,
+    fontSize: 13,
+    color: '#555',
+  },
+  newValue: {
+    fontSize: 13,
+    color: '#2E7D32',
+    fontWeight: '700',
+  },
+
   time: {
     fontSize: 12,
-    marginTop: 8,
+    marginTop: 10,
     color: '#7A7A7A',
   },
 });
