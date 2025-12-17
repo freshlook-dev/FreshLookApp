@@ -73,7 +73,7 @@ export default function ArchivedScreen() {
     setLoading(true);
 
     /* 1️⃣ Archived appointments */
-    const { data: appts, error: apptError } = await supabase
+    const { data: appts, error } = await supabase
       .from('appointments')
       .select(`
         id,
@@ -86,33 +86,43 @@ export default function ArchivedScreen() {
       .eq('archived', true)
       .order('appointment_date', { ascending: false });
 
-    if (apptError) {
-      Alert.alert('Error', apptError.message);
+    if (error) {
+      Alert.alert('Error', error.message);
       setLoading(false);
       return;
     }
 
     const ids = appts.map((a) => a.id);
 
-    /* 2️⃣ Archive audit logs (SAFE GUARD) */
     let logs: any[] = [];
+    let profilesMap: Record<string, string> = {};
 
+    /* 2️⃣ Audit logs (NO FK JOIN) */
     if (ids.length > 0) {
-      const { data } = await supabase
+      const { data: logRows } = await supabase
         .from('audit_logs')
-        .select(`
-          target_id,
-          created_at,
-          actor:profiles!audit_logs_actor_id_fkey(full_name)
-        `)
+        .select('target_id, created_at, actor_id')
         .eq('action', 'ARCHIVE')
         .in('target_id', ids)
         .order('created_at', { ascending: false });
 
-      logs = data ?? [];
+      logs = logRows ?? [];
+
+      const actorIds = [...new Set(logs.map((l) => l.actor_id).filter(Boolean))];
+
+      if (actorIds.length > 0) {
+        const { data: profiles } = await supabase
+          .from('profiles')
+          .select('id, full_name')
+          .in('id', actorIds);
+
+        profiles?.forEach((p) => {
+          profilesMap[p.id] = p.full_name;
+        });
+      }
     }
 
-    /* 3️⃣ Map logs to appointments */
+    /* 3️⃣ Map everything */
     const mapped = appts.map((a: any) => {
       const log = logs.find((l) => l.target_id === a.id);
 
@@ -123,7 +133,9 @@ export default function ArchivedScreen() {
         appointment_date: a.appointment_date,
         appointment_time: a.appointment_time,
         creator_name: a.creator?.[0]?.full_name ?? null,
-        archived_by: log?.actor?.[0]?.full_name ?? null,
+        archived_by: log?.actor_id
+          ? profilesMap[log.actor_id] ?? null
+          : null,
         archived_at: log?.created_at ?? null,
       };
     });
@@ -136,7 +148,6 @@ export default function ArchivedScreen() {
 
   const filtered = useMemo(() => {
     if (!search.trim()) return appointments;
-
     return appointments.filter((a) =>
       a.client_name.toLowerCase().includes(search.toLowerCase())
     );
@@ -208,8 +219,6 @@ export default function ArchivedScreen() {
           <Text style={styles.empty}>Asnjë rezultat</Text>
         }
       />
-
-      {/* ---------------- MODAL ---------------- */}
 
       <Modal visible={!!selected} transparent animationType="fade">
         <View style={styles.modalOverlay}>
