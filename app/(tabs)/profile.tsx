@@ -227,6 +227,72 @@ export default function ProfileTab() {
 
   const isOwner = profile.role === 'owner';
 
+
+    {/* ================= WEB CROPPER MODAL ================= */}
+{Platform.OS === 'web' && showCropper && imageToCrop && (
+  <View
+    style={{
+      position: 'fixed' as any,
+      top: 0,
+      left: 0,
+      right: 0,
+      bottom: 0,
+      backgroundColor: 'rgba(0,0,0,0.85)',
+      zIndex: 9999,
+      display: 'flex',
+      justifyContent: 'center',
+      alignItems: 'center',
+    }}
+  >
+    <View
+      style={{
+        width: 300,
+        height: 300,
+        backgroundColor: '#000',
+        position: 'relative',
+      }}
+    >
+      <Cropper
+        image={imageToCrop}
+        crop={crop}
+        zoom={zoom}
+        aspect={1}
+        onCropChange={setCrop}
+        onZoomChange={setZoom}
+        onCropComplete={onCropComplete}
+      />
+    </View>
+
+    <View style={{ marginTop: 20, flexDirection: 'row', gap: 12 }}>
+      <Pressable
+        onPress={() => setShowCropper(false)}
+        style={{
+          backgroundColor: '#777',
+          paddingVertical: 10,
+          paddingHorizontal: 20,
+          borderRadius: 10,
+        }}
+      >
+        <Text style={{ color: '#fff', fontWeight: '700' }}>Cancel</Text>
+      </Pressable>
+
+      <Pressable
+        onPress={saveCroppedImage}
+        style={{
+          backgroundColor: '#C9A24D',
+          paddingVertical: 10,
+          paddingHorizontal: 20,
+          borderRadius: 10,
+        }}
+      >
+        <Text style={{ color: '#fff', fontWeight: '800' }}>Save</Text>
+      </Pressable>
+    </View>
+  </View>
+)}
+
+
+
   return (
     <ScrollView contentContainerStyle={styles.container}>
       <Text style={styles.pageTitle}>My Profile</Text>
