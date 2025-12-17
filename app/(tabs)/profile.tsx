@@ -21,8 +21,6 @@ import Cropper from 'react-easy-crop';
 import { useAuth } from '../../context/AuthContext';
 import { supabase } from '../../context/supabase';
 
-
-
 type Role = 'owner' | 'manager' | 'staff';
 
 type Profile = {
@@ -40,7 +38,6 @@ export default function ProfileTab() {
   const [loading, setLoading] = useState(true);
   const [uploading, setUploading] = useState(false);
 
-  // ✅ ADDED STATE (ONLY THIS)
   const [generatedCode, setGeneratedCode] = useState<{
     code: string;
     role: Role;
@@ -52,6 +49,24 @@ export default function ProfileTab() {
   const [zoom, setZoom] = useState(1);
   const [croppedAreaPixels, setCroppedAreaPixels] = useState<any>(null);
   const [showCropper, setShowCropper] = useState(false);
+
+  /* ✅ SAFARI VIEWPORT FIX (WEB ONLY) */
+  useEffect(() => {
+    if (Platform.OS === 'web') {
+      const html = document.documentElement;
+      const body = document.body;
+
+      html.style.height = '100%';
+      body.style.height = '100%';
+      body.style.overflow = 'auto';
+
+      return () => {
+        html.style.height = '';
+        body.style.height = '';
+        body.style.overflow = '';
+      };
+    }
+  }, []);
 
   useEffect(() => {
     if (!authLoading && !user) {
@@ -95,7 +110,6 @@ export default function ProfileTab() {
       return;
     }
 
-    // ✅ ADDED LINE
     setGeneratedCode({ code, role });
 
     Alert.alert(
@@ -201,7 +215,11 @@ export default function ProfileTab() {
 
   const handleLogout = () => {
     if (Platform.OS === 'web') {
-      if (window.confirm('Are you sure you want to logout?')) logout();
+      setTimeout(() => {
+        if (window.confirm('Are you sure you want to logout?')) {
+          logout();
+        }
+      }, 0);
     } else {
       Alert.alert('Logout', 'Are you sure?', [
         { text: 'Cancel', style: 'cancel' },
@@ -258,7 +276,6 @@ export default function ProfileTab() {
         </Text>
       </Pressable>
 
-      {/* BASIC INFO */}
       <View style={styles.card}>
         <Text style={styles.label}>Email</Text>
         <Text style={styles.value}>{profile.email}</Text>
@@ -272,7 +289,6 @@ export default function ProfileTab() {
         </Text>
       </View>
 
-      {/* ACTION BUTTONS */}
       <View style={styles.card}>
         <Pressable
           onPress={() => router.push('../(tabs)/change-password')}
@@ -304,7 +320,6 @@ export default function ProfileTab() {
               <Text style={styles.primaryButtonText}>Generate Staff Code</Text>
             </Pressable>
 
-            {/* ✅ GENERATED CODE DISPLAY */}
             {generatedCode && (
               <View style={[styles.card, { marginTop: 12 }]}>
                 <Text style={styles.label}>Generated Access Code</Text>
@@ -330,7 +345,6 @@ export default function ProfileTab() {
         )}
       </View>
 
-      {/* LOGOUT */}
       <Pressable onPress={handleLogout} style={styles.logoutButton}>
         <Text style={styles.logoutText}>Logout</Text>
       </Pressable>
