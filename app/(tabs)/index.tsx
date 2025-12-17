@@ -56,48 +56,7 @@ export default function HomeTab() {
 
     setFullName(profile?.full_name ?? 'User');
 
-    /* 📊 TOTAL CREATED BY USER */
-    const { count: total } = await supabase
-      .from('appointments')
-      .select('*', { count: 'exact', head: true })
-      .eq('created_by', user!.id);
-
-    setTotalCount(total ?? 0);
-
-    /* ⏰ TODAY APPOINTMENTS (FIXED ✅) */
-    const { count: upcoming } = await supabase
-      .from('appointments')
-      .select('*', { count: 'exact', head: true })
-      .eq('appointment_date', today)
-      .eq('created_by', user!.id) // ✅ FIX
-      .eq('archived', false)
-      .in('status', ['upcoming', 'arrived']);
-
-    setUpcomingCount(upcoming ?? 0);
-
-    /* 📍 LOCATION COUNTS (TODAY ONLY – FIXED ✅) */
-    const { count: prishtina } = await supabase
-      .from('appointments')
-      .select('*', { count: 'exact', head: true })
-      .eq('appointment_date', today)
-      .eq('created_by', user!.id) // ✅ FIX
-      .eq('location', 'Prishtinë')
-      .eq('archived', false)
-      .in('status', ['upcoming', 'arrived']);
-
-    const { count: fushe } = await supabase
-      .from('appointments')
-      .select('*', { count: 'exact', head: true })
-      .eq('appointment_date', today)
-      .eq('created_by', user!.id) // ✅ FIX
-      .eq('location', 'Fushë Kosovë')
-      .eq('archived', false)
-      .in('status', ['upcoming', 'arrived']);
-
-    setPrishtinaToday(prishtina ?? 0);
-    setFusheToday(fushe ?? 0);
-
-    /* 📅 MONTHLY STAFF STATS (UNCHANGED) */
+    /* 📊 KRIJUAR – THIS MONTH (BY USER) */
     const firstDayOfMonth = new Date(
       new Date().getFullYear(),
       new Date().getMonth(),
@@ -106,6 +65,47 @@ export default function HomeTab() {
       .toISOString()
       .split('T')[0];
 
+    const { count: total } = await supabase
+      .from('appointments')
+      .select('*', { count: 'exact', head: true })
+      .eq('created_by', user!.id)
+      .gte('created_at', firstDayOfMonth);
+
+    setTotalCount(total ?? 0);
+
+    /* ⏰ SOT – ALL APPOINTMENTS TODAY */
+    const { count: todayCount } = await supabase
+      .from('appointments')
+      .select('*', { count: 'exact', head: true })
+      .eq('appointment_date', today)
+      .eq('archived', false)
+      .in('status', ['upcoming', 'arrived']);
+
+    setUpcomingCount(todayCount ?? 0);
+
+    /* 📍 PRISHTINË – TODAY */
+    const { count: prishtina } = await supabase
+      .from('appointments')
+      .select('*', { count: 'exact', head: true })
+      .eq('appointment_date', today)
+      .eq('location', 'Prishtinë')
+      .eq('archived', false)
+      .in('status', ['upcoming', 'arrived']);
+
+    setPrishtinaToday(prishtina ?? 0);
+
+    /* 📍 FUSHË KOSOVË – TODAY */
+    const { count: fushe } = await supabase
+      .from('appointments')
+      .select('*', { count: 'exact', head: true })
+      .eq('appointment_date', today)
+      .eq('location', 'Fushë Kosovë')
+      .eq('archived', false)
+      .in('status', ['upcoming', 'arrived']);
+
+    setFusheToday(fushe ?? 0);
+
+    /* 📊 MONTHLY STAFF LEADERBOARD */
     const { data: monthlyAppointments } = await supabase
       .from('appointments')
       .select(
@@ -227,6 +227,9 @@ export default function HomeTab() {
     </View>
   );
 }
+
+/* ---------- STYLES ---------- */
+/* (UNCHANGED) */
 
 /* ---------- STYLES ---------- */
 
