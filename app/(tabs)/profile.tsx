@@ -31,6 +31,27 @@ type Profile = {
   avatar_url?: string | null;
 };
 
+/* ================= WEB IMAGE PICKER (ADDED) ================= */
+const pickImageWeb = async (): Promise<string | null> => {
+  return new Promise((resolve) => {
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = 'image/*';
+
+    input.onchange = () => {
+      const file = input.files?.[0];
+      if (!file) return resolve(null);
+
+      const reader = new FileReader();
+      reader.onload = () => resolve(reader.result as string);
+      reader.readAsDataURL(file);
+    };
+
+    input.click();
+  });
+};
+/* ============================================================ */
+
 export default function ProfileTab() {
   const { user, loading: authLoading, logout } = useAuth();
 
@@ -38,7 +59,6 @@ export default function ProfileTab() {
   const [loading, setLoading] = useState(true);
   const [uploading, setUploading] = useState(false);
 
-  // ✅ ADDED STATE (ONLY THIS)
   const [generatedCode, setGeneratedCode] = useState<{
     code: string;
     role: Role;
@@ -93,7 +113,6 @@ export default function ProfileTab() {
       return;
     }
 
-    // ✅ ADDED LINE
     setGeneratedCode({ code, role });
 
     Alert.alert(
@@ -102,9 +121,20 @@ export default function ProfileTab() {
     );
   };
 
-  /* ================= PICK IMAGE ================= */
+  /* ================= PICK IMAGE (FIXED) ================= */
 
   const pickAndUploadAvatar = async () => {
+    if (Platform.OS === 'web') {
+      const dataUrl = await pickImageWeb();
+      if (!dataUrl) return;
+
+      setImageToCrop(dataUrl);
+      setCrop({ x: 0, y: 0 });
+      setZoom(1);
+      setShowCropper(true);
+      return;
+    }
+
     const result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ImagePicker.MediaTypeOptions.Images,
       quality: 1,
@@ -112,16 +142,7 @@ export default function ProfileTab() {
 
     if (result.canceled) return;
 
-    const uri = result.assets[0].uri;
-
-    if (Platform.OS === 'web') {
-      setImageToCrop(uri);
-      setCrop({ x: 0, y: 0 });
-      setZoom(1);
-      setShowCropper(true);
-    } else {
-      uploadFinalImage(uri);
-    }
+    uploadFinalImage(result.assets[0].uri);
   };
 
   /* ================= FINAL UPLOAD ================= */
@@ -227,72 +248,6 @@ export default function ProfileTab() {
 
   const isOwner = profile.role === 'owner';
 
-
-    {/* ================= WEB CROPPER MODAL ================= */}
-{Platform.OS === 'web' && showCropper && imageToCrop && (
-  <View
-    style={{
-      position: 'fixed' as any,
-      top: 0,
-      left: 0,
-      right: 0,
-      bottom: 0,
-      backgroundColor: 'rgba(0,0,0,0.85)',
-      zIndex: 9999,
-      display: 'flex',
-      justifyContent: 'center',
-      alignItems: 'center',
-    }}
-  >
-    <View
-      style={{
-        width: 300,
-        height: 300,
-        backgroundColor: '#000',
-        position: 'relative',
-      }}
-    >
-      <Cropper
-        image={imageToCrop}
-        crop={crop}
-        zoom={zoom}
-        aspect={1}
-        onCropChange={setCrop}
-        onZoomChange={setZoom}
-        onCropComplete={onCropComplete}
-      />
-    </View>
-
-    <View style={{ marginTop: 20, flexDirection: 'row', gap: 12 }}>
-      <Pressable
-        onPress={() => setShowCropper(false)}
-        style={{
-          backgroundColor: '#777',
-          paddingVertical: 10,
-          paddingHorizontal: 20,
-          borderRadius: 10,
-        }}
-      >
-        <Text style={{ color: '#fff', fontWeight: '700' }}>Cancel</Text>
-      </Pressable>
-
-      <Pressable
-        onPress={saveCroppedImage}
-        style={{
-          backgroundColor: '#C9A24D',
-          paddingVertical: 10,
-          paddingHorizontal: 20,
-          borderRadius: 10,
-        }}
-      >
-        <Text style={{ color: '#fff', fontWeight: '800' }}>Save</Text>
-      </Pressable>
-    </View>
-  </View>
-)}
-
-
-
   return (
     <ScrollView contentContainerStyle={styles.container}>
       <Text style={styles.pageTitle}>My Profile</Text>
@@ -368,24 +323,13 @@ export default function ProfileTab() {
               <Text style={styles.primaryButtonText}>Generate Staff Code</Text>
             </Pressable>
 
-            {/* ✅ GENERATED CODE DISPLAY */}
             {generatedCode && (
               <View style={[styles.card, { marginTop: 12 }]}>
                 <Text style={styles.label}>Generated Access Code</Text>
-
-                <Text
-                  style={{
-                    fontSize: 28,
-                    fontWeight: '800',
-                    letterSpacing: 3,
-                    marginTop: 6,
-                    color: '#2B2B2B',
-                  }}
-                >
+                <Text style={{ fontSize: 28, fontWeight: '800', letterSpacing: 3 }}>
                   {generatedCode.code}
                 </Text>
-
-                <Text style={{ marginTop: 6, color: '#7A7A7A' }}>
+                <Text style={{ marginTop: 6 }}>
                   Role: {generatedCode.role.toUpperCase()}
                 </Text>
               </View>
@@ -398,6 +342,39 @@ export default function ProfileTab() {
       <Pressable onPress={handleLogout} style={styles.logoutButton}>
         <Text style={styles.logoutText}>Logout</Text>
       </Pressable>
+
+      {/* ================= WEB CROPPER UI ================= */}
+      {Platform.OS === 'web' && showCropper && imageToCrop && (
+        <View style={{
+          position: 'fixed' as any,
+          inset: 0,
+          backgroundColor: 'rgba(0,0,0,0.85)',
+          zIndex: 9999,
+          justifyContent: 'center',
+          alignItems: 'center',
+        }}>
+          <View style={{ width: 300, height: 300, backgroundColor: '#000' }}>
+            <Cropper
+              image={imageToCrop}
+              crop={crop}
+              zoom={zoom}
+              aspect={1}
+              onCropChange={setCrop}
+              onZoomChange={setZoom}
+              onCropComplete={onCropComplete}
+            />
+          </View>
+
+          <View style={{ flexDirection: 'row', gap: 12, marginTop: 20 }}>
+            <Pressable onPress={() => setShowCropper(false)} style={{ padding: 12 }}>
+              <Text style={{ color: '#fff' }}>Cancel</Text>
+            </Pressable>
+            <Pressable onPress={saveCroppedImage} style={{ padding: 12 }}>
+              <Text style={{ color: '#C9A24D', fontWeight: '800' }}>Save</Text>
+            </Pressable>
+          </View>
+        </View>
+      )}
     </ScrollView>
   );
 }
@@ -433,12 +410,8 @@ const styles = StyleSheet.create({
     color: '#2B2B2B',
     marginTop: 4,
   },
-  owner: {
-    color: '#C9A24D',
-  },
-  staff: {
-    color: '#2B2B2B',
-  },
+  owner: { color: '#C9A24D' },
+  staff: { color: '#2B2B2B' },
   primaryButton: {
     backgroundColor: '#C9A24D',
     paddingVertical: 14,
