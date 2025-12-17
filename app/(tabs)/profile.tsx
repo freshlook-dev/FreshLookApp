@@ -31,12 +31,38 @@ type Profile = {
   avatar_url?: string | null;
 };
 
+/* ================= WEB IMAGE PICKER (ADDED) ================= */
+const pickImageWeb = async (): Promise<string | null> => {
+  return new Promise((resolve) => {
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = 'image/*';
+
+    input.onchange = () => {
+      const file = input.files?.[0];
+      if (!file) return resolve(null);
+
+      const reader = new FileReader();
+      reader.onload = () => resolve(reader.result as string);
+      reader.readAsDataURL(file);
+    };
+
+    input.click();
+  });
+};
+/* ============================================================ */
+
 export default function ProfileTab() {
   const { user, loading: authLoading, logout } = useAuth();
 
   const [profile, setProfile] = useState<Profile | null>(null);
   const [loading, setLoading] = useState(true);
   const [uploading, setUploading] = useState(false);
+
+  const [generatedCode, setGeneratedCode] = useState<{
+    code: string;
+    role: Role;
+  } | null>(null);
 
   /* 🟢 CROP STATES (WEB ONLY) */
   const [imageToCrop, setImageToCrop] = useState<string | null>(null);
@@ -70,9 +96,45 @@ export default function ProfileTab() {
     setCroppedAreaPixels(croppedPixels);
   };
 
-  /* ================= PICK IMAGE ================= */
+  const generateAccessCode = async (role: Role) => {
+    if (!user) return;
+
+    const code = Math.floor(10000 + Math.random() * 90000).toString();
+
+    const { error } = await supabase.from('access_codes').insert({
+      code,
+      role,
+      used: false,
+      created_by: user.id,
+    });
+
+    if (error) {
+      Alert.alert('Error', error.message);
+      return;
+    }
+
+    setGeneratedCode({ code, role });
+
+    Alert.alert(
+      'Access Code Created',
+      `Code: ${code}\nRole: ${role.toUpperCase()}`
+    );
+  };
+
+  /* ================= PICK IMAGE (FIXED) ================= */
 
   const pickAndUploadAvatar = async () => {
+    if (Platform.OS === 'web') {
+      const dataUrl = await pickImageWeb();
+      if (!dataUrl) return;
+
+      setImageToCrop(dataUrl);
+      setCrop({ x: 0, y: 0 });
+      setZoom(1);
+      setShowCropper(true);
+      return;
+    }
+
     const result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ImagePicker.MediaTypeOptions.Images,
       quality: 1,
@@ -80,16 +142,7 @@ export default function ProfileTab() {
 
     if (result.canceled) return;
 
-    const uri = result.assets[0].uri;
-
-    if (Platform.OS === 'web') {
-      setImageToCrop(uri);
-      setCrop({ x: 0, y: 0 });
-      setZoom(1);
-      setShowCropper(true);
-    } else {
-      uploadFinalImage(uri);
-    }
+    uploadFinalImage(result.assets[0].uri);
   };
 
   /* ================= FINAL UPLOAD ================= */
@@ -104,33 +157,28 @@ export default function ProfileTab() {
         { compress: 0.8, format: ImageManipulator.SaveFormat.JPEG }
       );
 
-     const response = await fetch(manipulated.uri);
-const blob = await response.blob();
+      const response = await fetch(manipulated.uri);
+      const blob = await response.blob();
 
-const filePath = `${user!.id}-${Date.now()}.jpg`;
+      const filePath = `${user!.id}-${Date.now()}.jpg`;
 
-const { error } = await supabase.storage
-  .from('avatars')
-  .upload(filePath, blob, {
-    upsert: false, // 👈 important now
-    contentType: 'image/jpeg',
-  });
+      const { error } = await supabase.storage
+        .from('avatars')
+        .upload(filePath, blob, {
+          upsert: false,
+          contentType: 'image/jpeg',
+        });
 
-if (error) throw error;
+      if (error) throw error;
 
-const { data } = supabase.storage
-  .from('avatars')
-  .getPublicUrl(filePath);
+      const { data } = supabase.storage
+        .from('avatars')
+        .getPublicUrl(filePath);
 
-await supabase
-  .from('profiles')
-  .update({ avatar_url: data.publicUrl })
-  .eq('id', user!.id);
-
-setProfile((p) =>
-  p ? { ...p, avatar_url: data.publicUrl } : p
-);
-
+      await supabase
+        .from('profiles')
+        .update({ avatar_url: data.publicUrl })
+        .eq('id', user!.id);
 
       setProfile((p) =>
         p ? { ...p, avatar_url: data.publicUrl } : p
@@ -201,31 +249,113 @@ setProfile((p) =>
   const isOwner = profile.role === 'owner';
 
   return (
-    <>
-      {/* 🔲 FULL DRAGGABLE CROP UI (WEB + PHONE BROWSER) */}
-      {Platform.OS === 'web' && showCropper && (
-        <div
+    <ScrollView contentContainerStyle={styles.container}>
+      <Text style={styles.pageTitle}>My Profile</Text>
+
+      <Pressable
+        onPress={pickAndUploadAvatar}
+        style={{ alignItems: 'center', marginBottom: 20 }}
+      >
+        <Image
+          key={profile.avatar_url}
+          source={
+            profile.avatar_url
+              ? { uri: profile.avatar_url }
+              : require('../../assets/images/avatar-placeholder.png')
+          }
           style={{
-            position: 'fixed',
-            inset: 0,
-            background: 'rgba(0,0,0,0.9)',
-            zIndex: 9999,
-            display: 'flex',
-            justifyContent: 'center',
-            alignItems: 'center',
-            touchAction: 'none',
+            width: 110,
+            height: 110,
+            borderRadius: 55,
+            marginBottom: 8,
+            backgroundColor: '#EAEAEA',
           }}
+        />
+
+        <Text style={{ fontSize: 12, color: '#7A7A7A' }}>
+          {uploading ? 'Uploading…' : 'Tap to change photo'}
+        </Text>
+      </Pressable>
+
+      {/* BASIC INFO */}
+      <View style={styles.card}>
+        <Text style={styles.label}>Email</Text>
+        <Text style={styles.value}>{profile.email}</Text>
+
+        <Text style={[styles.label, { marginTop: 12 }]}>Full name</Text>
+        <Text style={styles.value}>{profile.full_name || 'Not set'}</Text>
+
+        <Text style={[styles.label, { marginTop: 12 }]}>Role</Text>
+        <Text style={[styles.value, isOwner ? styles.owner : styles.staff]}>
+          {profile.role.toUpperCase()}
+        </Text>
+      </View>
+
+      {/* ACTION BUTTONS */}
+      <View style={styles.card}>
+        <Pressable
+          onPress={() => router.push('../(tabs)/change-password')}
+          style={styles.primaryButton}
         >
-          <div
-            style={{
-              width: 320,
-              height: 420,
-              background: '#000',
-              position: 'relative',
-            }}
-          >
+          <Text style={styles.primaryButtonText}>Change Password</Text>
+        </Pressable>
+
+        {isOwner && (
+          <>
+            <Pressable
+              onPress={() => router.push('../(tabs)/manage-users')}
+              style={[styles.primaryButton, { marginTop: 12 }]}
+            >
+              <Text style={styles.primaryButtonText}>Manage Users</Text>
+            </Pressable>
+
+            <Pressable
+              onPress={() => router.push('../(tabs)/audit-log')}
+              style={[styles.primaryButton, { marginTop: 12 }]}
+            >
+              <Text style={styles.primaryButtonText}>Audit Logs</Text>
+            </Pressable>
+
+            <Pressable
+              onPress={() => generateAccessCode('staff')}
+              style={[styles.primaryButton, { marginTop: 12 }]}
+            >
+              <Text style={styles.primaryButtonText}>Generate Staff Code</Text>
+            </Pressable>
+
+            {generatedCode && (
+              <View style={[styles.card, { marginTop: 12 }]}>
+                <Text style={styles.label}>Generated Access Code</Text>
+                <Text style={{ fontSize: 28, fontWeight: '800', letterSpacing: 3 }}>
+                  {generatedCode.code}
+                </Text>
+                <Text style={{ marginTop: 6 }}>
+                  Role: {generatedCode.role.toUpperCase()}
+                </Text>
+              </View>
+            )}
+          </>
+        )}
+      </View>
+
+      {/* LOGOUT */}
+      <Pressable onPress={handleLogout} style={styles.logoutButton}>
+        <Text style={styles.logoutText}>Logout</Text>
+      </Pressable>
+
+      {/* ================= WEB CROPPER UI ================= */}
+      {Platform.OS === 'web' && showCropper && imageToCrop && (
+        <View style={{
+          position: 'fixed' as any,
+          inset: 0,
+          backgroundColor: 'rgba(0,0,0,0.85)',
+          zIndex: 9999,
+          justifyContent: 'center',
+          alignItems: 'center',
+        }}>
+          <View style={{ width: 300, height: 300, backgroundColor: '#000' }}>
             <Cropper
-              image={imageToCrop!}
+              image={imageToCrop}
               crop={crop}
               zoom={zoom}
               aspect={1}
@@ -233,118 +363,19 @@ setProfile((p) =>
               onZoomChange={setZoom}
               onCropComplete={onCropComplete}
             />
+          </View>
 
-            <div
-              style={{
-                position: 'absolute',
-                bottom: 0,
-                width: '100%',
-                background: '#fff',
-                padding: 10,
-              }}
-            >
-              <input
-                type="range"
-                min={1}
-                max={3}
-                step={0.01}
-                value={zoom}
-                onChange={(e) => setZoom(Number(e.target.value))}
-                style={{ width: '100%' }}
-              />
-
-              <div
-                style={{
-                  display: 'flex',
-                  justifyContent: 'space-between',
-                  marginTop: 8,
-                }}
-              >
-                <button onClick={() => setShowCropper(false)}>Cancel</button>
-                <button onClick={saveCroppedImage}>Save</button>
-              </div>
-            </div>
-          </div>
-        </div>
+          <View style={{ flexDirection: 'row', gap: 12, marginTop: 20 }}>
+            <Pressable onPress={() => setShowCropper(false)} style={{ padding: 12 }}>
+              <Text style={{ color: '#fff' }}>Cancel</Text>
+            </Pressable>
+            <Pressable onPress={saveCroppedImage} style={{ padding: 12 }}>
+              <Text style={{ color: '#C9A24D', fontWeight: '800' }}>Save</Text>
+            </Pressable>
+          </View>
+        </View>
       )}
-
-      {/* ================= MAIN UI (UNCHANGED) ================= */}
-      <ScrollView contentContainerStyle={styles.container}>
-        <Text style={styles.pageTitle}>My Profile</Text>
-
-        <Pressable
-          onPress={pickAndUploadAvatar}
-          style={{ alignItems: 'center', marginBottom: 20 }}
-        >
-          <Image
-  key={profile.avatar_url} // 🔥 forces re-render when URL changes
-  source={
-    profile.avatar_url
-      ? { uri: profile.avatar_url }
-      : require('../../assets/images/avatar-placeholder.png')
-  }
-  style={{
-    width: 110,
-    height: 110,
-    borderRadius: 55,
-    marginBottom: 8,
-    backgroundColor: '#EAEAEA',
-  }}
-/>
-
-          <Text style={{ fontSize: 12, color: '#7A7A7A' }}>
-            {uploading ? 'Uploading…' : 'Tap to change photo'}
-          </Text>
-        </Pressable>
-
-        {/* BASIC INFO */}
-        <View style={styles.card}>
-          <Text style={styles.label}>Email</Text>
-          <Text style={styles.value}>{profile.email}</Text>
-
-          <Text style={[styles.label, { marginTop: 12 }]}>Full name</Text>
-          <Text style={styles.value}>{profile.full_name || 'Not set'}</Text>
-
-          <Text style={[styles.label, { marginTop: 12 }]}>Role</Text>
-          <Text style={[styles.value, isOwner ? styles.owner : styles.staff]}>
-            {profile.role.toUpperCase()}
-          </Text>
-        </View>
-
-        {/* ACTION BUTTONS */}
-        <View style={styles.card}>
-          <Pressable
-            onPress={() => router.push('../(tabs)/change-password')}
-            style={styles.primaryButton}
-          >
-            <Text style={styles.primaryButtonText}>Change Password</Text>
-          </Pressable>
-
-          {isOwner && (
-            <>
-              <Pressable
-                onPress={() => router.push('../(tabs)/manage-users')}
-                style={[styles.primaryButton, { marginTop: 12 }]}
-              >
-                <Text style={styles.primaryButtonText}>Manage Users</Text>
-              </Pressable>
-
-              <Pressable
-                onPress={() => router.push('../(tabs)/audit-log')}
-                style={[styles.primaryButton, { marginTop: 12 }]}
-              >
-                <Text style={styles.primaryButtonText}>Audit Logs</Text>
-              </Pressable>
-            </>
-          )}
-        </View>
-
-        {/* LOGOUT */}
-        <Pressable onPress={handleLogout} style={styles.logoutButton}>
-          <Text style={styles.logoutText}>Logout</Text>
-        </Pressable>
-      </ScrollView>
-    </>
+    </ScrollView>
   );
 }
 
@@ -379,12 +410,8 @@ const styles = StyleSheet.create({
     color: '#2B2B2B',
     marginTop: 4,
   },
-  owner: {
-    color: '#C9A24D',
-  },
-  staff: {
-    color: '#2B2B2B',
-  },
+  owner: { color: '#C9A24D' },
+  staff: { color: '#2B2B2B' },
   primaryButton: {
     backgroundColor: '#C9A24D',
     paddingVertical: 14,
@@ -418,6 +445,3 @@ const styles = StyleSheet.create({
     color: '#7A7A7A',
   },
 });
-
-
-
