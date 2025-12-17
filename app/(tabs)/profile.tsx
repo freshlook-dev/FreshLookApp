@@ -21,12 +21,6 @@ import Cropper from 'react-easy-crop';
 import { useAuth } from '../../context/AuthContext';
 import { supabase } from '../../context/supabase';
 
-useEffect(() => {
-  if (Platform.OS === 'web') {
-    document.body.style.height = '100vh';
-    document.body.style.overflow = 'auto';
-  }
-}, []);
 
 
 type Role = 'owner' | 'manager' | 'staff';
