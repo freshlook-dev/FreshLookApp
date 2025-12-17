@@ -64,21 +64,23 @@ export default function HomeTab() {
 
     setTotalCount(total ?? 0);
 
-    /* ⏰ TODAY APPOINTMENTS (FIXED) */
+    /* ⏰ TODAY APPOINTMENTS (FIXED ✅) */
     const { count: upcoming } = await supabase
       .from('appointments')
       .select('*', { count: 'exact', head: true })
       .eq('appointment_date', today)
+      .eq('created_by', user!.id) // ✅ FIX
       .eq('archived', false)
       .in('status', ['upcoming', 'arrived']);
 
     setUpcomingCount(upcoming ?? 0);
 
-    /* 📍 LOCATION COUNTS (TODAY ONLY – FIXED) */
+    /* 📍 LOCATION COUNTS (TODAY ONLY – FIXED ✅) */
     const { count: prishtina } = await supabase
       .from('appointments')
       .select('*', { count: 'exact', head: true })
       .eq('appointment_date', today)
+      .eq('created_by', user!.id) // ✅ FIX
       .eq('location', 'Prishtinë')
       .eq('archived', false)
       .in('status', ['upcoming', 'arrived']);
@@ -87,6 +89,7 @@ export default function HomeTab() {
       .from('appointments')
       .select('*', { count: 'exact', head: true })
       .eq('appointment_date', today)
+      .eq('created_by', user!.id) // ✅ FIX
       .eq('location', 'Fushë Kosovë')
       .eq('archived', false)
       .in('status', ['upcoming', 'arrived']);
@@ -94,7 +97,7 @@ export default function HomeTab() {
     setPrishtinaToday(prishtina ?? 0);
     setFusheToday(fushe ?? 0);
 
-    /* 📅 MONTHLY STAFF STATS (WITH AVATARS) */
+    /* 📅 MONTHLY STAFF STATS (UNCHANGED) */
     const firstDayOfMonth = new Date(
       new Date().getFullYear(),
       new Date().getMonth(),
@@ -161,11 +164,9 @@ export default function HomeTab() {
 
   return (
     <View style={styles.container}>
-      {/* HEADER */}
       <Text style={styles.welcome}>Mirë se vini!</Text>
       <Text style={styles.name}>{fullName}</Text>
 
-      {/* ALL 4 CARDS IN ONE ROW */}
       <View style={styles.statsRow}>
         <Card>
           <View style={styles.smallStat}>
@@ -196,7 +197,6 @@ export default function HomeTab() {
         </Card>
       </View>
 
-      {/* MONTHLY STAFF STATS */}
       <Text style={styles.sectionTitle}>📊 Statistika mujore (stafi)</Text>
 
       <FlatList

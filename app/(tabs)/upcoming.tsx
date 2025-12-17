@@ -34,6 +34,7 @@ type Appointment = {
   comment: string | null;
   phone: string | null;
   status: Status;
+  creator_name?: string | null; // ✅ ADDED
 };
 
 const formatDate = (date: string) => {
@@ -96,7 +97,8 @@ export default function UpcomingAppointments() {
         location,
         comment,
         phone,
-        status
+        status,
+        creator:profiles!appointments_created_by_fkey(full_name)
       `)
       .eq('status', 'upcoming')
       .eq('archived', false)
@@ -117,7 +119,13 @@ export default function UpcomingAppointments() {
       return;
     }
 
-    setAppointments((data ?? []) as Appointment[]);
+    const mapped =
+      data?.map((a: any) => ({
+        ...a,
+        creator_name: a.creator?.full_name ?? null,
+      })) ?? [];
+
+    setAppointments(mapped as Appointment[]);
     setLoading(false);
   };
 
@@ -223,6 +231,12 @@ export default function UpcomingAppointments() {
                   {formatDate(item.appointment_date)} •{' '}
                   {formatTime(item.appointment_time)}
                 </Text>
+
+                {item.creator_name && (
+                  <Text style={styles.datetime}>
+                    👤 {item.creator_name}
+                  </Text>
+                )}
 
                 {item.location && (
                   <Text style={styles.location}>📍 {item.location}</Text>
