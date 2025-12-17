@@ -94,21 +94,27 @@ export default function ArchivedScreen() {
 
     const ids = appts.map((a) => a.id);
 
-    /* 2️⃣ Archive audit logs */
-    const { data: logs } = await supabase
-      .from('audit_logs')
-      .select(`
-        target_id,
-        created_at,
-        actor:profiles!audit_logs_actor_id_fkey(full_name)
-      `)
-      .eq('action', 'ARCHIVE')
-      .in('target_id', ids)
-      .order('created_at', { ascending: false });
+    /* 2️⃣ Archive audit logs (SAFE GUARD) */
+    let logs: any[] = [];
+
+    if (ids.length > 0) {
+      const { data } = await supabase
+        .from('audit_logs')
+        .select(`
+          target_id,
+          created_at,
+          actor:profiles!audit_logs_actor_id_fkey(full_name)
+        `)
+        .eq('action', 'ARCHIVE')
+        .in('target_id', ids)
+        .order('created_at', { ascending: false });
+
+      logs = data ?? [];
+    }
 
     /* 3️⃣ Map logs to appointments */
     const mapped = appts.map((a: any) => {
-      const log = logs?.find((l) => l.target_id === a.id);
+      const log = logs.find((l) => l.target_id === a.id);
 
       return {
         id: a.id,
