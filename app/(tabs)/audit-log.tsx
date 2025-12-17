@@ -44,6 +44,16 @@ const prettyAction = (action: string) => {
   }
 };
 
+/* ✅ ONLY ADDITION: FILTER EMPTY LOGS */
+const hasValidChanges = (log: AuditLogRow) => {
+  const changes = log?.metadata?.changed;
+  return (
+    changes &&
+    typeof changes === 'object' &&
+    Object.keys(changes).length > 0
+  );
+};
+
 /* ================= METADATA RENDER ================= */
 
 const renderMetadata = (metadata: any) => {
@@ -154,7 +164,8 @@ export default function AuditLogsScreen() {
       <Text style={styles.pageTitle}>Audit Logs</Text>
 
       <FlatList
-        data={logs}
+        /* ✅ ONLY CHANGE HERE */
+        data={logs.filter(hasValidChanges)}
         keyExtractor={(item) => item.id}
         contentContainerStyle={{ paddingBottom: 40 }}
         renderItem={({ item }) => {
@@ -165,20 +176,16 @@ export default function AuditLogsScreen() {
 
           return (
             <View style={styles.card}>
-              {/* ACTION */}
               <View style={styles.actionBadge}>
                 <Text style={styles.actionText}>
                   {prettyAction(item.action)}
                 </Text>
               </View>
 
-              {/* ACTOR */}
               <Text style={styles.meta}>👤 {actorName}</Text>
 
-              {/* CHANGES */}
               {renderMetadata(item.metadata)}
 
-              {/* TIME */}
               <Text style={styles.time}>
                 {formatDateTime(item.created_at)}
               </Text>
