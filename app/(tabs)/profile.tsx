@@ -16,7 +16,8 @@ import { router } from 'expo-router';
 
 import * as ImagePicker from 'expo-image-picker';
 import * as ImageManipulator from 'expo-image-manipulator';
-import Cropper from 'react-easy-crop';
+let Cropper: any = null;
+
 
 import { useAuth } from '../../context/AuthContext';
 import { supabase } from '../../context/supabase';
@@ -113,10 +114,13 @@ export default function ProfileTab() {
     const uri = result.assets[0].uri;
 
     if (Platform.OS === 'web') {
-      setImageToCrop(uri);
-      setCrop({ x: 0, y: 0 });
-      setZoom(1);
-      setShowCropper(true);
+  if (!Cropper) {
+    Cropper = (await import('react-easy-crop')).default;
+  }
+  setImageToCrop(uri);
+  setCrop({ x: 0, y: 0 });
+  setZoom(1);
+  setShowCropper(true);
     } else {
       uploadFinalImage(uri);
     }
