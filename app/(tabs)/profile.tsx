@@ -16,8 +16,7 @@ import { router } from 'expo-router';
 
 import * as ImagePicker from 'expo-image-picker';
 import * as ImageManipulator from 'expo-image-manipulator';
-let Cropper: any = null;
-
+import Cropper from 'react-easy-crop';
 
 import { useAuth } from '../../context/AuthContext';
 import { supabase } from '../../context/supabase';
@@ -39,6 +38,7 @@ export default function ProfileTab() {
   const [loading, setLoading] = useState(true);
   const [uploading, setUploading] = useState(false);
 
+  // ✅ ADDED STATE (ONLY THIS)
   const [generatedCode, setGeneratedCode] = useState<{
     code: string;
     role: Role;
@@ -93,6 +93,7 @@ export default function ProfileTab() {
       return;
     }
 
+    // ✅ ADDED LINE
     setGeneratedCode({ code, role });
 
     Alert.alert(
@@ -114,13 +115,10 @@ export default function ProfileTab() {
     const uri = result.assets[0].uri;
 
     if (Platform.OS === 'web') {
-  if (!Cropper) {
-    Cropper = (await import('react-easy-crop')).default;
-  }
-  setImageToCrop(uri);
-  setCrop({ x: 0, y: 0 });
-  setZoom(1);
-  setShowCropper(true);
+      setImageToCrop(uri);
+      setCrop({ x: 0, y: 0 });
+      setZoom(1);
+      setShowCropper(true);
     } else {
       uploadFinalImage(uri);
     }
@@ -201,11 +199,7 @@ export default function ProfileTab() {
 
   const handleLogout = () => {
     if (Platform.OS === 'web') {
-      setTimeout(() => {
-        if (window.confirm('Are you sure you want to logout?')) {
-          logout();
-        }
-      }, 0);
+      if (window.confirm('Are you sure you want to logout?')) logout();
     } else {
       Alert.alert('Logout', 'Are you sure?', [
         { text: 'Cancel', style: 'cancel' },
@@ -234,109 +228,111 @@ export default function ProfileTab() {
   const isOwner = profile.role === 'owner';
 
   return (
-    <View style={styles.container}>
-      <ScrollView showsVerticalScrollIndicator={false}>
-        <Text style={styles.pageTitle}>My Profile</Text>
+    <ScrollView contentContainerStyle={styles.container}>
+      <Text style={styles.pageTitle}>My Profile</Text>
 
+      <Pressable
+        onPress={pickAndUploadAvatar}
+        style={{ alignItems: 'center', marginBottom: 20 }}
+      >
+        <Image
+          key={profile.avatar_url}
+          source={
+            profile.avatar_url
+              ? { uri: profile.avatar_url }
+              : require('../../assets/images/avatar-placeholder.png')
+          }
+          style={{
+            width: 110,
+            height: 110,
+            borderRadius: 55,
+            marginBottom: 8,
+            backgroundColor: '#EAEAEA',
+          }}
+        />
+
+        <Text style={{ fontSize: 12, color: '#7A7A7A' }}>
+          {uploading ? 'Uploading…' : 'Tap to change photo'}
+        </Text>
+      </Pressable>
+
+      {/* BASIC INFO */}
+      <View style={styles.card}>
+        <Text style={styles.label}>Email</Text>
+        <Text style={styles.value}>{profile.email}</Text>
+
+        <Text style={[styles.label, { marginTop: 12 }]}>Full name</Text>
+        <Text style={styles.value}>{profile.full_name || 'Not set'}</Text>
+
+        <Text style={[styles.label, { marginTop: 12 }]}>Role</Text>
+        <Text style={[styles.value, isOwner ? styles.owner : styles.staff]}>
+          {profile.role.toUpperCase()}
+        </Text>
+      </View>
+
+      {/* ACTION BUTTONS */}
+      <View style={styles.card}>
         <Pressable
-          onPress={pickAndUploadAvatar}
-          style={{ alignItems: 'center', marginBottom: 20 }}
+          onPress={() => router.push('../(tabs)/change-password')}
+          style={styles.primaryButton}
         >
-          <Image
-            key={profile.avatar_url}
-            source={
-              profile.avatar_url
-                ? { uri: profile.avatar_url }
-                : require('../../assets/images/avatar-placeholder.png')
-            }
-            style={{
-              width: 110,
-              height: 110,
-              borderRadius: 55,
-              marginBottom: 8,
-              backgroundColor: '#EAEAEA',
-            }}
-          />
-
-          <Text style={{ fontSize: 12, color: '#7A7A7A' }}>
-            {uploading ? 'Uploading…' : 'Tap to change photo'}
-          </Text>
+          <Text style={styles.primaryButtonText}>Change Password</Text>
         </Pressable>
 
-        <View style={styles.card}>
-          <Text style={styles.label}>Email</Text>
-          <Text style={styles.value}>{profile.email}</Text>
+        {isOwner && (
+          <>
+            <Pressable
+              onPress={() => router.push('../(tabs)/manage-users')}
+              style={[styles.primaryButton, { marginTop: 12 }]}
+            >
+              <Text style={styles.primaryButtonText}>Manage Users</Text>
+            </Pressable>
 
-          <Text style={[styles.label, { marginTop: 12 }]}>Full name</Text>
-          <Text style={styles.value}>{profile.full_name || 'Not set'}</Text>
+            <Pressable
+              onPress={() => router.push('../(tabs)/audit-log')}
+              style={[styles.primaryButton, { marginTop: 12 }]}
+            >
+              <Text style={styles.primaryButtonText}>Audit Logs</Text>
+            </Pressable>
 
-          <Text style={[styles.label, { marginTop: 12 }]}>Role</Text>
-          <Text style={[styles.value, isOwner ? styles.owner : styles.staff]}>
-            {profile.role.toUpperCase()}
-          </Text>
-        </View>
+            <Pressable
+              onPress={() => generateAccessCode('staff')}
+              style={[styles.primaryButton, { marginTop: 12 }]}
+            >
+              <Text style={styles.primaryButtonText}>Generate Staff Code</Text>
+            </Pressable>
 
-        <View style={styles.card}>
-          <Pressable
-            onPress={() => router.push('../(tabs)/change-password')}
-            style={styles.primaryButton}
-          >
-            <Text style={styles.primaryButtonText}>Change Password</Text>
-          </Pressable>
+            {/* ✅ GENERATED CODE DISPLAY */}
+            {generatedCode && (
+              <View style={[styles.card, { marginTop: 12 }]}>
+                <Text style={styles.label}>Generated Access Code</Text>
 
-          {isOwner && (
-            <>
-              <Pressable
-                onPress={() => router.push('../(tabs)/manage-users')}
-                style={[styles.primaryButton, { marginTop: 12 }]}
-              >
-                <Text style={styles.primaryButtonText}>Manage Users</Text>
-              </Pressable>
+                <Text
+                  style={{
+                    fontSize: 28,
+                    fontWeight: '800',
+                    letterSpacing: 3,
+                    marginTop: 6,
+                    color: '#2B2B2B',
+                  }}
+                >
+                  {generatedCode.code}
+                </Text>
 
-              <Pressable
-                onPress={() => router.push('../(tabs)/audit-log')}
-                style={[styles.primaryButton, { marginTop: 12 }]}
-              >
-                <Text style={styles.primaryButtonText}>Audit Logs</Text>
-              </Pressable>
+                <Text style={{ marginTop: 6, color: '#7A7A7A' }}>
+                  Role: {generatedCode.role.toUpperCase()}
+                </Text>
+              </View>
+            )}
+          </>
+        )}
+      </View>
 
-              <Pressable
-                onPress={() => generateAccessCode('staff')}
-                style={[styles.primaryButton, { marginTop: 12 }]}
-              >
-                <Text style={styles.primaryButtonText}>Generate Staff Code</Text>
-              </Pressable>
-
-              {generatedCode && (
-                <View style={[styles.card, { marginTop: 12 }]}>
-                  <Text style={styles.label}>Generated Access Code</Text>
-
-                  <Text
-                    style={{
-                      fontSize: 28,
-                      fontWeight: '800',
-                      letterSpacing: 3,
-                      marginTop: 6,
-                      color: '#2B2B2B',
-                    }}
-                  >
-                    {generatedCode.code}
-                  </Text>
-
-                  <Text style={{ marginTop: 6, color: '#7A7A7A' }}>
-                    Role: {generatedCode.role.toUpperCase()}
-                  </Text>
-                </View>
-              )}
-            </>
-          )}
-        </View>
-
-        <Pressable onPress={handleLogout} style={styles.logoutButton}>
-          <Text style={styles.logoutText}>Logout</Text>
-        </Pressable>
-      </ScrollView>
-    </View>
+      {/* LOGOUT */}
+      <Pressable onPress={handleLogout} style={styles.logoutButton}>
+        <Text style={styles.logoutText}>Logout</Text>
+      </Pressable>
+    </ScrollView>
   );
 }
 
@@ -344,7 +340,7 @@ export default function ProfileTab() {
 
 const styles = StyleSheet.create({
   container: {
-    flex: 1,
+    flexGrow: 1,
     backgroundColor: '#FAF8F4',
     padding: 20,
     paddingBottom: 40,
