@@ -15,10 +15,18 @@ import {
 import { supabase } from '../../context/supabase';
 import { router } from 'expo-router';
 
+/* ✅ ADDED (theme only) */
+import { useTheme } from '../../context/ThemeContext';
+import { LightColors, DarkColors } from '../../constants/colors';
+
 export default function Login() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
+
+  /* ✅ THEME */
+  const { theme } = useTheme();
+  const Colors = theme === 'dark' ? DarkColors : LightColors;
 
   const handleLogin = async () => {
     if (!email || !password) return;
@@ -45,7 +53,10 @@ export default function Login() {
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
     >
       <ScrollView
-        contentContainerStyle={styles.container}
+        contentContainerStyle={[
+          styles.container,
+          { backgroundColor: Colors.background },
+        ]}
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
       >
@@ -57,31 +68,47 @@ export default function Login() {
             resizeMode="contain"
           />
 
-          <Text style={styles.title}>Welcome Back</Text>
-          <Text style={styles.subtitle}>
+          <Text style={[styles.title, { color: Colors.text }]}>
+            Welcome Back
+          </Text>
+          <Text style={[styles.subtitle, { color: Colors.muted }]}>
             Sign in to continue to Fresh Look
           </Text>
         </View>
 
         {/* Form */}
-        <View style={styles.card}>
+        <View style={[styles.card, { backgroundColor: Colors.card }]}>
           <TextInput
             placeholder="Email address"
-            placeholderTextColor="#999"
+            placeholderTextColor={Colors.muted}
             autoCapitalize="none"
             keyboardType="email-address"
             value={email}
             onChangeText={setEmail}
-            style={styles.input}
+            style={[
+              styles.input,
+              {
+                backgroundColor: Colors.background,
+                color: Colors.text,
+                borderColor: Colors.primary,
+              },
+            ]}
           />
 
           <TextInput
             placeholder="Password"
-            placeholderTextColor="#999"
+            placeholderTextColor={Colors.muted}
             secureTextEntry
             value={password}
             onChangeText={setPassword}
-            style={styles.input}
+            style={[
+              styles.input,
+              {
+                backgroundColor: Colors.background,
+                color: Colors.text,
+                borderColor: Colors.primary,
+              },
+            ]}
           />
 
           {/* 🔐 FORGOT PASSWORD */}
@@ -112,11 +139,12 @@ export default function Login() {
   );
 }
 
+/* ================= STYLES ================= */
+
 const styles = StyleSheet.create({
   container: {
     flexGrow: 1,
     padding: 24,
-    backgroundColor: '#FAF8F4',
     justifyContent: 'center',
   },
 
@@ -134,17 +162,14 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 28,
     fontWeight: '700',
-    color: '#2B2B2B',
   },
 
   subtitle: {
     marginTop: 6,
     fontSize: 14,
-    color: '#7A7A7A',
   },
 
   card: {
-    backgroundColor: '#FFFFFF',
     borderRadius: 16,
     padding: 20,
     shadowColor: '#000',
@@ -155,14 +180,11 @@ const styles = StyleSheet.create({
 
   input: {
     borderWidth: 1,
-    borderColor: '#E6D3A3',
     borderRadius: 12,
     paddingVertical: 14,
     paddingHorizontal: 16,
     fontSize: 15,
     marginBottom: 14,
-    backgroundColor: '#FAF8F4',
-    color: '#2B2B2B',
   },
 
   forgot: {

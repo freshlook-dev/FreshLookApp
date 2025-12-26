@@ -16,6 +16,8 @@ import { router } from 'expo-router';
 
 import { supabase } from '../../context/supabase';
 import { useAuth } from '../../context/AuthContext';
+import { useTheme } from '../../context/ThemeContext';
+import { LightColors, DarkColors } from '../../constants/colors';
 
 type Appointment = {
   id: string;
@@ -38,6 +40,9 @@ const formatDateTime = (iso: string) => {
 
 export default function ArchivedScreen() {
   const { user } = useAuth();
+
+  const { theme } = useTheme();
+  const Colors = theme === 'dark' ? DarkColors : LightColors;
 
   const [loading, setLoading] = useState(true);
   const [appointments, setAppointments] = useState<Appointment[]>([]);
@@ -72,7 +77,6 @@ export default function ArchivedScreen() {
   const loadData = async () => {
     setLoading(true);
 
-    /* 1️⃣ Archived appointments */
     const { data: appts, error } = await supabase
       .from('appointments')
       .select(`
@@ -97,7 +101,6 @@ export default function ArchivedScreen() {
     let logs: any[] = [];
     let profilesMap: Record<string, string> = {};
 
-    /* 2️⃣ Audit logs (NO FK JOIN) */
     if (ids.length > 0) {
       const { data: logRows } = await supabase
         .from('audit_logs')
@@ -122,7 +125,6 @@ export default function ArchivedScreen() {
       }
     }
 
-    /* 3️⃣ Map everything */
     const mapped = appts.map((a: any) => {
       const log = logs.find((l) => l.target_id === a.id);
 
@@ -180,11 +182,16 @@ export default function ArchivedScreen() {
   /* ---------------- RENDER ---------------- */
 
   const renderItem = ({ item }: { item: Appointment }) => (
-    <Pressable onPress={() => setSelected(item)} style={styles.row}>
-      <Text style={styles.client}>{item.client_name}</Text>
+    <Pressable
+      onPress={() => setSelected(item)}
+      style={[styles.row, { backgroundColor: Colors.card }]}
+    >
+      <Text style={[styles.client, { color: Colors.text }]}>
+        {item.client_name}
+      </Text>
 
       {item.archived_by && item.archived_at && (
-        <Text style={styles.meta}>
+        <Text style={[styles.meta, { color: Colors.muted }]}>
           Arkivuar nga {item.archived_by} •{' '}
           {formatDateTime(item.archived_at)}
         </Text>
@@ -195,20 +202,24 @@ export default function ArchivedScreen() {
   if (loading) {
     return (
       <View style={styles.center}>
-        <ActivityIndicator size="large" />
+        <ActivityIndicator size="large" color={Colors.primary} />
       </View>
     );
   }
 
   return (
-    <View style={styles.container}>
-      <Text style={styles.title}>Arkivuar</Text>
+    <View style={[styles.container, { backgroundColor: Colors.background }]}>
+      <Text style={[styles.title, { color: Colors.text }]}>Arkivuar</Text>
 
       <TextInput
         placeholder="Kërko klientin..."
+        placeholderTextColor={Colors.muted}
         value={search}
         onChangeText={setSearch}
-        style={styles.search}
+        style={[
+          styles.search,
+          { backgroundColor: Colors.card, color: Colors.text },
+        ]}
       />
 
       <FlatList
@@ -216,24 +227,40 @@ export default function ArchivedScreen() {
         keyExtractor={(item) => item.id}
         renderItem={renderItem}
         ListEmptyComponent={
-          <Text style={styles.empty}>Asnjë rezultat</Text>
+          <Text style={[styles.empty, { color: Colors.muted }]}>
+            Asnjë rezultat
+          </Text>
         }
       />
 
       <Modal visible={!!selected} transparent animationType="fade">
         <View style={styles.modalOverlay}>
-          <View style={styles.modalCard}>
+          <View
+            style={[styles.modalCard, { backgroundColor: Colors.card }]}
+          >
             <Pressable onPress={() => setSelected(null)} style={styles.close}>
-              <Text style={styles.closeText}>✕</Text>
+              <Text style={[styles.closeText, { color: Colors.text }]}>
+                ✕
+              </Text>
             </Pressable>
 
             {selected && (
               <>
-                <Text style={styles.modalName}>{selected.client_name}</Text>
-                <Text style={styles.modalText}>{selected.service}</Text>
+                <Text
+                  style={[styles.modalName, { color: Colors.text }]}
+                >
+                  {selected.client_name}
+                </Text>
+                <Text
+                  style={[styles.modalText, { color: Colors.text }]}
+                >
+                  {selected.service}
+                </Text>
 
                 {selected.archived_by && selected.archived_at && (
-                  <Text style={styles.modalText}>
+                  <Text
+                    style={[styles.modalText, { color: Colors.muted }]}
+                  >
                     📦 Arkivuar nga {selected.archived_by}
                     {'\n'}
                     🕒 {formatDateTime(selected.archived_at)}
@@ -260,7 +287,6 @@ export default function ArchivedScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#FAF8F4',
     padding: 20,
   },
   center: {
@@ -274,7 +300,6 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   search: {
-    backgroundColor: '#FFFFFF',
     borderRadius: 10,
     padding: 12,
     marginBottom: 12,
@@ -282,10 +307,8 @@ const styles = StyleSheet.create({
   empty: {
     textAlign: 'center',
     marginTop: 40,
-    color: '#7A7A7A',
   },
   row: {
-    backgroundColor: '#FFFFFF',
     padding: 14,
     borderRadius: 14,
     marginBottom: 8,
@@ -296,7 +319,6 @@ const styles = StyleSheet.create({
   },
   meta: {
     fontSize: 12,
-    color: '#7A7A7A',
     marginTop: 4,
   },
   modalOverlay: {
@@ -306,7 +328,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   modalCard: {
-    backgroundColor: '#FFFFFF',
     borderRadius: 16,
     padding: 20,
     width: '90%',

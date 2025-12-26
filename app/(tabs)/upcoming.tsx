@@ -17,9 +17,12 @@ import { router } from 'expo-router';
 import { supabase } from '../../context/supabase';
 import { useAuth } from '../../context/AuthContext';
 
-import { Colors, Spacing } from '../../constants/theme';
+import { Spacing } from '../../constants/theme';
 import { Card } from '../../components/Card';
 import { SectionTitle } from '../../components/SectionTitle';
+
+import { useTheme } from '../../context/ThemeContext';
+import { LightColors, DarkColors } from '../../constants/colors';
 
 type Status = 'upcoming' | 'arrived' | 'canceled';
 type Role = 'owner' | 'manager' | 'staff';
@@ -34,7 +37,7 @@ type Appointment = {
   comment: string | null;
   phone: string | null;
   status: Status;
-  creator_name?: string | null; // ✅ ADDED
+  creator_name?: string | null;
 };
 
 const formatDate = (date: string) => {
@@ -49,6 +52,9 @@ const formatTime = (time: string) => time.slice(0, 5);
 export default function UpcomingAppointments() {
   const { user } = useAuth();
   const isMounted = useRef(true);
+
+  const { theme } = useTheme();
+  const Colors = theme === 'dark' ? DarkColors : LightColors;
 
   const [appointments, setAppointments] = useState<Appointment[]>([]);
   const [loading, setLoading] = useState(true);
@@ -183,14 +189,16 @@ export default function UpcomingAppointments() {
 
   if (!user || loading) {
     return (
-      <View style={styles.center}>
-        <ActivityIndicator size="large" />
+      <View style={[styles.center, { backgroundColor: Colors.background }]}>
+        <ActivityIndicator size="large" color={Colors.primary} />
       </View>
     );
   }
 
   return (
-    <View style={styles.container}>
+    <View
+      style={[styles.container, { backgroundColor: Colors.background }]}
+    >
       <SectionTitle>Upcoming Appointments</SectionTitle>
 
       {/* FILTERS */}
@@ -201,13 +209,22 @@ export default function UpcomingAppointments() {
             onPress={() => setLocationFilter(loc as any)}
             style={[
               styles.filterBtn,
-              locationFilter === loc && styles.filterActive,
+              {
+                borderColor: Colors.muted,
+                backgroundColor:
+                  locationFilter === loc ? Colors.primary : 'transparent',
+              },
             ]}
           >
             <Text
               style={[
                 styles.filterText,
-                locationFilter === loc && styles.filterTextActive,
+                {
+                  color:
+                    locationFilter === loc
+                      ? '#fff'
+                      : Colors.muted,
+                },
               ]}
             >
               {loc === 'all' ? 'Të gjitha' : loc}
@@ -224,30 +241,40 @@ export default function UpcomingAppointments() {
           <Card>
             <View style={styles.row}>
               <View style={{ flex: 1 }}>
-                <Text style={styles.client}>{item.client_name}</Text>
-                <Text style={styles.service}>{item.service}</Text>
+                <Text style={[styles.client, { color: Colors.text }]}>
+                  {item.client_name}
+                </Text>
+                <Text style={[styles.service, { color: Colors.muted }]}>
+                  {item.service}
+                </Text>
 
-                <Text style={styles.datetime}>
+                <Text style={[styles.datetime, { color: Colors.muted }]}>
                   {formatDate(item.appointment_date)} •{' '}
                   {formatTime(item.appointment_time)}
                 </Text>
 
                 {item.creator_name && (
-                  <Text style={styles.datetime}>
+                  <Text style={[styles.datetime, { color: Colors.muted }]}>
                     👤 {item.creator_name}
                   </Text>
                 )}
 
                 {item.location && (
-                  <Text style={styles.location}>📍 {item.location}</Text>
+                  <Text style={[styles.location, { color: Colors.muted }]}>
+                    📍 {item.location}
+                  </Text>
                 )}
 
                 {item.phone && (
-                  <Text style={styles.phone}>📞 {item.phone}</Text>
+                  <Text style={[styles.phone, { color: Colors.muted }]}>
+                    📞 {item.phone}
+                  </Text>
                 )}
 
                 {item.comment && (
-                  <Text style={styles.comment}>📝 {item.comment}</Text>
+                  <Text style={[styles.comment, { color: Colors.muted }]}>
+                    📝 {item.comment}
+                  </Text>
                 )}
               </View>
 
@@ -308,7 +335,6 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     padding: Spacing.lg,
-    backgroundColor: Colors.background,
   },
   center: {
     flex: 1,
@@ -325,18 +351,10 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     borderRadius: 20,
     borderWidth: 1,
-    borderColor: Colors.textSecondary,
-  },
-  filterActive: {
-    backgroundColor: Colors.primary,
   },
   filterText: {
     fontSize: 13,
     fontWeight: '600',
-    color: Colors.textSecondary,
-  },
-  filterTextActive: {
-    color: '#fff',
   },
   row: {
     flexDirection: 'row',
@@ -345,32 +363,26 @@ const styles = StyleSheet.create({
   client: {
     fontSize: 16,
     fontWeight: '700',
-    color: Colors.textPrimary,
   },
   service: {
     fontSize: 14,
-    color: Colors.textSecondary,
   },
   datetime: {
     marginTop: 4,
     fontSize: 13,
-    color: Colors.textSecondary,
   },
   location: {
     marginTop: 4,
     fontSize: 13,
-    color: Colors.textSecondary,
   },
   phone: {
     marginTop: 4,
     fontSize: 13,
-    color: Colors.textSecondary,
   },
   comment: {
     marginTop: 6,
     fontSize: 13,
     fontStyle: 'italic',
-    color: Colors.textSecondary,
   },
   sideActions: {
     justifyContent: 'center',

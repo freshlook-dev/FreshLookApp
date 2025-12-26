@@ -14,9 +14,17 @@ import { router } from 'expo-router';
 
 import { supabase } from '../../context/supabase';
 
+/* ✅ ADDED (theme only) */
+import { useTheme } from '../../context/ThemeContext';
+import { LightColors, DarkColors } from '../../constants/colors';
+
 export default function ForgotPasswordScreen() {
   const [email, setEmail] = useState('');
   const [loading, setLoading] = useState(false);
+
+  /* ✅ THEME */
+  const { theme } = useTheme();
+  const Colors = theme === 'dark' ? DarkColors : LightColors;
 
   const handleReset = async () => {
     if (!email) {
@@ -46,23 +54,46 @@ export default function ForgotPasswordScreen() {
   };
 
   return (
-    <View style={styles.container}>
-      <Text style={styles.title}>Forgot Password</Text>
+    <View
+      style={[
+        styles.container,
+        { backgroundColor: Colors.background },
+      ]}
+    >
+      <Text style={[styles.title, { color: Colors.text }]}>
+        Forgot Password
+      </Text>
 
       <TextInput
-        style={styles.input}
+        style={[
+          styles.input,
+          {
+            backgroundColor: Colors.card,
+            color: Colors.text,
+            borderColor: Colors.primary,
+          },
+        ]}
         placeholder="Email"
+        placeholderTextColor={Colors.muted}
         value={email}
         onChangeText={setEmail}
         autoCapitalize="none"
         keyboardType="email-address"
       />
 
-      <Pressable style={styles.button} onPress={handleReset}>
+      <Pressable
+        style={[
+          styles.button,
+          { backgroundColor: Colors.primary },
+        ]}
+        onPress={handleReset}
+      >
         {loading ? (
           <ActivityIndicator color="#fff" />
         ) : (
-          <Text style={styles.buttonText}>Send reset link</Text>
+          <Text style={styles.buttonText}>
+            Send reset link
+          </Text>
         )}
       </Pressable>
     </View>
@@ -82,13 +113,12 @@ const styles = StyleSheet.create({
   },
   input: {
     borderWidth: 1,
-    borderColor: '#ccc',
     padding: 14,
     borderRadius: 10,
     marginBottom: 16,
+    fontSize: 15,
   },
   button: {
-    backgroundColor: '#000',
     padding: 14,
     borderRadius: 10,
     alignItems: 'center',
@@ -96,5 +126,6 @@ const styles = StyleSheet.create({
   buttonText: {
     color: '#fff',
     fontWeight: '600',
+    fontSize: 15,
   },
 });

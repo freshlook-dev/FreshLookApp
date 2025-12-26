@@ -17,6 +17,9 @@ import { router } from 'expo-router';
 import { supabase } from '../../context/supabase';
 import { useAuth } from '../../context/AuthContext';
 
+import { useTheme } from '../../context/ThemeContext';
+import { LightColors, DarkColors } from '../../constants/colors';
+
 /* -------------------- OPTIONS -------------------- */
 
 const TREATMENTS = [
@@ -52,6 +55,9 @@ const TIME_SLOTS = generateTimeSlots();
 
 export default function CreateAppointment() {
   const { user } = useAuth();
+
+  const { theme } = useTheme();
+  const Colors = theme === 'dark' ? DarkColors : LightColors;
 
   const [fullName, setFullName] = useState('');
   const [phone, setPhone] = useState('');
@@ -108,49 +114,79 @@ export default function CreateAppointment() {
 
   return (
     <ScrollView
-      contentContainerStyle={styles.container}
+      contentContainerStyle={[
+        styles.container,
+        { backgroundColor: Colors.background },
+      ]}
       keyboardShouldPersistTaps="handled"
       showsVerticalScrollIndicator={false}
     >
-      <Text style={styles.title}>Termin i Ri</Text>
+      <Text style={[styles.title, { color: Colors.text }]}>
+        Termin i Ri
+      </Text>
 
       {/* Full name */}
-      <View style={styles.card}>
-        <Text style={styles.label}>Emri dhe Mbiemri</Text>
+      <View style={[styles.card, { backgroundColor: Colors.card }]}>
+        <Text style={[styles.label, { color: Colors.muted }]}>
+          Emri dhe Mbiemri
+        </Text>
         <TextInput
           value={fullName}
           onChangeText={setFullName}
           placeholder="Emri i klientit"
-          placeholderTextColor="#B5B5B5"
-          style={styles.input}
+          placeholderTextColor={Colors.muted}
+          style={[
+            styles.input,
+            {
+              backgroundColor: Colors.background,
+              borderColor: Colors.primary,
+              color: Colors.text,
+            },
+          ]}
         />
       </View>
 
       {/* Phone */}
-      <View style={styles.card}>
-        <Text style={styles.label}>Numri kontaktues</Text>
+      <View style={[styles.card, { backgroundColor: Colors.card }]}>
+        <Text style={[styles.label, { color: Colors.muted }]}>
+          Numri kontaktues
+        </Text>
         <TextInput
           value={phone}
           onChangeText={setPhone}
           placeholder="04x - xxx - xxx"
-          placeholderTextColor="#B5B5B5"
+          placeholderTextColor={Colors.muted}
           keyboardType="phone-pad"
-          style={styles.input}
+          style={[
+            styles.input,
+            {
+              backgroundColor: Colors.background,
+              borderColor: Colors.primary,
+              color: Colors.text,
+            },
+          ]}
         />
       </View>
 
       {/* Treatment */}
-      <View style={styles.card}>
-        <Text style={styles.label}>Tretmani</Text>
+      <View style={[styles.card, { backgroundColor: Colors.card }]}>
+        <Text style={[styles.label, { color: Colors.muted }]}>
+          Tretmani
+        </Text>
         {TREATMENTS.map((item) => (
           <Pressable
             key={item}
-            style={[styles.option, treatment === item && styles.optionActive]}
+            style={[
+              styles.option,
+              { borderColor: Colors.primary },
+              treatment === item && styles.optionActive,
+            ]}
             onPress={() => setTreatment(item)}
           >
             <Text
               style={[
                 styles.optionText,
+                { color: Colors.text },
                 treatment === item && styles.optionTextActive,
               ]}
             >
@@ -161,8 +197,10 @@ export default function CreateAppointment() {
       </View>
 
       {/* DATE */}
-      <View style={styles.card}>
-        <Text style={styles.label}>Data</Text>
+      <View style={[styles.card, { backgroundColor: Colors.card }]}>
+        <Text style={[styles.label, { color: Colors.muted }]}>
+          Data
+        </Text>
 
         {Platform.OS === 'web' ? (
           <View style={styles.webDateWrapper}>
@@ -175,8 +213,9 @@ export default function CreateAppointment() {
                 padding: 14,
                 fontSize: 15,
                 borderRadius: 12,
-                border: '1px solid #E6D3A3',
-                backgroundColor: '#FAF8F4',
+                border: `1px solid ${Colors.primary}`,
+                backgroundColor: Colors.background,
+                color: Colors.text,
               }}
             />
           </View>
@@ -184,16 +223,28 @@ export default function CreateAppointment() {
           <>
             <Pressable
               onPress={() => setShowDatePicker(true)}
-              style={styles.input}
+              style={[
+                styles.input,
+                {
+                  backgroundColor: Colors.background,
+                  borderColor: Colors.primary,
+                },
+              ]}
             >
-              <Text style={styles.valueText}>{formatDate(date)}</Text>
+              <Text
+                style={[styles.valueText, { color: Colors.text }]}
+              >
+                {formatDate(date)}
+              </Text>
             </Pressable>
 
             {showDatePicker && (
               <DateTimePicker
                 value={date}
                 mode="date"
-                display={Platform.OS === 'ios' ? 'spinner' : 'default'}
+                display={
+                  Platform.OS === 'ios' ? 'spinner' : 'default'
+                }
                 onChange={(e, d) => {
                   setShowDatePicker(false);
                   if (d) setDate(d);
@@ -205,8 +256,10 @@ export default function CreateAppointment() {
       </View>
 
       {/* Time */}
-      <View style={styles.card}>
-        <Text style={styles.label}>Ora</Text>
+      <View style={[styles.card, { backgroundColor: Colors.card }]}>
+        <Text style={[styles.label, { color: Colors.muted }]}>
+          Ora
+        </Text>
         <View style={styles.timeGrid}>
           {TIME_SLOTS.map((slot) => (
             <Pressable
@@ -214,12 +267,14 @@ export default function CreateAppointment() {
               onPress={() => setTime(slot)}
               style={[
                 styles.timeSlot,
+                { borderColor: Colors.primary },
                 time === slot && styles.timeSlotActive,
               ]}
             >
               <Text
                 style={[
                   styles.timeText,
+                  { color: Colors.text },
                   time === slot && styles.timeTextActive,
                 ]}
               >
@@ -231,17 +286,24 @@ export default function CreateAppointment() {
       </View>
 
       {/* Location */}
-      <View style={styles.card}>
-        <Text style={styles.label}>Lokacioni</Text>
+      <View style={[styles.card, { backgroundColor: Colors.card }]}>
+        <Text style={[styles.label, { color: Colors.muted }]}>
+          Lokacioni
+        </Text>
         {LOCATIONS.map((loc) => (
           <Pressable
             key={loc}
-            style={[styles.option, location === loc && styles.optionActive]}
+            style={[
+              styles.option,
+              { borderColor: Colors.primary },
+              location === loc && styles.optionActive,
+            ]}
             onPress={() => setLocation(loc)}
           >
             <Text
               style={[
                 styles.optionText,
+                { color: Colors.text },
                 location === loc && styles.optionTextActive,
               ]}
             >
@@ -252,14 +314,25 @@ export default function CreateAppointment() {
       </View>
 
       {/* Comment */}
-      <View style={styles.card}>
-        <Text style={styles.label}>Koment për klientin (opsionale)</Text>
+      <View style={[styles.card, { backgroundColor: Colors.card }]}>
+        <Text style={[styles.label, { color: Colors.muted }]}>
+          Koment për klientin (opsionale)
+        </Text>
         <TextInput
           value={comment}
           onChangeText={setComment}
           placeholder="Shënime shtesë, kërkesa speciale, etj."
-          placeholderTextColor="#B5B5B5"
-          style={[styles.input, { height: 100, textAlignVertical: 'top' }]}
+          placeholderTextColor={Colors.muted}
+          style={[
+            styles.input,
+            {
+              height: 100,
+              textAlignVertical: 'top',
+              backgroundColor: Colors.background,
+              borderColor: Colors.primary,
+              color: Colors.text,
+            },
+          ]}
           multiline
         />
       </View>
@@ -283,20 +356,15 @@ export default function CreateAppointment() {
 const styles = StyleSheet.create({
   container: {
     flexGrow: 1,
-    backgroundColor: '#FAF8F4',
     padding: 20,
     paddingBottom: 40,
   },
-
   title: {
     fontSize: 26,
     fontWeight: '800',
-    color: '#2B2B2B',
     marginBottom: 20,
   },
-
   card: {
-    backgroundColor: '#FFFFFF',
     borderRadius: 16,
     padding: 16,
     marginBottom: 16,
@@ -305,84 +373,62 @@ const styles = StyleSheet.create({
     shadowRadius: 10,
     elevation: 2,
   },
-
   label: {
     fontSize: 13,
-    color: '#7A7A7A',
     marginBottom: 6,
     fontWeight: '600',
   },
-
   input: {
     borderWidth: 1,
-    borderColor: '#E6D3A3',
     borderRadius: 12,
     padding: 14,
     fontSize: 15,
-    backgroundColor: '#FAF8F4',
   },
-
   valueText: {
     fontSize: 15,
     fontWeight: '600',
-    color: '#2B2B2B',
   },
-
   option: {
     padding: 12,
     borderRadius: 10,
     borderWidth: 1,
-    borderColor: '#E6D3A3',
     marginBottom: 8,
   },
-
   optionActive: {
     backgroundColor: '#C9A24D',
   },
-
   optionText: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#2B2B2B',
   },
-
   optionTextActive: {
     color: '#FFFFFF',
   },
-
   timeGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
   },
-
   timeSlot: {
     width: '30%',
     paddingVertical: 10,
     margin: '1.5%',
     borderRadius: 10,
     borderWidth: 1,
-    borderColor: '#E6D3A3',
     alignItems: 'center',
   },
-
   timeSlotActive: {
     backgroundColor: '#C9A24D',
   },
-
   timeText: {
     fontSize: 13,
     fontWeight: '700',
-    color: '#2B2B2B',
   },
-
   timeTextActive: {
     color: '#FFFFFF',
   },
-
   webDateWrapper: {
     width: '100%',
   },
-
   button: {
     backgroundColor: '#C9A24D',
     paddingVertical: 18,
@@ -390,7 +436,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginTop: 8,
   },
-
   buttonText: {
     color: '#FFFFFF',
     fontSize: 16,

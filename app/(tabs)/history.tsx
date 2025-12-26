@@ -12,13 +12,16 @@ import {
   Alert,
   Platform,
 } from 'react-native';
-import { router } from 'expo-router'; // ✅ ADDED
+import { router } from 'expo-router';
 
 import { supabase } from '../../context/supabase';
 import { useAuth } from '../../context/AuthContext';
 
+import { useTheme } from '../../context/ThemeContext';
+import { LightColors, DarkColors } from '../../constants/colors';
+
 type Status = 'arrived' | 'canceled' | 'upcoming';
-type Filter = 'arrived' | 'canceled'; // ✅ ADDED
+type Filter = 'arrived' | 'canceled';
 
 type Appointment = {
   id: string;
@@ -44,6 +47,9 @@ const formatDate = (date: string) => {
 export default function HistoryScreen() {
   const { user } = useAuth();
 
+  const { theme } = useTheme();
+  const Colors = theme === 'dark' ? DarkColors : LightColors;
+
   const [loading, setLoading] = useState(true);
   const [arrived, setArrived] = useState<Appointment[]>([]);
   const [canceled, setCanceled] = useState<Appointment[]>([]);
@@ -51,7 +57,7 @@ export default function HistoryScreen() {
   const [selected, setSelected] = useState<Appointment | null>(null);
 
   const [canManage, setCanManage] = useState(false);
-  const [filter, setFilter] = useState<Filter>('arrived'); // ✅ ADDED
+  const [filter, setFilter] = useState<Filter>('arrived');
 
   useEffect(() => {
     if (user?.id) {
@@ -200,48 +206,76 @@ export default function HistoryScreen() {
   /* ---------------- RENDER ---------------- */
 
   const renderItem = (item: Appointment) => (
-    <Pressable onPress={() => setSelected(item)} style={styles.row}>
-      <Text style={styles.client}>{item.client_name}</Text>
+    <Pressable
+      onPress={() => setSelected(item)}
+      style={[styles.row, { backgroundColor: Colors.card }]}
+    >
+      <Text style={[styles.client, { color: Colors.text }]}>
+        {item.client_name}
+      </Text>
       {item.creator_name && (
-        <Text style={styles.creator}>Krijuar nga: {item.creator_name}</Text>
+        <Text style={[styles.creator, { color: Colors.muted }]}>
+          Krijuar nga: {item.creator_name}
+        </Text>
       )}
     </Pressable>
   );
 
   if (loading) {
     return (
-      <View style={styles.center}>
-        <ActivityIndicator size="large" />
+      <View
+        style={[styles.center, { backgroundColor: Colors.background }]}
+      >
+        <ActivityIndicator size="large" color={Colors.primary} />
       </View>
     );
   }
 
   return (
-    <View style={styles.container}>
-
-      {/* ✅ FILTER BUTTONS */}
+    <View
+      style={[
+        styles.container,
+        { backgroundColor: Colors.background },
+      ]}
+    >
+      {/* FILTER BUTTONS */}
       <View style={styles.filterRow}>
         <Pressable
           onPress={() => setFilter('arrived')}
           style={[
             styles.filterBtn,
+            { backgroundColor: Colors.card },
             filter === 'arrived' && styles.filterActive,
           ]}
         >
-          <Text style={styles.filterText}>Ka ardhur</Text>
+          <Text
+            style={[
+              styles.filterText,
+              { color: filter === 'arrived' ? '#fff' : Colors.text },
+            ]}
+          >
+            Ka ardhur
+          </Text>
         </Pressable>
 
         <Pressable
           onPress={() => setFilter('canceled')}
           style={[
             styles.filterBtn,
+            { backgroundColor: Colors.card },
             filter === 'canceled' && styles.filterActive,
           ]}
         >
-          <Text style={styles.filterText}>Anulim</Text>
+          <Text
+            style={[
+              styles.filterText,
+              { color: filter === 'canceled' ? '#fff' : Colors.text },
+            ]}
+          >
+            Anulim
+          </Text>
         </Pressable>
 
-        {/* ✅ REDIRECT BUTTON */}
         {canManage && (
           <Pressable
             onPress={() => router.push('/archived')}
@@ -268,26 +302,47 @@ export default function HistoryScreen() {
         />
       )}
 
-      {/* ---------------- MODAL ---------------- */}
-
+      {/* MODAL */}
       <Modal visible={!!selected} transparent animationType="fade">
         <View style={styles.modalOverlay}>
-          <View style={styles.modalCard}>
+          <View
+            style={[
+              styles.modalCard,
+              { backgroundColor: Colors.card },
+            ]}
+          >
             <Pressable onPress={() => setSelected(null)} style={styles.close}>
-              <Text style={styles.closeText}>✕</Text>
+              <Text style={[styles.closeText, { color: Colors.text }]}>
+                ✕
+              </Text>
             </Pressable>
 
             {selected && (
               <>
-                <Text style={styles.modalName}>{selected.client_name}</Text>
-                <Text style={styles.modalText}>{selected.service}</Text>
-                <Text style={styles.modalText}>
+                <Text
+                  style={[styles.modalName, { color: Colors.text }]}
+                >
+                  {selected.client_name}
+                </Text>
+                <Text
+                  style={[styles.modalText, { color: Colors.text }]}
+                >
+                  {selected.service}
+                </Text>
+                <Text
+                  style={[styles.modalText, { color: Colors.muted }]}
+                >
                   {formatDate(selected.appointment_date)} •{' '}
                   {selected.appointment_time}
                 </Text>
 
                 {selected.creator_name && (
-                  <Text style={styles.modalText}>
+                  <Text
+                    style={[
+                      styles.modalText,
+                      { color: Colors.muted },
+                    ]}
+                  >
                     👤 {selected.creator_name}
                   </Text>
                 )}
@@ -296,7 +351,9 @@ export default function HistoryScreen() {
                   <>
                     {selected.status !== 'arrived' && (
                       <Pressable
-                        onPress={() => updateStatus(selected.id, 'arrived')}
+                        onPress={() =>
+                          updateStatus(selected.id, 'arrived')
+                        }
                         style={styles.statusBtn}
                       >
                         <Text style={styles.statusText}>Ka ardhur</Text>
@@ -305,7 +362,9 @@ export default function HistoryScreen() {
 
                     {selected.status !== 'canceled' && (
                       <Pressable
-                        onPress={() => updateStatus(selected.id, 'canceled')}
+                        onPress={() =>
+                          updateStatus(selected.id, 'canceled')
+                        }
                         style={styles.statusBtn}
                       >
                         <Text style={styles.statusText}>Anulim</Text>
@@ -313,7 +372,9 @@ export default function HistoryScreen() {
                     )}
 
                     <Pressable
-                      onPress={() => updateStatus(selected.id, 'upcoming')}
+                      onPress={() =>
+                        updateStatus(selected.id, 'upcoming')
+                      }
                       style={styles.statusBtn}
                     >
                       <Text style={styles.statusText}>Ne pritje</Text>
@@ -352,7 +413,6 @@ export default function HistoryScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#FAF8F4',
     padding: 20,
   },
   center: {
@@ -366,7 +426,6 @@ const styles = StyleSheet.create({
   },
   filterBtn: {
     flex: 1,
-    backgroundColor: '#EDEDED',
     paddingVertical: 10,
     borderRadius: 10,
     alignItems: 'center',
@@ -390,7 +449,6 @@ const styles = StyleSheet.create({
     fontWeight: '700',
   },
   row: {
-    backgroundColor: '#FFFFFF',
     padding: 14,
     borderRadius: 14,
     marginBottom: 8,
@@ -398,11 +456,9 @@ const styles = StyleSheet.create({
   client: {
     fontSize: 15,
     fontWeight: '700',
-    color: '#2B2B2B',
   },
   creator: {
     fontSize: 12,
-    color: '#7A7A7A',
     marginTop: 4,
   },
   modalOverlay: {
@@ -412,7 +468,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   modalCard: {
-    backgroundColor: '#FFFFFF',
     borderRadius: 16,
     padding: 20,
     width: '90%',

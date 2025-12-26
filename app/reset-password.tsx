@@ -15,6 +15,10 @@ import { Ionicons } from '@expo/vector-icons';
 
 import { supabase } from '../context/supabase';
 
+/* ✅ ADDED (theme only) */
+import { useTheme } from '../context/ThemeContext';
+import { LightColors, DarkColors } from '../constants/colors';
+
 export default function ResetPasswordScreen() {
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
@@ -22,6 +26,10 @@ export default function ResetPasswordScreen() {
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [ready, setReady] = useState(false); // 🔑 recovery ready
+
+  /* ✅ THEME */
+  const { theme } = useTheme();
+  const Colors = theme === 'dark' ? DarkColors : LightColors;
 
   useEffect(() => {
     // ✅ REQUIRED for mobile browsers (Safari, iOS, Android)
@@ -75,14 +83,29 @@ export default function ResetPasswordScreen() {
   };
 
   return (
-    <View style={styles.container}>
-      <Text style={styles.title}>Set new password</Text>
+    <View
+      style={[
+        styles.container,
+        { backgroundColor: Colors.background },
+      ]}
+    >
+      <Text style={[styles.title, { color: Colors.text }]}>
+        Set new password
+      </Text>
 
       {/* New Password */}
       <View style={styles.passwordWrapper}>
         <TextInput
-          style={styles.input}
+          style={[
+            styles.input,
+            {
+              backgroundColor: Colors.card,
+              color: Colors.text,
+              borderColor: Colors.primary,
+            },
+          ]}
           placeholder="New password"
+          placeholderTextColor={Colors.muted}
           secureTextEntry={!showPassword}
           value={password}
           onChangeText={setPassword}
@@ -94,7 +117,7 @@ export default function ResetPasswordScreen() {
           <Ionicons
             name={showPassword ? 'eye-off' : 'eye'}
             size={22}
-            color="#7A7A7A"
+            color={Colors.muted}
           />
         </Pressable>
       </View>
@@ -102,8 +125,16 @@ export default function ResetPasswordScreen() {
       {/* Confirm Password */}
       <View style={styles.passwordWrapper}>
         <TextInput
-          style={styles.input}
+          style={[
+            styles.input,
+            {
+              backgroundColor: Colors.card,
+              color: Colors.text,
+              borderColor: Colors.primary,
+            },
+          ]}
           placeholder="Confirm new password"
+          placeholderTextColor={Colors.muted}
           secureTextEntry={!showConfirmPassword}
           value={confirmPassword}
           onChangeText={setConfirmPassword}
@@ -117,7 +148,7 @@ export default function ResetPasswordScreen() {
           <Ionicons
             name={showConfirmPassword ? 'eye-off' : 'eye'}
             size={22}
-            color="#7A7A7A"
+            color={Colors.muted}
           />
         </Pressable>
       </View>
@@ -133,25 +164,27 @@ export default function ResetPasswordScreen() {
         {loading ? (
           <ActivityIndicator color="#fff" />
         ) : (
-          <Text style={styles.buttonText}>Update password</Text>
+          <Text style={styles.buttonText}>
+            Update password
+          </Text>
         )}
       </Pressable>
     </View>
   );
 }
 
+/* ================= STYLES ================= */
+
 const styles = StyleSheet.create({
   container: {
     flex: 1,
     padding: 24,
     justifyContent: 'center',
-    backgroundColor: '#FAF8F4',
   },
   title: {
     fontSize: 26,
     fontWeight: '600',
     marginBottom: 20,
-    color: '#2B2B2B',
   },
   passwordWrapper: {
     position: 'relative',
@@ -159,13 +192,10 @@ const styles = StyleSheet.create({
   },
   input: {
     borderWidth: 1,
-    borderColor: '#E6D3A3',
     paddingVertical: 14,
     paddingHorizontal: 16,
     paddingRight: 44,
     borderRadius: 12,
-    backgroundColor: '#FFFFFF',
-    color: '#2B2B2B',
     fontSize: 15,
   },
   eye: {

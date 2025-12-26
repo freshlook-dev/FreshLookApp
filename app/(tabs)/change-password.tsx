@@ -16,8 +16,14 @@ import { router } from 'expo-router';
 import { supabase } from '../../context/supabase';
 import { useAuth } from '../../context/AuthContext';
 
+import { useTheme } from '../../context/ThemeContext';
+import { LightColors, DarkColors } from '../../constants/colors';
+
 export default function ChangePasswordScreen() {
   const { user } = useAuth();
+
+  const { theme } = useTheme();
+  const Colors = theme === 'dark' ? DarkColors : LightColors;
 
   const [oldPassword, setOldPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
@@ -49,7 +55,6 @@ export default function ChangePasswordScreen() {
     try {
       setLoading(true);
 
-      // 🔐 Re-authenticate
       const { error: signInError } =
         await supabase.auth.signInWithPassword({
           email: user!.email!,
@@ -63,7 +68,6 @@ export default function ChangePasswordScreen() {
         return;
       }
 
-      // 🔁 Update password
       const { error } = await supabase.auth.updateUser({
         password: newPassword,
       });
@@ -75,21 +79,16 @@ export default function ChangePasswordScreen() {
         return;
       }
 
-      // ✅ SUCCESS CONFIRMATION + REDIRECT
       if (Platform.OS === 'web') {
         window.alert('Password changed successfully');
         router.replace('/(tabs)/profile');
       } else {
-        Alert.alert(
-          'Success',
-          'Password changed successfully',
-          [
-            {
-              text: 'OK',
-              onPress: () => router.replace('/(tabs)/profile'),
-            },
-          ]
-        );
+        Alert.alert('Success', 'Password changed successfully', [
+          {
+            text: 'OK',
+            onPress: () => router.replace('/(tabs)/profile'),
+          },
+        ]);
       }
     } finally {
       setLoading(false);
@@ -97,31 +96,62 @@ export default function ChangePasswordScreen() {
   };
 
   return (
-    <View style={styles.container}>
-      <Text style={styles.title}>Change Password</Text>
+    <View
+      style={[
+        styles.container,
+        { backgroundColor: Colors.background },
+      ]}
+    >
+      <Text style={[styles.title, { color: Colors.text }]}>
+        Change Password
+      </Text>
 
       <TextInput
         placeholder="Old password"
+        placeholderTextColor={Colors.muted}
         secureTextEntry
         value={oldPassword}
         onChangeText={setOldPassword}
-        style={styles.input}
+        style={[
+          styles.input,
+          {
+            backgroundColor: Colors.card,
+            borderColor: Colors.primary,
+            color: Colors.text,
+          },
+        ]}
       />
 
       <TextInput
         placeholder="New password"
+        placeholderTextColor={Colors.muted}
         secureTextEntry
         value={newPassword}
         onChangeText={setNewPassword}
-        style={styles.input}
+        style={[
+          styles.input,
+          {
+            backgroundColor: Colors.card,
+            borderColor: Colors.primary,
+            color: Colors.text,
+          },
+        ]}
       />
 
       <TextInput
         placeholder="Confirm new password"
+        placeholderTextColor={Colors.muted}
         secureTextEntry
         value={confirmPassword}
         onChangeText={setConfirmPassword}
-        style={styles.input}
+        style={[
+          styles.input,
+          {
+            backgroundColor: Colors.card,
+            borderColor: Colors.primary,
+            color: Colors.text,
+          },
+        ]}
       />
 
       <Pressable
@@ -142,23 +172,19 @@ export default function ChangePasswordScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#FAF8F4',
     padding: 20,
   },
   title: {
     fontSize: 24,
     fontWeight: '800',
     marginBottom: 20,
-    color: '#2B2B2B',
   },
   input: {
     borderWidth: 1,
-    borderColor: '#E6D3A3',
     borderRadius: 12,
     padding: 14,
     fontSize: 15,
     marginBottom: 12,
-    backgroundColor: '#FFF',
   },
   button: {
     backgroundColor: '#C9A24D',

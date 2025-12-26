@@ -11,6 +11,7 @@ import {
   Alert,
   Platform,
   Image,
+  Switch, // ✅ ADDED
 } from 'react-native';
 import { router } from 'expo-router';
 
@@ -20,6 +21,10 @@ import Cropper from 'react-easy-crop';
 
 import { useAuth } from '../../context/AuthContext';
 import { supabase } from '../../context/supabase';
+
+// ✅ ADDED (theme only)
+import { useTheme } from '../../context/ThemeContext';
+import { LightColors, DarkColors } from '../../constants/colors';
 
 type Role = 'owner' | 'manager' | 'staff';
 
@@ -31,7 +36,7 @@ type Profile = {
   avatar_url?: string | null;
 };
 
-/* ================= WEB IMAGE PICKER (ADDED) ================= */
+/* ================= WEB IMAGE PICKER ================= */
 const pickImageWeb = async (): Promise<string | null> => {
   return new Promise((resolve) => {
     const input = document.createElement('input');
@@ -50,10 +55,14 @@ const pickImageWeb = async (): Promise<string | null> => {
     input.click();
   });
 };
-/* ============================================================ */
+/* ==================================================== */
 
 export default function ProfileTab() {
   const { user, loading: authLoading, logout } = useAuth();
+
+  // ✅ ADDED (theme only)
+  const { theme, toggleTheme } = useTheme();
+  const Colors = theme === 'dark' ? DarkColors : LightColors;
 
   const [profile, setProfile] = useState<Profile | null>(null);
   const [loading, setLoading] = useState(true);
@@ -121,7 +130,7 @@ export default function ProfileTab() {
     );
   };
 
-  /* ================= PICK IMAGE (FIXED) ================= */
+  /* ================= PICK IMAGE ================= */
 
   const pickAndUploadAvatar = async () => {
     if (Platform.OS === 'web') {
@@ -249,8 +258,15 @@ export default function ProfileTab() {
   const isOwner = profile.role === 'owner';
 
   return (
-    <ScrollView contentContainerStyle={styles.container}>
-      <Text style={styles.pageTitle}>My Profile</Text>
+    <ScrollView
+      contentContainerStyle={[
+        styles.container,
+        { backgroundColor: Colors.background },
+      ]}
+    >
+      <Text style={[styles.pageTitle, { color: Colors.text }]}>
+        My Profile
+      </Text>
 
       <Pressable
         onPress={pickAndUploadAvatar}
@@ -272,27 +288,53 @@ export default function ProfileTab() {
           }}
         />
 
-        <Text style={{ fontSize: 12, color: '#7A7A7A' }}>
+        <Text style={{ fontSize: 12, color: Colors.muted }}>
           {uploading ? 'Uploading…' : 'Tap to change photo'}
         </Text>
       </Pressable>
 
       {/* BASIC INFO */}
-      <View style={styles.card}>
-        <Text style={styles.label}>Email</Text>
-        <Text style={styles.value}>{profile.email}</Text>
+      <View style={[styles.card, { backgroundColor: Colors.card }]}>
+        <Text style={[styles.label, { color: Colors.muted }]}>Email</Text>
+        <Text style={[styles.value, { color: Colors.text }]}>
+          {profile.email}
+        </Text>
 
-        <Text style={[styles.label, { marginTop: 12 }]}>Full name</Text>
-        <Text style={styles.value}>{profile.full_name || 'Not set'}</Text>
+        <Text style={[styles.label, { marginTop: 12, color: Colors.muted }]}>
+          Full name
+        </Text>
+        <Text style={[styles.value, { color: Colors.text }]}>
+          {profile.full_name || 'Not set'}
+        </Text>
 
-        <Text style={[styles.label, { marginTop: 12 }]}>Role</Text>
-        <Text style={[styles.value, isOwner ? styles.owner : styles.staff]}>
+        <Text style={[styles.label, { marginTop: 12, color: Colors.muted }]}>
+          Role
+        </Text>
+        <Text
+          style={[
+            styles.value,
+            { color: isOwner ? Colors.primary : Colors.text },
+          ]}
+        >
           {profile.role.toUpperCase()}
         </Text>
+
+        {/* 🌙 DARK MODE SWITCH (ONLY ADDITION) */}
+        <View style={styles.themeRow}>
+          <Text style={{ color: Colors.text, fontWeight: '600' }}>
+            Dark Mode
+          </Text>
+          <Switch
+            value={theme === 'dark'}
+            onValueChange={toggleTheme}
+            thumbColor={theme === 'dark' ? Colors.primary : '#f4f3f4'}
+            trackColor={{ false: '#ccc', true: Colors.primary }}
+          />
+        </View>
       </View>
 
       {/* ACTION BUTTONS */}
-      <View style={styles.card}>
+      <View style={[styles.card, { backgroundColor: Colors.card }]}>
         <Pressable
           onPress={() => router.push('../(tabs)/change-password')}
           style={styles.primaryButton}
@@ -345,14 +387,16 @@ export default function ProfileTab() {
 
       {/* ================= WEB CROPPER UI ================= */}
       {Platform.OS === 'web' && showCropper && imageToCrop && (
-        <View style={{
-          position: 'fixed' as any,
-          inset: 0,
-          backgroundColor: 'rgba(0,0,0,0.85)',
-          zIndex: 9999,
-          justifyContent: 'center',
-          alignItems: 'center',
-        }}>
+        <View
+          style={{
+            position: 'fixed' as any,
+            inset: 0,
+            backgroundColor: 'rgba(0,0,0,0.85)',
+            zIndex: 9999,
+            justifyContent: 'center',
+            alignItems: 'center',
+          }}
+        >
           <View style={{ width: 300, height: 300, backgroundColor: '#000' }}>
             <Cropper
               image={imageToCrop}
@@ -379,23 +423,20 @@ export default function ProfileTab() {
   );
 }
 
-/* ================= STYLES (UNCHANGED) ================= */
+/* ================= STYLES ================= */
 
 const styles = StyleSheet.create({
   container: {
     flexGrow: 1,
-    backgroundColor: '#FAF8F4',
     padding: 20,
     paddingBottom: 40,
   },
   pageTitle: {
     fontSize: 26,
     fontWeight: '800',
-    color: '#2B2B2B',
     marginBottom: 20,
   },
   card: {
-    backgroundColor: '#FFFFFF',
     borderRadius: 16,
     padding: 16,
     marginBottom: 12,
@@ -407,11 +448,9 @@ const styles = StyleSheet.create({
   value: {
     fontSize: 15,
     fontWeight: '600',
-    color: '#2B2B2B',
     marginTop: 4,
+    color: '#2B2B2B',
   },
-  owner: { color: '#C9A24D' },
-  staff: { color: '#2B2B2B' },
   primaryButton: {
     backgroundColor: '#C9A24D',
     paddingVertical: 14,
@@ -434,6 +473,12 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     fontWeight: '800',
     fontSize: 16,
+  },
+  themeRow: {
+    marginTop: 18,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
   },
   center: {
     flex: 1,

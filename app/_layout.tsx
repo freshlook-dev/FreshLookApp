@@ -1,13 +1,32 @@
 import { Stack } from 'expo-router';
-import { AuthProvider } from '../context/AuthContext';
 import { SafeAreaView, StyleSheet } from 'react-native';
+
+import { AuthProvider } from '../context/AuthContext';
+import { ThemeProvider, useTheme } from '../context/ThemeContext';
+import { LightColors, DarkColors } from '../constants/colors';
+
+function AppLayout() {
+  const { theme } = useTheme();
+  const Colors = theme === 'dark' ? DarkColors : LightColors;
+
+  return (
+    <SafeAreaView
+      style={[
+        styles.safe,
+        { backgroundColor: Colors.background },
+      ]}
+    >
+      <Stack screenOptions={{ headerShown: false }} />
+    </SafeAreaView>
+  );
+}
 
 export default function RootLayout() {
   return (
     <AuthProvider>
-      <SafeAreaView style={styles.safe}>
-        <Stack screenOptions={{ headerShown: false }} />
-      </SafeAreaView>
+      <ThemeProvider>
+        <AppLayout />
+      </ThemeProvider>
     </AuthProvider>
   );
 }
@@ -15,7 +34,6 @@ export default function RootLayout() {
 const styles = StyleSheet.create({
   safe: {
     flex: 1,
-    backgroundColor: '#FAF8F4', // keep app background consistent
-    paddingHorizontal: 16,      // ✅ THIS fixes the corner issue
+    paddingHorizontal: 16, // ✅ keeps your corner fix
   },
 });

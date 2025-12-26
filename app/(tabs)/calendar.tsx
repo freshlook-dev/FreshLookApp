@@ -14,7 +14,10 @@ import { Calendar, DateData } from 'react-native-calendars';
 import { supabase } from '../../context/supabase';
 import { useAuth } from '../../context/AuthContext';
 
-import { Colors, Spacing } from '../../constants/theme';
+import { useTheme } from '../../context/ThemeContext';
+import { LightColors, DarkColors } from '../../constants/colors';
+
+import { Spacing } from '../../constants/theme';
 import { Card } from '../../components/Card';
 import { SectionTitle } from '../../components/SectionTitle';
 
@@ -28,7 +31,7 @@ type Appointment = {
   location: string | null;
   comment: string | null;
   creator_name: string | null;
-  status: 'upcoming'; // 👈 important
+  status: 'upcoming';
 };
 
 /* 🔹 HELPERS */
@@ -37,6 +40,9 @@ const today = new Date().toISOString().split('T')[0];
 
 export default function CalendarTab() {
   const { user } = useAuth();
+
+  const { theme } = useTheme();
+  const Colors = theme === 'dark' ? DarkColors : LightColors;
 
   const [appointments, setAppointments] = useState<Appointment[]>([]);
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
@@ -68,7 +74,7 @@ export default function CalendarTab() {
           full_name
         )
       `)
-      .eq('status', 'upcoming') // ✅ KEY FIX
+      .eq('status', 'upcoming')
       .eq('archived', false);
 
     if (!error && data) {
@@ -102,13 +108,18 @@ export default function CalendarTab() {
   if (loading) {
     return (
       <View style={styles.center}>
-        <ActivityIndicator size="large" />
+        <ActivityIndicator size="large" color={Colors.primary} />
       </View>
     );
   }
 
   return (
-    <View style={styles.container}>
+    <View
+      style={[
+        styles.container,
+        { backgroundColor: Colors.background },
+      ]}
+    >
       <SectionTitle>Calendar</SectionTitle>
 
       <Calendar
@@ -139,12 +150,19 @@ export default function CalendarTab() {
           setSelectedDate(day.dateString)
         }
         theme={{
+          backgroundColor: Colors.background,
+          calendarBackground: Colors.background,
+          dayTextColor: Colors.text,
+          monthTextColor: Colors.text,
+          textSectionTitleColor: Colors.muted,
           todayTextColor: Colors.primary,
+          arrowColor: Colors.primary,
+          selectedDayTextColor: '#fff',
         }}
       />
 
       {selectedDate && dailyAppointments.length === 0 && (
-        <Text style={styles.empty}>
+        <Text style={[styles.empty, { color: Colors.muted }]}>
           No appointments for this day
         </Text>
       )}
@@ -155,29 +173,41 @@ export default function CalendarTab() {
         contentContainerStyle={{ paddingBottom: 40 }}
         renderItem={({ item }) => (
           <Card>
-            <Text style={styles.client}>{item.client_name}</Text>
-            <Text style={styles.service}>{item.service}</Text>
+            <Text style={[styles.client, { color: Colors.text }]}>
+              {item.client_name}
+            </Text>
+            <Text style={[styles.service, { color: Colors.muted }]}>
+              {item.service}
+            </Text>
 
-            <Text style={styles.time}>
+            <Text style={[styles.time, { color: Colors.muted }]}>
               {formatTime(item.appointment_time)}
             </Text>
 
             {item.phone && (
-              <Text style={styles.phone}>📞 {item.phone}</Text>
+              <Text style={[styles.phone, { color: Colors.muted }]}>
+                📞 {item.phone}
+              </Text>
             )}
 
             {item.location && (
-              <Text style={styles.location}>
+              <Text
+                style={[styles.location, { color: Colors.muted }]}
+              >
                 📍 {item.location}
               </Text>
             )}
 
-            <Text style={styles.creator}>
+            <Text style={[styles.creator, { color: Colors.muted }]}>
               👤 {item.creator_name}
             </Text>
 
             {item.comment && (
-              <Text style={styles.comment}>📝 {item.comment}</Text>
+              <Text
+                style={[styles.comment, { color: Colors.muted }]}
+              >
+                📝 {item.comment}
+              </Text>
             )}
           </Card>
         )}
@@ -192,7 +222,6 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     padding: Spacing.lg,
-    backgroundColor: Colors.background,
   },
   center: {
     flex: 1,
@@ -202,41 +231,33 @@ const styles = StyleSheet.create({
   client: {
     fontSize: 16,
     fontWeight: '700',
-    color: Colors.textPrimary,
   },
   service: {
     fontSize: 14,
-    color: Colors.textSecondary,
   },
   time: {
     marginTop: 4,
     fontSize: 13,
-    color: Colors.textSecondary,
   },
   phone: {
     marginTop: 4,
     fontSize: 13,
-    color: Colors.textSecondary,
   },
   location: {
     marginTop: 2,
     fontSize: 13,
-    color: Colors.textSecondary,
   },
   creator: {
     marginTop: 6,
     fontSize: 12,
-    color: Colors.textSecondary,
   },
   comment: {
     marginTop: 4,
     fontStyle: 'italic',
-    color: Colors.textSecondary,
   },
   empty: {
     marginTop: Spacing.md,
     textAlign: 'center',
-    color: Colors.textSecondary,
     fontStyle: 'italic',
   },
 });

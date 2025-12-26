@@ -16,6 +16,9 @@ import { router } from 'expo-router';
 import { supabase } from '../../context/supabase';
 import { useAuth } from '../../context/AuthContext';
 
+import { useTheme } from '../../context/ThemeContext';
+import { LightColors, DarkColors } from '../../constants/colors';
+
 type Role = 'owner' | 'manager' | 'staff';
 
 type UserRow = {
@@ -26,6 +29,9 @@ type UserRow = {
 
 export default function ManageUsersScreen() {
   const { user } = useAuth();
+
+  const { theme } = useTheme();
+  const Colors = theme === 'dark' ? DarkColors : LightColors;
 
   const [myRole, setMyRole] = useState<Role | null>(null);
   const [users, setUsers] = useState<UserRow[]>([]);
@@ -39,7 +45,6 @@ export default function ManageUsersScreen() {
     const init = async () => {
       setLoading(true);
 
-      // 1️⃣ Load MY role
       const { data: me, error: meError } = await supabase
         .from('profiles')
         .select('role')
@@ -52,7 +57,6 @@ export default function ManageUsersScreen() {
         return;
       }
 
-      // ❌ Not owner → kick out
       if (me.role !== 'owner') {
         router.replace('/(tabs)/profile');
         return;
@@ -60,7 +64,6 @@ export default function ManageUsersScreen() {
 
       setMyRole(me.role);
 
-      // 2️⃣ Load all OTHER users
       const { data, error } = await supabase
         .from('profiles')
         .select('id, email, role')
@@ -107,7 +110,6 @@ export default function ManageUsersScreen() {
   };
 
   const updateRole = async (target: UserRow, newRole: Role) => {
-    // 1️⃣ Update role
     const { error } = await supabase
       .from('profiles')
       .update({ role: newRole })
@@ -118,7 +120,6 @@ export default function ManageUsersScreen() {
       return;
     }
 
-    // 2️⃣ AUDIT LOG ✅
     await supabase.from('audit_logs').insert({
       actor_id: user!.id,
       action: 'CHANGE_ROLE',
@@ -129,7 +130,6 @@ export default function ManageUsersScreen() {
       },
     });
 
-    // 3️⃣ Update UI state
     setUsers((prev) =>
       prev.map((u) =>
         u.id === target.id ? { ...u, role: newRole } : u
@@ -141,8 +141,10 @@ export default function ManageUsersScreen() {
 
   if (loading) {
     return (
-      <View style={styles.center}>
-        <ActivityIndicator size="large" />
+      <View
+        style={[styles.center, { backgroundColor: Colors.background }]}
+      >
+        <ActivityIndicator size="large" color={Colors.primary} />
       </View>
     );
   }
@@ -152,18 +154,37 @@ export default function ManageUsersScreen() {
   }
 
   return (
-    <View style={styles.container}>
-      <Text style={styles.title}>Manage Users</Text>
+    <View
+      style={[
+        styles.container,
+        { backgroundColor: Colors.background },
+      ]}
+    >
+      <Text style={[styles.title, { color: Colors.text }]}>
+        Manage Users
+      </Text>
 
       <FlatList
         data={users}
         keyExtractor={(item) => item.id}
         renderItem={({ item }) => (
-          <View style={styles.card}>
-            <Text style={styles.email}>{item.email}</Text>
+          <View
+            style={[
+              styles.card,
+              { backgroundColor: Colors.card },
+            ]}
+          >
+            <Text style={[styles.email, { color: Colors.text }]}>
+              {item.email}
+            </Text>
 
             <Pressable onPress={() => confirmChange(item)}>
-              <Text style={styles.roleBtn}>
+              <Text
+                style={[
+                  styles.roleBtn,
+                  { color: Colors.primary },
+                ]}
+              >
                 {item.role.toUpperCase()} → CHANGE
               </Text>
             </Pressable>
@@ -179,17 +200,14 @@ export default function ManageUsersScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#FAF8F4',
     padding: 20,
   },
   title: {
     fontSize: 24,
     fontWeight: '800',
     marginBottom: 16,
-    color: '#2B2B2B',
   },
   card: {
-    backgroundColor: '#FFFFFF',
     padding: 16,
     borderRadius: 14,
     marginBottom: 10,
@@ -197,13 +215,11 @@ const styles = StyleSheet.create({
   email: {
     fontSize: 15,
     fontWeight: '600',
-    color: '#2B2B2B',
   },
   roleBtn: {
     marginTop: 6,
     fontSize: 13,
     fontWeight: '700',
-    color: '#C9A24D',
   },
   center: {
     flex: 1,

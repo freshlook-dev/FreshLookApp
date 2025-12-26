@@ -16,12 +16,20 @@ import {
 } from 'react-native';
 import { supabase } from '../../context/supabase';
 
+/* ✅ ADDED (theme only) */
+import { useTheme } from '../../context/ThemeContext';
+import { LightColors, DarkColors } from '../../constants/colors';
+
 export default function SignUpScreen() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [fullName, setFullName] = useState('');
   const [accessCode, setAccessCode] = useState('');
   const [loading, setLoading] = useState(false);
+
+  /* ✅ THEME */
+  const { theme } = useTheme();
+  const Colors = theme === 'dark' ? DarkColors : LightColors;
 
   const handleSignUp = async () => {
     if (!email || !password || !fullName || !accessCode) {
@@ -62,24 +70,22 @@ export default function SignUpScreen() {
       const userId = signUpData.user.id;
 
       /* 3️⃣ UPSERT PROFILE */
-const { error: profileError } = await supabase
-  .from('profiles')
-  .upsert({
-    id: userId,
-    email: email.toLowerCase().trim(), // ✅ REQUIRED
-    full_name: fullName.trim(),
-    role: codeData.role,
-  });
+      const { error: profileError } = await supabase
+        .from('profiles')
+        .upsert({
+          id: userId,
+          email: email.toLowerCase().trim(), // ✅ REQUIRED
+          full_name: fullName.trim(),
+          role: codeData.role,
+        });
 
-if (profileError) {
-  setLoading(false);
-  Alert.alert('Profile error', profileError.message);
-  return;
-}
+      if (profileError) {
+        setLoading(false);
+        Alert.alert('Profile error', profileError.message);
+        return;
+      }
 
-
-      /* 4️⃣ MARK ACCESS CODE AS USED
-         (used_at is set by DB trigger) */
+      /* 4️⃣ MARK ACCESS CODE AS USED */
       const { error: codeUpdateError } = await supabase
         .from('access_codes')
         .update({ used: true })
@@ -100,7 +106,6 @@ if (profileError) {
 
       Alert.alert('Success', 'Account created successfully');
       // AuthContext handles navigation
-
     } catch (err) {
       console.error(err);
       Alert.alert('Error', 'Something went wrong');
@@ -115,7 +120,10 @@ if (profileError) {
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
     >
       <ScrollView
-        contentContainerStyle={styles.container}
+        contentContainerStyle={[
+          styles.container,
+          { backgroundColor: Colors.background },
+        ]}
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
       >
@@ -125,44 +133,78 @@ if (profileError) {
             style={styles.logo}
             resizeMode="contain"
           />
-          <Text style={styles.title}>Create Account</Text>
-          <Text style={styles.subtitle}>
+          <Text style={[styles.title, { color: Colors.text }]}>
+            Create Account
+          </Text>
+          <Text style={[styles.subtitle, { color: Colors.muted }]}>
             Join Fresh Look internal platform
           </Text>
         </View>
 
-        <View style={styles.card}>
+        <View style={[styles.card, { backgroundColor: Colors.card }]}>
           <TextInput
             placeholder="Full Name"
+            placeholderTextColor={Colors.muted}
             value={fullName}
             onChangeText={setFullName}
-            style={styles.input}
+            style={[
+              styles.input,
+              {
+                backgroundColor: Colors.background,
+                color: Colors.text,
+                borderColor: Colors.primary,
+              },
+            ]}
           />
 
           <TextInput
             placeholder="Email address"
+            placeholderTextColor={Colors.muted}
             autoCapitalize="none"
             keyboardType="email-address"
             value={email}
             onChangeText={setEmail}
-            style={styles.input}
+            style={[
+              styles.input,
+              {
+                backgroundColor: Colors.background,
+                color: Colors.text,
+                borderColor: Colors.primary,
+              },
+            ]}
           />
 
           <TextInput
             placeholder="Password"
+            placeholderTextColor={Colors.muted}
             secureTextEntry
             value={password}
             onChangeText={setPassword}
-            style={styles.input}
+            style={[
+              styles.input,
+              {
+                backgroundColor: Colors.background,
+                color: Colors.text,
+                borderColor: Colors.primary,
+              },
+            ]}
           />
 
           <TextInput
             placeholder="5-digit Access Code"
+            placeholderTextColor={Colors.muted}
             keyboardType="number-pad"
             maxLength={5}
             value={accessCode}
             onChangeText={setAccessCode}
-            style={styles.input}
+            style={[
+              styles.input,
+              {
+                backgroundColor: Colors.background,
+                color: Colors.text,
+                borderColor: Colors.primary,
+              },
+            ]}
           />
 
           <Pressable
@@ -182,11 +224,12 @@ if (profileError) {
   );
 }
 
+/* ================= STYLES ================= */
+
 const styles = StyleSheet.create({
   container: {
     flexGrow: 1,
     padding: 24,
-    backgroundColor: '#FAF8F4',
     justifyContent: 'center',
   },
   header: {
@@ -201,25 +244,21 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 28,
     fontWeight: '800',
-    color: '#2B2B2B',
   },
   subtitle: {
     marginTop: 6,
     fontSize: 14,
-    color: '#7A7A7A',
   },
   card: {
-    backgroundColor: '#FFFFFF',
     borderRadius: 18,
     padding: 22,
   },
   input: {
     borderWidth: 1,
-    borderColor: '#E6D3A3',
     borderRadius: 14,
     padding: 14,
     marginBottom: 14,
-    backgroundColor: '#FAF8F4',
+    fontSize: 15,
   },
   button: {
     backgroundColor: '#C9A24D',

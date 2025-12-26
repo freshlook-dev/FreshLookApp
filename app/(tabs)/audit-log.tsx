@@ -12,6 +12,8 @@ import { router } from 'expo-router';
 
 import { supabase } from '../../context/supabase';
 import { useAuth } from '../../context/AuthContext';
+import { useTheme } from '../../context/ThemeContext';
+import { LightColors, DarkColors } from '../../constants/colors';
 
 /* ================= TYPES ================= */
 
@@ -56,7 +58,7 @@ const hasValidChanges = (log: AuditLogRow) => {
 
 /* ================= METADATA RENDER ================= */
 
-const renderMetadata = (metadata: any) => {
+const renderMetadata = (metadata: any, Colors: any) => {
   if (!metadata || typeof metadata !== 'object') return null;
 
   const changes = metadata.changed;
@@ -66,22 +68,38 @@ const renderMetadata = (metadata: any) => {
   if (entries.length === 0) return null;
 
   return (
-    <View style={styles.changesBox}>
-      <Text style={styles.changesTitle}>Changes</Text>
+    <View
+      style={[
+        styles.changesBox,
+        { backgroundColor: Colors.background },
+      ]}
+    >
+      <Text style={[styles.changesTitle, { color: Colors.text }]}>
+        Changes
+      </Text>
 
       {entries.map(([field, value]: any) => {
         if (!value || typeof value !== 'object') return null;
 
         return (
           <View key={field} style={styles.changeRow}>
-            <Text style={styles.changeField}>{field}</Text>
+            <Text
+              style={[
+                styles.changeField,
+                { color: Colors.muted },
+              ]}
+            >
+              {field}
+            </Text>
 
             <View style={styles.changeValues}>
               <Text style={styles.oldValue}>
                 {String(value.old ?? '—')}
               </Text>
 
-              <Text style={styles.arrow}>→</Text>
+              <Text style={[styles.arrow, { color: Colors.muted }]}>
+                →
+              </Text>
 
               <Text style={styles.newValue}>
                 {String(value.new ?? '—')}
@@ -98,6 +116,9 @@ const renderMetadata = (metadata: any) => {
 
 export default function AuditLogsScreen() {
   const { user } = useAuth();
+
+  const { theme } = useTheme();
+  const Colors = theme === 'dark' ? DarkColors : LightColors;
 
   const [logs, setLogs] = useState<AuditLogRow[]>([]);
   const [users, setUsers] = useState<Record<string, string>>({});
@@ -152,19 +173,32 @@ export default function AuditLogsScreen() {
 
   if (loading) {
     return (
-      <View style={styles.center}>
-        <ActivityIndicator size="large" color="#C9A24D" />
-        <Text style={styles.loadingText}>Loading audit logs…</Text>
+      <View
+        style={[
+          styles.center,
+          { backgroundColor: Colors.background },
+        ]}
+      >
+        <ActivityIndicator size="large" color={Colors.primary} />
+        <Text style={[styles.loadingText, { color: Colors.muted }]}>
+          Loading audit logs…
+        </Text>
       </View>
     );
   }
 
   return (
-    <View style={styles.container}>
-      <Text style={styles.pageTitle}>Audit Logs</Text>
+    <View
+      style={[
+        styles.container,
+        { backgroundColor: Colors.background },
+      ]}
+    >
+      <Text style={[styles.pageTitle, { color: Colors.text }]}>
+        Audit Logs
+      </Text>
 
       <FlatList
-        /* ✅ ONLY CHANGE HERE */
         data={logs.filter(hasValidChanges)}
         keyExtractor={(item) => item.id}
         contentContainerStyle={{ paddingBottom: 40 }}
@@ -175,18 +209,25 @@ export default function AuditLogsScreen() {
               : 'System';
 
           return (
-            <View style={styles.card}>
+            <View
+              style={[
+                styles.card,
+                { backgroundColor: Colors.card },
+              ]}
+            >
               <View style={styles.actionBadge}>
                 <Text style={styles.actionText}>
                   {prettyAction(item.action)}
                 </Text>
               </View>
 
-              <Text style={styles.meta}>👤 {actorName}</Text>
+              <Text style={[styles.meta, { color: Colors.muted }]}>
+                👤 {actorName}
+              </Text>
 
-              {renderMetadata(item.metadata)}
+              {renderMetadata(item.metadata, Colors)}
 
-              <Text style={styles.time}>
+              <Text style={[styles.time, { color: Colors.muted }]}>
                 {formatDateTime(item.created_at)}
               </Text>
             </View>
@@ -202,28 +243,23 @@ export default function AuditLogsScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#FAF8F4',
     padding: 20,
   },
   pageTitle: {
     fontSize: 26,
     fontWeight: '800',
-    color: '#2B2B2B',
     marginBottom: 16,
   },
   center: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: '#FAF8F4',
   },
   loadingText: {
     marginTop: 10,
-    color: '#7A7A7A',
   },
 
   card: {
-    backgroundColor: '#FFFFFF',
     borderRadius: 18,
     padding: 16,
     marginBottom: 14,
@@ -245,20 +281,17 @@ const styles = StyleSheet.create({
 
   meta: {
     fontSize: 13,
-    color: '#555',
     marginBottom: 6,
   },
 
   changesBox: {
     marginTop: 8,
     padding: 12,
-    backgroundColor: '#F4F1EC',
     borderRadius: 12,
   },
   changesTitle: {
     fontSize: 13,
     fontWeight: '800',
-    color: '#333',
     marginBottom: 6,
   },
   changeRow: {
@@ -267,7 +300,6 @@ const styles = StyleSheet.create({
   changeField: {
     fontSize: 12,
     fontWeight: '700',
-    color: '#555',
     marginBottom: 2,
     textTransform: 'capitalize',
   },
@@ -283,7 +315,6 @@ const styles = StyleSheet.create({
   arrow: {
     marginHorizontal: 6,
     fontSize: 13,
-    color: '#555',
   },
   newValue: {
     fontSize: 13,
@@ -294,6 +325,5 @@ const styles = StyleSheet.create({
   time: {
     fontSize: 12,
     marginTop: 10,
-    color: '#7A7A7A',
   },
 });

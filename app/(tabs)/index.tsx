@@ -14,7 +14,10 @@ import { useAuth } from '../../context/AuthContext';
 import { supabase } from '../../context/supabase';
 
 import { Card } from '../../components/Card';
-import { Colors, Spacing } from '../../constants/theme';
+import { Spacing } from '../../constants/theme';
+
+import { useTheme } from '../../context/ThemeContext';
+import { LightColors, DarkColors } from '../../constants/colors';
 
 /* ---------- TYPES ---------- */
 
@@ -29,6 +32,9 @@ type StaffStat = {
 
 export default function HomeTab() {
   const { user } = useAuth();
+
+  const { theme } = useTheme();
+  const Colors = theme === 'dark' ? DarkColors : LightColors;
 
   const [fullName, setFullName] = useState<string>('User');
   const [totalCount, setTotalCount] = useState(0);
@@ -47,7 +53,6 @@ export default function HomeTab() {
 
     const today = new Date().toISOString().split('T')[0];
 
-    /* 👤 USER FULL NAME */
     const { data: profile } = await supabase
       .from('profiles')
       .select('full_name')
@@ -56,7 +61,6 @@ export default function HomeTab() {
 
     setFullName(profile?.full_name ?? 'User');
 
-    /* 📊 KRIJUAR – THIS MONTH (BY USER) */
     const firstDayOfMonth = new Date(
       new Date().getFullYear(),
       new Date().getMonth(),
@@ -73,7 +77,6 @@ export default function HomeTab() {
 
     setTotalCount(total ?? 0);
 
-    /* ⏰ SOT – ALL APPOINTMENTS TODAY */
     const { count: todayCount } = await supabase
       .from('appointments')
       .select('*', { count: 'exact', head: true })
@@ -83,7 +86,6 @@ export default function HomeTab() {
 
     setUpcomingCount(todayCount ?? 0);
 
-    /* 📍 PRISHTINË – TODAY */
     const { count: prishtina } = await supabase
       .from('appointments')
       .select('*', { count: 'exact', head: true })
@@ -94,7 +96,6 @@ export default function HomeTab() {
 
     setPrishtinaToday(prishtina ?? 0);
 
-    /* 📍 FUSHË KOSOVË – TODAY */
     const { count: fushe } = await supabase
       .from('appointments')
       .select('*', { count: 'exact', head: true })
@@ -105,7 +106,6 @@ export default function HomeTab() {
 
     setFusheToday(fushe ?? 0);
 
-    /* 📊 MONTHLY STAFF LEADERBOARD */
     const { data: monthlyAppointments } = await supabase
       .from('appointments')
       .select(
@@ -156,48 +156,80 @@ export default function HomeTab() {
 
   if (loading) {
     return (
-      <View style={styles.center}>
-        <ActivityIndicator size="large" />
+      <View style={[styles.center, { backgroundColor: Colors.background }]}>
+        <ActivityIndicator size="large" color={Colors.primary} />
       </View>
     );
   }
 
   return (
-    <View style={styles.container}>
-      <Text style={styles.welcome}>Mirë se vini!</Text>
-      <Text style={styles.name}>{fullName}</Text>
+    <View
+      style={[
+        styles.container,
+        { backgroundColor: Colors.background },
+      ]}
+    >
+      <Text style={[styles.welcome, { color: Colors.muted }]}>
+        Mirë se vini!
+      </Text>
+      <Text style={[styles.name, { color: Colors.text }]}>
+        {fullName}
+      </Text>
 
       <View style={styles.statsRow}>
         <Card>
           <View style={styles.smallStat}>
-            <Text style={styles.smallNumber}>{upcomingCount}</Text>
-            <Text style={styles.smallLabel}>Sot</Text>
+            <Text style={[styles.smallNumber, { color: Colors.primary }]}>
+              {upcomingCount}
+            </Text>
+            <Text style={[styles.smallLabel, { color: Colors.muted }]}>
+              Sot
+            </Text>
           </View>
         </Card>
 
         <Card>
           <View style={styles.smallStat}>
-            <Text style={styles.smallNumber}>{totalCount}</Text>
-            <Text style={styles.smallLabel}>Krijuar</Text>
+            <Text style={[styles.smallNumber, { color: Colors.primary }]}>
+              {totalCount}
+            </Text>
+            <Text style={[styles.smallLabel, { color: Colors.muted }]}>
+              Krijuar
+            </Text>
           </View>
         </Card>
 
         <Card>
           <View style={styles.smallStat}>
-            <Text style={styles.smallNumber}>{prishtinaToday}</Text>
-            <Text style={styles.smallLabel}>Prishtinë</Text>
+            <Text style={[styles.smallNumber, { color: Colors.primary }]}>
+              {prishtinaToday}
+            </Text>
+            <Text style={[styles.smallLabel, { color: Colors.muted }]}>
+              Prishtinë
+            </Text>
           </View>
         </Card>
 
         <Card>
           <View style={styles.smallStat}>
-            <Text style={styles.smallNumber}>{fusheToday}</Text>
-            <Text style={styles.smallLabel}>F. Kosovë</Text>
+            <Text style={[styles.smallNumber, { color: Colors.primary }]}>
+              {fusheToday}
+            </Text>
+            <Text style={[styles.smallLabel, { color: Colors.muted }]}>
+              F. Kosovë
+            </Text>
           </View>
         </Card>
       </View>
 
-      <Text style={styles.sectionTitle}>📊 Statistika mujore (stafi)</Text>
+      <Text
+        style={[
+          styles.sectionTitle,
+          { color: Colors.text },
+        ]}
+      >
+        📊 Statistika mujore (stafi)
+      </Text>
 
       <FlatList
         data={staffStats}
@@ -215,11 +247,23 @@ export default function HomeTab() {
                   }
                   style={styles.avatar}
                 />
-                <Text style={styles.staffName}>
+                <Text
+                  style={[
+                    styles.staffName,
+                    { color: Colors.text },
+                  ]}
+                >
                   {renderBadge(index)} {item.full_name}
                 </Text>
               </View>
-              <Text style={styles.staffCount}>{item.count}</Text>
+              <Text
+                style={[
+                  styles.staffCount,
+                  { color: Colors.primary },
+                ]}
+              >
+                {item.count}
+              </Text>
             </View>
           </Card>
         )}
@@ -229,14 +273,10 @@ export default function HomeTab() {
 }
 
 /* ---------- STYLES ---------- */
-/* (UNCHANGED) */
-
-/* ---------- STYLES ---------- */
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: Colors.background,
     padding: Spacing.lg,
   },
   center: {
@@ -246,12 +286,10 @@ const styles = StyleSheet.create({
   },
   welcome: {
     fontSize: 14,
-    color: Colors.textSecondary,
   },
   name: {
     fontSize: 26,
     fontWeight: '800',
-    color: Colors.textPrimary,
     marginBottom: Spacing.lg,
   },
   statsRow: {
@@ -268,12 +306,10 @@ const styles = StyleSheet.create({
   smallNumber: {
     fontSize: 20,
     fontWeight: '800',
-    color: Colors.primary,
   },
   smallLabel: {
     marginTop: 2,
     fontSize: 11,
-    color: Colors.textSecondary,
     fontWeight: '600',
     textAlign: 'center',
   },
@@ -281,7 +317,6 @@ const styles = StyleSheet.create({
     marginBottom: Spacing.sm,
     fontSize: 16,
     fontWeight: '700',
-    color: Colors.textPrimary,
   },
   staffRow: {
     flexDirection: 'row',
@@ -302,11 +337,9 @@ const styles = StyleSheet.create({
   staffName: {
     fontSize: 15,
     fontWeight: '600',
-    color: Colors.textPrimary,
   },
   staffCount: {
     fontSize: 18,
     fontWeight: '800',
-    color: Colors.primary,
   },
 });

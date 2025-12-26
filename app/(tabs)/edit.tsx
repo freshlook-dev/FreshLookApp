@@ -18,6 +18,9 @@ import { useLocalSearchParams, router } from 'expo-router';
 import { supabase } from '../../context/supabase';
 import { useAuth } from '../../context/AuthContext';
 
+import { useTheme } from '../../context/ThemeContext';
+import { LightColors, DarkColors } from '../../constants/colors';
+
 /* ---------------- OPTIONS ---------------- */
 
 const TREATMENTS = [
@@ -55,6 +58,9 @@ export default function EditAppointment() {
 
   const { user } = useAuth();
 
+  const { theme } = useTheme();
+  const Colors = theme === 'dark' ? DarkColors : LightColors;
+
   const [loading, setLoading] = useState(true);
 
   const [fullName, setFullName] = useState('');
@@ -66,8 +72,6 @@ export default function EditAppointment() {
   const [comment, setComment] = useState('');
 
   const [showDatePicker, setShowDatePicker] = useState(false);
-
-  // ✅ NEW: store original values for audit diff
   const [originalData, setOriginalData] = useState<any>(null);
 
   useEffect(() => {
@@ -107,7 +111,6 @@ export default function EditAppointment() {
     setTime(data.appointment_time);
     setComment(data.comment ?? '');
 
-    // ✅ NEW: save original values for audit
     setOriginalData({
       client_name: data.client_name,
       phone: data.phone,
@@ -123,16 +126,11 @@ export default function EditAppointment() {
 
   const formatDate = (d: Date) => d.toISOString().split('T')[0];
 
-  // ✅ NEW: build old → new changes safely
   const buildChanges = () => {
     if (!originalData) return null;
-
     const changes: any = {};
-
     const compare = (label: string, oldVal: any, newVal: any) => {
-      if (oldVal !== newVal) {
-        changes[label] = { old: oldVal, new: newVal };
-      }
+      if (oldVal !== newVal) changes[label] = { old: oldVal, new: newVal };
     };
 
     compare('Name', originalData.client_name, fullName);
@@ -195,7 +193,6 @@ export default function EditAppointment() {
       return;
     }
 
-    // ✅ NEW: safe audit logging (cannot break edit)
     try {
       await supabase.from('audit_logs').insert({
         actor_id: user!.id,
@@ -206,9 +203,7 @@ export default function EditAppointment() {
           changed: buildChanges(),
         },
       });
-    } catch (e) {
-      console.warn('Audit log failed', e);
-    }
+    } catch {}
 
     Alert.alert('Sukses', 'Termini u përditësua');
     router.replace('/(tabs)/upcoming');
@@ -216,54 +211,115 @@ export default function EditAppointment() {
 
   if (loading) {
     return (
-      <View style={styles.center}>
-        <ActivityIndicator size="large" color="#C9A24D" />
-        <Text style={styles.loadingText}>Duke u ngarkuar…</Text>
+      <View style={[styles.center, { backgroundColor: Colors.background }]}>
+        <ActivityIndicator size="large" color={Colors.primary} />
+        <Text style={[styles.loadingText, { color: Colors.muted }]}>
+          Duke u ngarkuar…
+        </Text>
       </View>
     );
   }
 
   return (
-    <ScrollView contentContainerStyle={styles.container} showsVerticalScrollIndicator={false}>
-      <Text style={styles.title}>Edito Termin</Text>
+    <ScrollView
+      contentContainerStyle={[
+        styles.container,
+        { backgroundColor: Colors.background },
+      ]}
+      showsVerticalScrollIndicator={false}
+    >
+      <Text style={[styles.title, { color: Colors.text }]}>
+        Edito Termin
+      </Text>
 
-      <View style={styles.card}>
-        <Text style={styles.label}>Emri dhe Mbiemri</Text>
-        <TextInput value={fullName} onChangeText={setFullName} style={styles.input} />
+      <View style={[styles.card, { backgroundColor: Colors.card }]}>
+        <Text style={[styles.label, { color: Colors.muted }]}>
+          Emri dhe Mbiemri
+        </Text>
+        <TextInput
+          value={fullName}
+          onChangeText={setFullName}
+          style={[
+            styles.input,
+            {
+              borderColor: Colors.primary,
+              color: Colors.text,
+              backgroundColor: Colors.background,
+            },
+          ]}
+        />
       </View>
 
-      <View style={styles.card}>
-        <Text style={styles.label}>Numri kontaktues</Text>
-        <TextInput value={phone} onChangeText={setPhone} keyboardType="phone-pad" style={styles.input} />
+      <View style={[styles.card, { backgroundColor: Colors.card }]}>
+        <Text style={[styles.label, { color: Colors.muted }]}>
+          Numri kontaktues
+        </Text>
+        <TextInput
+          value={phone}
+          onChangeText={setPhone}
+          keyboardType="phone-pad"
+          style={[
+            styles.input,
+            {
+              borderColor: Colors.primary,
+              color: Colors.text,
+              backgroundColor: Colors.background,
+            },
+          ]}
+        />
       </View>
 
-      <View style={styles.card}>
-        <Text style={styles.label}>Tretmani</Text>
+      <View style={[styles.card, { backgroundColor: Colors.card }]}>
+        <Text style={[styles.label, { color: Colors.muted }]}>
+          Tretmani
+        </Text>
         {TREATMENTS.map((item) => (
           <Pressable
             key={item}
-            style={[styles.option, treatment === item && styles.optionActive]}
+            style={[
+              styles.option,
+              { borderColor: Colors.primary },
+              treatment === item && styles.optionActive,
+            ]}
             onPress={() => setTreatment(item)}
           >
-            <Text style={[styles.optionText, treatment === item && styles.optionTextActive]}>
+            <Text
+              style={[
+                styles.optionText,
+                { color: Colors.text },
+                treatment === item && styles.optionTextActive,
+              ]}
+            >
               {item}
             </Text>
           </Pressable>
         ))}
       </View>
 
-      <View style={styles.card}>
-        <Text style={styles.label}>Koment</Text>
+      <View style={[styles.card, { backgroundColor: Colors.card }]}>
+        <Text style={[styles.label, { color: Colors.muted }]}>
+          Koment
+        </Text>
         <TextInput
           value={comment}
           onChangeText={setComment}
           multiline
-          style={[styles.input, { height: 90 }]}
+          style={[
+            styles.input,
+            {
+              height: 90,
+              borderColor: Colors.primary,
+              color: Colors.text,
+              backgroundColor: Colors.background,
+            },
+          ]}
         />
       </View>
 
-      <View style={styles.card}>
-        <Text style={styles.label}>Data</Text>
+      <View style={[styles.card, { backgroundColor: Colors.card }]}>
+        <Text style={[styles.label, { color: Colors.muted }]}>
+          Data
+        </Text>
 
         {Platform.OS === 'web' ? (
           <input
@@ -271,18 +327,29 @@ export default function EditAppointment() {
             value={formatDate(date)}
             onChange={(e) => setDate(new Date(e.target.value))}
             style={{
-              borderWidth: 1,
-              borderColor: '#E6D3A3',
+              border: `1px solid ${Colors.primary}`,
               borderRadius: 12,
               padding: 14,
               fontSize: 15,
-              backgroundColor: '#FAF8F4',
+              backgroundColor: Colors.background,
+              color: Colors.text,
             }}
           />
         ) : (
           <>
-            <Pressable onPress={() => setShowDatePicker(true)} style={styles.input}>
-              <Text>{formatDate(date)}</Text>
+            <Pressable
+              onPress={() => setShowDatePicker(true)}
+              style={[
+                styles.input,
+                {
+                  borderColor: Colors.primary,
+                  backgroundColor: Colors.background,
+                },
+              ]}
+            >
+              <Text style={{ color: Colors.text }}>
+                {formatDate(date)}
+              </Text>
             </Pressable>
 
             {showDatePicker && (
@@ -299,16 +366,28 @@ export default function EditAppointment() {
         )}
       </View>
 
-      <View style={styles.card}>
-        <Text style={styles.label}>Ora</Text>
+      <View style={[styles.card, { backgroundColor: Colors.card }]}>
+        <Text style={[styles.label, { color: Colors.muted }]}>
+          Ora
+        </Text>
         <View style={styles.timeGrid}>
           {TIME_SLOTS.map((slot) => (
             <Pressable
               key={slot}
               onPress={() => setTime(slot)}
-              style={[styles.timeSlot, time === slot && styles.timeSlotActive]}
+              style={[
+                styles.timeSlot,
+                { borderColor: Colors.primary },
+                time === slot && styles.timeSlotActive,
+              ]}
             >
-              <Text style={[styles.timeText, time === slot && styles.timeTextActive]}>
+              <Text
+                style={[
+                  styles.timeText,
+                  { color: Colors.text },
+                  time === slot && styles.timeTextActive,
+                ]}
+              >
                 {slot}
               </Text>
             </Pressable>
@@ -316,15 +395,27 @@ export default function EditAppointment() {
         </View>
       </View>
 
-      <View style={styles.card}>
-        <Text style={styles.label}>Lokacioni</Text>
+      <View style={[styles.card, { backgroundColor: Colors.card }]}>
+        <Text style={[styles.label, { color: Colors.muted }]}>
+          Lokacioni
+        </Text>
         {LOCATIONS.map((loc) => (
           <Pressable
             key={loc}
-            style={[styles.option, location === loc && styles.optionActive]}
+            style={[
+              styles.option,
+              { borderColor: Colors.primary },
+              location === loc && styles.optionActive,
+            ]}
             onPress={() => setLocation(loc)}
           >
-            <Text style={[styles.optionText, location === loc && styles.optionTextActive]}>
+            <Text
+              style={[
+                styles.optionText,
+                { color: Colors.text },
+                location === loc && styles.optionTextActive,
+              ]}
+            >
               {loc}
             </Text>
           </Pressable>
@@ -341,12 +432,12 @@ export default function EditAppointment() {
 /* ---------------- STYLES ---------------- */
 
 const styles = StyleSheet.create({
-  container: { padding: 20, backgroundColor: '#FAF8F4' },
+  container: { padding: 20 },
   title: { fontSize: 26, fontWeight: '800', marginBottom: 20 },
-  card: { backgroundColor: '#fff', padding: 16, borderRadius: 16, marginBottom: 16 },
-  label: { fontSize: 13, marginBottom: 6, color: '#7A7A7A' },
-  input: { borderWidth: 1, borderColor: '#E6D3A3', borderRadius: 12, padding: 14 },
-  option: { padding: 12, borderRadius: 10, borderWidth: 1, borderColor: '#E6D3A3', marginBottom: 8 },
+  card: { padding: 16, borderRadius: 16, marginBottom: 16 },
+  label: { fontSize: 13, marginBottom: 6 },
+  input: { borderWidth: 1, borderRadius: 12, padding: 14 },
+  option: { padding: 12, borderRadius: 10, borderWidth: 1, marginBottom: 8 },
   optionActive: { backgroundColor: '#C9A24D' },
   optionText: { fontWeight: '600' },
   optionTextActive: { color: '#fff' },
