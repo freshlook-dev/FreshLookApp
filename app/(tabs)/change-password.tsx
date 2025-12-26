@@ -157,7 +157,11 @@ export default function ChangePasswordScreen() {
       <Pressable
         onPress={handleChangePassword}
         disabled={loading}
-        style={styles.button}
+        style={[
+          styles.button,
+          { backgroundColor: Colors.primary },
+          loading && { opacity: 0.7 },
+        ]}
       >
         {loading ? (
           <ActivityIndicator color="#FFF" />
@@ -187,7 +191,6 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   button: {
-    backgroundColor: '#C9A24D',
     paddingVertical: 14,
     borderRadius: 14,
     alignItems: 'center',

@@ -158,6 +158,8 @@ export default function CalendarTab() {
           todayTextColor: Colors.primary,
           arrowColor: Colors.primary,
           selectedDayTextColor: '#fff',
+          dotColor: Colors.primary,
+          selectedDotColor: '#fff',
         }}
       />
 

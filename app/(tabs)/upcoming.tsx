@@ -196,12 +196,9 @@ export default function UpcomingAppointments() {
   }
 
   return (
-    <View
-      style={[styles.container, { backgroundColor: Colors.background }]}
-    >
+    <View style={[styles.container, { backgroundColor: Colors.background }]}>
       <SectionTitle>Upcoming Appointments</SectionTitle>
 
-      {/* FILTERS */}
       <View style={styles.filters}>
         {['all', 'Prishtinë', 'Fushë Kosovë'].map((loc) => (
           <TouchableOpacity
@@ -222,7 +219,7 @@ export default function UpcomingAppointments() {
                 {
                   color:
                     locationFilter === loc
-                      ? '#fff'
+                      ? Colors.background
                       : Colors.muted,
                 },
               ]}
@@ -244,6 +241,7 @@ export default function UpcomingAppointments() {
                 <Text style={[styles.client, { color: Colors.text }]}>
                   {item.client_name}
                 </Text>
+
                 <Text style={[styles.service, { color: Colors.muted }]}>
                   {item.service}
                 </Text>
@@ -281,7 +279,10 @@ export default function UpcomingAppointments() {
               <View style={styles.sideActions}>
                 {canEdit && (
                   <TouchableOpacity
-                    style={styles.editBtn}
+                    style={[
+                      styles.editBtn,
+                      { backgroundColor: Colors.primary },
+                    ]}
                     onPress={() =>
                       router.push({
                         pathname: '../(tabs)/edit',
@@ -289,7 +290,9 @@ export default function UpcomingAppointments() {
                       })
                     }
                   >
-                    <Text style={styles.editText}>Edit</Text>
+                    <Text style={[styles.editText, { color: Colors.background }]}>
+                      Edit
+                    </Text>
                   </TouchableOpacity>
                 )}
 
@@ -302,7 +305,7 @@ export default function UpcomingAppointments() {
                   ]}
                   onPress={() => markStatus(item.id, 'arrived')}
                 >
-                  <Text style={styles.statusText}>
+                  <Text style={[styles.statusText, { color: Colors.background }]}>
                     {processingId === item.id ? '...' : 'Ka ardhur'}
                   </Text>
                 </TouchableOpacity>
@@ -316,7 +319,7 @@ export default function UpcomingAppointments() {
                   ]}
                   onPress={() => markStatus(item.id, 'canceled')}
                 >
-                  <Text style={styles.statusText}>
+                  <Text style={[styles.statusText, { color: Colors.background }]}>
                     {processingId === item.id ? '...' : 'Anulim'}
                   </Text>
                 </TouchableOpacity>
@@ -389,13 +392,11 @@ const styles = StyleSheet.create({
     gap: Spacing.sm,
   },
   editBtn: {
-    backgroundColor: '#C9A24D',
     paddingVertical: 6,
     borderRadius: 8,
     alignItems: 'center',
   },
   editText: {
-    color: '#fff',
     fontSize: 12,
     fontWeight: '700',
   },
@@ -416,7 +417,6 @@ const styles = StyleSheet.create({
     opacity: 0.6,
   },
   statusText: {
-    color: '#fff',
     fontSize: 12,
     fontWeight: '700',
   },

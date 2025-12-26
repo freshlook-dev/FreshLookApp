@@ -46,7 +46,7 @@ const prettyAction = (action: string) => {
   }
 };
 
-/* ✅ ONLY ADDITION: FILTER EMPTY LOGS */
+/* ✅ FILTER EMPTY LOGS */
 const hasValidChanges = (log: AuditLogRow) => {
   const changes = log?.metadata?.changed;
   return (
@@ -215,7 +215,12 @@ export default function AuditLogsScreen() {
                 { backgroundColor: Colors.card },
               ]}
             >
-              <View style={styles.actionBadge}>
+              <View
+                style={[
+                  styles.actionBadge,
+                  { backgroundColor: Colors.primary },
+                ]}
+              >
                 <Text style={styles.actionText}>
                   {prettyAction(item.action)}
                 </Text>
@@ -267,7 +272,6 @@ const styles = StyleSheet.create({
 
   actionBadge: {
     alignSelf: 'flex-start',
-    backgroundColor: '#F1E6CF',
     paddingHorizontal: 10,
     paddingVertical: 4,
     borderRadius: 8,
@@ -276,7 +280,7 @@ const styles = StyleSheet.create({
   actionText: {
     fontSize: 13,
     fontWeight: '800',
-    color: '#7A5A10',
+    color: '#fff',
   },
 
   meta: {

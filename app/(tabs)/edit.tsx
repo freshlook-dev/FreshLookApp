@@ -232,43 +232,32 @@ export default function EditAppointment() {
         Edito Termin
       </Text>
 
-      <View style={[styles.card, { backgroundColor: Colors.card }]}>
-        <Text style={[styles.label, { color: Colors.muted }]}>
-          Emri dhe Mbiemri
-        </Text>
-        <TextInput
-          value={fullName}
-          onChangeText={setFullName}
-          style={[
-            styles.input,
-            {
-              borderColor: Colors.primary,
-              color: Colors.text,
-              backgroundColor: Colors.background,
-            },
-          ]}
-        />
-      </View>
+      {/* BASIC FIELDS */}
+      {[
+        { label: 'Emri dhe Mbiemri', value: fullName, set: setFullName },
+        { label: 'Numri kontaktues', value: phone, set: setPhone },
+      ].map((f, i) => (
+        <View key={i} style={[styles.card, { backgroundColor: Colors.card }]}>
+          <Text style={[styles.label, { color: Colors.muted }]}>
+            {f.label}
+          </Text>
+          <TextInput
+            value={f.value}
+            onChangeText={f.set}
+            keyboardType={i === 1 ? 'phone-pad' : 'default'}
+            style={[
+              styles.input,
+              {
+                borderColor: Colors.primary,
+                color: Colors.text,
+                backgroundColor: Colors.background,
+              },
+            ]}
+          />
+        </View>
+      ))}
 
-      <View style={[styles.card, { backgroundColor: Colors.card }]}>
-        <Text style={[styles.label, { color: Colors.muted }]}>
-          Numri kontaktues
-        </Text>
-        <TextInput
-          value={phone}
-          onChangeText={setPhone}
-          keyboardType="phone-pad"
-          style={[
-            styles.input,
-            {
-              borderColor: Colors.primary,
-              color: Colors.text,
-              backgroundColor: Colors.background,
-            },
-          ]}
-        />
-      </View>
-
+      {/* TREATMENT */}
       <View style={[styles.card, { backgroundColor: Colors.card }]}>
         <Text style={[styles.label, { color: Colors.muted }]}>
           Tretmani
@@ -279,15 +268,14 @@ export default function EditAppointment() {
             style={[
               styles.option,
               { borderColor: Colors.primary },
-              treatment === item && styles.optionActive,
+              treatment === item && { backgroundColor: Colors.primary },
             ]}
             onPress={() => setTreatment(item)}
           >
             <Text
               style={[
                 styles.optionText,
-                { color: Colors.text },
-                treatment === item && styles.optionTextActive,
+                { color: treatment === item ? '#fff' : Colors.text },
               ]}
             >
               {item}
@@ -296,6 +284,7 @@ export default function EditAppointment() {
         ))}
       </View>
 
+      {/* COMMENT */}
       <View style={[styles.card, { backgroundColor: Colors.card }]}>
         <Text style={[styles.label, { color: Colors.muted }]}>
           Koment
@@ -316,6 +305,7 @@ export default function EditAppointment() {
         />
       </View>
 
+      {/* DATE */}
       <View style={[styles.card, { backgroundColor: Colors.card }]}>
         <Text style={[styles.label, { color: Colors.muted }]}>
           Data
@@ -366,6 +356,7 @@ export default function EditAppointment() {
         )}
       </View>
 
+      {/* TIME */}
       <View style={[styles.card, { backgroundColor: Colors.card }]}>
         <Text style={[styles.label, { color: Colors.muted }]}>
           Ora
@@ -378,15 +369,15 @@ export default function EditAppointment() {
               style={[
                 styles.timeSlot,
                 { borderColor: Colors.primary },
-                time === slot && styles.timeSlotActive,
+                time === slot && { backgroundColor: Colors.primary },
               ]}
             >
               <Text
-                style={[
-                  styles.timeText,
-                  { color: Colors.text },
-                  time === slot && styles.timeTextActive,
-                ]}
+                style={{
+                  color: time === slot ? '#fff' : Colors.text,
+                  fontWeight: '600',
+                  textAlign: 'center',
+                }}
               >
                 {slot}
               </Text>
@@ -395,6 +386,7 @@ export default function EditAppointment() {
         </View>
       </View>
 
+      {/* LOCATION */}
       <View style={[styles.card, { backgroundColor: Colors.card }]}>
         <Text style={[styles.label, { color: Colors.muted }]}>
           Lokacioni
@@ -405,15 +397,14 @@ export default function EditAppointment() {
             style={[
               styles.option,
               { borderColor: Colors.primary },
-              location === loc && styles.optionActive,
+              location === loc && { backgroundColor: Colors.primary },
             ]}
             onPress={() => setLocation(loc)}
           >
             <Text
               style={[
                 styles.optionText,
-                { color: Colors.text },
-                location === loc && styles.optionTextActive,
+                { color: location === loc ? '#fff' : Colors.text },
               ]}
             >
               {loc}
@@ -422,7 +413,10 @@ export default function EditAppointment() {
         ))}
       </View>
 
-      <Pressable style={styles.button} onPress={handleSave}>
+      <Pressable
+        style={[styles.button, { backgroundColor: Colors.primary }]}
+        onPress={handleSave}
+      >
         <Text style={styles.buttonText}>Ruaj Ndryshimet</Text>
       </Pressable>
     </ScrollView>
@@ -438,15 +432,10 @@ const styles = StyleSheet.create({
   label: { fontSize: 13, marginBottom: 6 },
   input: { borderWidth: 1, borderRadius: 12, padding: 14 },
   option: { padding: 12, borderRadius: 10, borderWidth: 1, marginBottom: 8 },
-  optionActive: { backgroundColor: '#C9A24D' },
   optionText: { fontWeight: '600' },
-  optionTextActive: { color: '#fff' },
   timeGrid: { flexDirection: 'row', flexWrap: 'wrap' },
   timeSlot: { width: '30%', margin: '1.5%', padding: 10, borderWidth: 1, borderRadius: 10 },
-  timeSlotActive: { backgroundColor: '#C9A24D' },
-  timeText: { fontWeight: '600', textAlign: 'center' },
-  timeTextActive: { color: '#fff' },
-  button: { backgroundColor: '#C9A24D', padding: 18, borderRadius: 16, alignItems: 'center' },
+  button: { padding: 18, borderRadius: 16, alignItems: 'center' },
   buttonText: { color: '#fff', fontWeight: '800' },
   center: { flex: 1, justifyContent: 'center', alignItems: 'center' },
   loadingText: { marginTop: 10 },

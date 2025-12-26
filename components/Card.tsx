@@ -1,5 +1,9 @@
+'use client';
+
 import { View, StyleSheet, ViewStyle } from 'react-native';
-import { Colors, Radius, Spacing } from '../constants/theme';
+import { useTheme } from '../context/ThemeContext';
+import { LightColors, DarkColors } from '../constants/colors';
+import { Radius, Spacing } from '../constants/theme';
 
 type CardProps = {
   children: React.ReactNode;
@@ -7,12 +11,24 @@ type CardProps = {
 };
 
 export function Card({ children, style }: CardProps) {
-  return <View style={[styles.card, style]}>{children}</View>;
+  const { theme } = useTheme();
+  const Colors = theme === 'dark' ? DarkColors : LightColors;
+
+  return (
+    <View
+      style={[
+        styles.card,
+        { backgroundColor: Colors.card },
+        style,
+      ]}
+    >
+      {children}
+    </View>
+  );
 }
 
 const styles = StyleSheet.create({
   card: {
-    backgroundColor: Colors.card,
     padding: Spacing.md,
     borderRadius: Radius.md,
     marginBottom: Spacing.sm,

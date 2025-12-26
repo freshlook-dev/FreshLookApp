@@ -164,7 +164,7 @@ export default function HistoryScreen() {
 
     const confirmed =
       Platform.OS === 'web'
-        ? confirm(message)
+        ? window.confirm(message)
         : await new Promise<boolean>((resolve) => {
             Alert.alert('Fshih regjistrimin', message, [
               { text: 'Jo', style: 'cancel', onPress: () => resolve(false) },
@@ -223,29 +223,24 @@ export default function HistoryScreen() {
 
   if (loading) {
     return (
-      <View
-        style={[styles.center, { backgroundColor: Colors.background }]}
-      >
+      <View style={[styles.center, { backgroundColor: Colors.background }]}>
         <ActivityIndicator size="large" color={Colors.primary} />
       </View>
     );
   }
 
   return (
-    <View
-      style={[
-        styles.container,
-        { backgroundColor: Colors.background },
-      ]}
-    >
+    <View style={[styles.container, { backgroundColor: Colors.background }]}>
       {/* FILTER BUTTONS */}
       <View style={styles.filterRow}>
         <Pressable
           onPress={() => setFilter('arrived')}
           style={[
             styles.filterBtn,
-            { backgroundColor: Colors.card },
-            filter === 'arrived' && styles.filterActive,
+            {
+              backgroundColor:
+                filter === 'arrived' ? Colors.primary : Colors.card,
+            },
           ]}
         >
           <Text
@@ -262,8 +257,10 @@ export default function HistoryScreen() {
           onPress={() => setFilter('canceled')}
           style={[
             styles.filterBtn,
-            { backgroundColor: Colors.card },
-            filter === 'canceled' && styles.filterActive,
+            {
+              backgroundColor:
+                filter === 'canceled' ? Colors.primary : Colors.card,
+            },
           ]}
         >
           <Text
@@ -279,7 +276,10 @@ export default function HistoryScreen() {
         {canManage && (
           <Pressable
             onPress={() => router.push('/archived')}
-            style={styles.archiveNavBtn}
+            style={[
+              styles.archiveNavBtn,
+              { backgroundColor: Colors.text },
+            ]}
           >
             <Text style={styles.archiveNavText}>Arkivuar</Text>
           </Pressable>
@@ -305,12 +305,7 @@ export default function HistoryScreen() {
       {/* MODAL */}
       <Modal visible={!!selected} transparent animationType="fade">
         <View style={styles.modalOverlay}>
-          <View
-            style={[
-              styles.modalCard,
-              { backgroundColor: Colors.card },
-            ]}
-          >
+          <View style={[styles.modalCard, { backgroundColor: Colors.card }]}>
             <Pressable onPress={() => setSelected(null)} style={styles.close}>
               <Text style={[styles.closeText, { color: Colors.text }]}>
                 ✕
@@ -319,30 +314,21 @@ export default function HistoryScreen() {
 
             {selected && (
               <>
-                <Text
-                  style={[styles.modalName, { color: Colors.text }]}
-                >
+                <Text style={[styles.modalName, { color: Colors.text }]}>
                   {selected.client_name}
                 </Text>
-                <Text
-                  style={[styles.modalText, { color: Colors.text }]}
-                >
+
+                <Text style={[styles.modalText, { color: Colors.text }]}>
                   {selected.service}
                 </Text>
-                <Text
-                  style={[styles.modalText, { color: Colors.muted }]}
-                >
+
+                <Text style={[styles.modalText, { color: Colors.muted }]}>
                   {formatDate(selected.appointment_date)} •{' '}
                   {selected.appointment_time}
                 </Text>
 
                 {selected.creator_name && (
-                  <Text
-                    style={[
-                      styles.modalText,
-                      { color: Colors.muted },
-                    ]}
-                  >
+                  <Text style={[styles.modalText, { color: Colors.muted }]}>
                     👤 {selected.creator_name}
                   </Text>
                 )}
@@ -354,9 +340,14 @@ export default function HistoryScreen() {
                         onPress={() =>
                           updateStatus(selected.id, 'arrived')
                         }
-                        style={styles.statusBtn}
+                        style={[
+                          styles.statusBtn,
+                          { backgroundColor: Colors.card },
+                        ]}
                       >
-                        <Text style={styles.statusText}>Ka ardhur</Text>
+                        <Text style={{ color: Colors.text, fontWeight: '700' }}>
+                          Ka ardhur
+                        </Text>
                       </Pressable>
                     )}
 
@@ -365,9 +356,14 @@ export default function HistoryScreen() {
                         onPress={() =>
                           updateStatus(selected.id, 'canceled')
                         }
-                        style={styles.statusBtn}
+                        style={[
+                          styles.statusBtn,
+                          { backgroundColor: Colors.card },
+                        ]}
                       >
-                        <Text style={styles.statusText}>Anulim</Text>
+                        <Text style={{ color: Colors.text, fontWeight: '700' }}>
+                          Anulim
+                        </Text>
                       </Pressable>
                     )}
 
@@ -375,15 +371,23 @@ export default function HistoryScreen() {
                       onPress={() =>
                         updateStatus(selected.id, 'upcoming')
                       }
-                      style={styles.statusBtn}
+                      style={[
+                        styles.statusBtn,
+                        { backgroundColor: Colors.card },
+                      ]}
                     >
-                      <Text style={styles.statusText}>Ne pritje</Text>
+                      <Text style={{ color: Colors.text, fontWeight: '700' }}>
+                        Ne pritje
+                      </Text>
                     </Pressable>
 
                     {canManage && (
                       <Pressable
                         onPress={() => archiveRecord(selected.id)}
-                        style={styles.hideBtn}
+                        style={[
+                          styles.hideBtn,
+                          { backgroundColor: Colors.primary },
+                        ]}
                       >
                         <Text style={styles.hideText}>Fshih</Text>
                       </Pressable>
@@ -394,7 +398,10 @@ export default function HistoryScreen() {
                 {selected.archived && canManage && (
                   <Pressable
                     onPress={() => unarchiveRecord(selected.id)}
-                    style={styles.unarchiveBtn}
+                    style={[
+                      styles.unarchiveBtn,
+                      { backgroundColor: Colors.text },
+                    ]}
                   >
                     <Text style={styles.unarchiveText}>Ç’arkivo</Text>
                   </Pressable>
@@ -431,14 +438,10 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginRight: 6,
   },
-  filterActive: {
-    backgroundColor: '#C9A24D',
-  },
   filterText: {
     fontWeight: '700',
   },
   archiveNavBtn: {
-    backgroundColor: '#2B2B2B',
     paddingVertical: 10,
     paddingHorizontal: 12,
     borderRadius: 10,
@@ -492,17 +495,12 @@ const styles = StyleSheet.create({
   },
   statusBtn: {
     marginTop: 10,
-    backgroundColor: '#EDEDED',
     paddingVertical: 10,
     borderRadius: 10,
     alignItems: 'center',
   },
-  statusText: {
-    fontWeight: '700',
-  },
   hideBtn: {
     marginTop: 12,
-    backgroundColor: '#C9A24D',
     paddingVertical: 10,
     borderRadius: 10,
     alignItems: 'center',
@@ -513,7 +511,6 @@ const styles = StyleSheet.create({
   },
   unarchiveBtn: {
     marginTop: 16,
-    backgroundColor: '#2B2B2B',
     paddingVertical: 10,
     borderRadius: 10,
     alignItems: 'center',

@@ -163,15 +163,11 @@ export default function HomeTab() {
   }
 
   return (
-    <View
-      style={[
-        styles.container,
-        { backgroundColor: Colors.background },
-      ]}
-    >
+    <View style={[styles.container, { backgroundColor: Colors.background }]}>
       <Text style={[styles.welcome, { color: Colors.muted }]}>
         Mirë se vini!
       </Text>
+
       <Text style={[styles.name, { color: Colors.text }]}>
         {fullName}
       </Text>
@@ -222,12 +218,7 @@ export default function HomeTab() {
         </Card>
       </View>
 
-      <Text
-        style={[
-          styles.sectionTitle,
-          { color: Colors.text },
-        ]}
-      >
+      <Text style={[styles.sectionTitle, { color: Colors.text }]}>
         📊 Statistika mujore (stafi)
       </Text>
 
@@ -245,22 +236,21 @@ export default function HomeTab() {
                       ? { uri: item.avatar_url }
                       : require('../../assets/images/avatar-placeholder.png')
                   }
-                  style={styles.avatar}
-                />
-                <Text
                   style={[
-                    styles.staffName,
-                    { color: Colors.text },
+                    styles.avatar,
+                    { backgroundColor: Colors.muted },
                   ]}
+                />
+
+                <Text
+                  style={[styles.staffName, { color: Colors.text }]}
                 >
                   {renderBadge(index)} {item.full_name}
                 </Text>
               </View>
+
               <Text
-                style={[
-                  styles.staffCount,
-                  { color: Colors.primary },
-                ]}
+                style={[styles.staffCount, { color: Colors.primary }]}
               >
                 {item.count}
               </Text>
@@ -332,7 +322,6 @@ const styles = StyleSheet.create({
     height: 32,
     borderRadius: 16,
     marginRight: 10,
-    backgroundColor: '#EAEAEA',
   },
   staffName: {
     fontSize: 15,

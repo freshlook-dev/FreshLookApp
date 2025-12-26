@@ -14,7 +14,7 @@ import { router } from 'expo-router';
 
 import { supabase } from '../../context/supabase';
 
-/* ✅ ADDED (theme only) */
+/* ✅ THEME */
 import { useTheme } from '../../context/ThemeContext';
 import { LightColors, DarkColors } from '../../constants/colors';
 
@@ -22,7 +22,6 @@ export default function ForgotPasswordScreen() {
   const [email, setEmail] = useState('');
   const [loading, setLoading] = useState(false);
 
-  /* ✅ THEME */
   const { theme } = useTheme();
   const Colors = theme === 'dark' ? DarkColors : LightColors;
 
@@ -87,6 +86,7 @@ export default function ForgotPasswordScreen() {
           { backgroundColor: Colors.primary },
         ]}
         onPress={handleReset}
+        disabled={loading}
       >
         {loading ? (
           <ActivityIndicator color="#fff" />
@@ -99,6 +99,8 @@ export default function ForgotPasswordScreen() {
     </View>
   );
 }
+
+/* ================= STYLES ================= */
 
 const styles = StyleSheet.create({
   container: {

@@ -5,6 +5,10 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { useAuth } from '../../context/AuthContext';
 
+/* ✅ THEME */
+import { useTheme } from '../../context/ThemeContext';
+import { LightColors, DarkColors } from '../../constants/colors';
+
 /* 🖼 HEADER LOGO */
 const HeaderLogo = () => (
   <Image
@@ -22,6 +26,9 @@ export default function TabsLayout() {
   const { user, loading } = useAuth();
   const insets = useSafeAreaInsets();
 
+  const { theme } = useTheme();
+  const Colors = theme === 'dark' ? DarkColors : LightColors;
+
   // ✅ Redirects AFTER hooks
   if (loading) return null;
   if (!user) return <Redirect href="/(auth)/login" />;
@@ -35,14 +42,15 @@ export default function TabsLayout() {
         /* 🖼 LOGO ON LEFT */
         headerLeft: () => <HeaderLogo />,
 
-        tabBarActiveTintColor: '#C9A24D',
-        tabBarInactiveTintColor: '#9A9A9A',
+        /* ✅ THEME COLORS */
+        tabBarActiveTintColor: Colors.primary,
+        tabBarInactiveTintColor: Colors.muted,
 
         // 🔥 PERFECT TAB BAR POSITION (iOS + Android)
         tabBarStyle: {
-          backgroundColor: '#FFFFFF',
+          backgroundColor: Colors.background,
           borderTopWidth: 1.0,
-          borderTopColor: '#EEE',
+          borderTopColor: Colors.muted,
           height: 70 + insets.bottom,
           paddingBottom: Math.max(insets.bottom - 6, 8),
         },

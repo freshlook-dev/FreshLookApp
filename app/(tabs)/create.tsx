@@ -179,15 +179,16 @@ export default function CreateAppointment() {
             style={[
               styles.option,
               { borderColor: Colors.primary },
-              treatment === item && styles.optionActive,
+              treatment === item && {
+                backgroundColor: Colors.primary,
+              },
             ]}
             onPress={() => setTreatment(item)}
           >
             <Text
               style={[
                 styles.optionText,
-                { color: Colors.text },
-                treatment === item && styles.optionTextActive,
+                { color: treatment === item ? '#fff' : Colors.text },
               ]}
             >
               {item}
@@ -203,22 +204,20 @@ export default function CreateAppointment() {
         </Text>
 
         {Platform.OS === 'web' ? (
-          <View style={styles.webDateWrapper}>
-            <input
-              type="date"
-              value={formatDate(date)}
-              onChange={(e) => setDate(new Date(e.target.value))}
-              style={{
-                width: '100%',
-                padding: 14,
-                fontSize: 15,
-                borderRadius: 12,
-                border: `1px solid ${Colors.primary}`,
-                backgroundColor: Colors.background,
-                color: Colors.text,
-              }}
-            />
-          </View>
+          <input
+            type="date"
+            value={formatDate(date)}
+            onChange={(e) => setDate(new Date(e.target.value))}
+            style={{
+              width: '100%',
+              padding: 14,
+              fontSize: 15,
+              borderRadius: 12,
+              border: `1px solid ${Colors.primary}`,
+              backgroundColor: Colors.background,
+              color: Colors.text,
+            }}
+          />
         ) : (
           <>
             <Pressable
@@ -231,9 +230,7 @@ export default function CreateAppointment() {
                 },
               ]}
             >
-              <Text
-                style={[styles.valueText, { color: Colors.text }]}
-              >
+              <Text style={{ color: Colors.text }}>
                 {formatDate(date)}
               </Text>
             </Pressable>
@@ -245,7 +242,7 @@ export default function CreateAppointment() {
                 display={
                   Platform.OS === 'ios' ? 'spinner' : 'default'
                 }
-                onChange={(e, d) => {
+                onChange={(_, d) => {
                   setShowDatePicker(false);
                   if (d) setDate(d);
                 }}
@@ -268,15 +265,16 @@ export default function CreateAppointment() {
               style={[
                 styles.timeSlot,
                 { borderColor: Colors.primary },
-                time === slot && styles.timeSlotActive,
+                time === slot && {
+                  backgroundColor: Colors.primary,
+                },
               ]}
             >
               <Text
-                style={[
-                  styles.timeText,
-                  { color: Colors.text },
-                  time === slot && styles.timeTextActive,
-                ]}
+                style={{
+                  color: time === slot ? '#fff' : Colors.text,
+                  fontWeight: '700',
+                }}
               >
                 {slot}
               </Text>
@@ -296,15 +294,16 @@ export default function CreateAppointment() {
             style={[
               styles.option,
               { borderColor: Colors.primary },
-              location === loc && styles.optionActive,
+              location === loc && {
+                backgroundColor: Colors.primary,
+              },
             ]}
             onPress={() => setLocation(loc)}
           >
             <Text
               style={[
                 styles.optionText,
-                { color: Colors.text },
-                location === loc && styles.optionTextActive,
+                { color: location === loc ? '#fff' : Colors.text },
               ]}
             >
               {loc}
@@ -323,6 +322,7 @@ export default function CreateAppointment() {
           onChangeText={setComment}
           placeholder="Shënime shtesë, kërkesa speciale, etj."
           placeholderTextColor={Colors.muted}
+          multiline
           style={[
             styles.input,
             {
@@ -333,13 +333,15 @@ export default function CreateAppointment() {
               color: Colors.text,
             },
           ]}
-          multiline
         />
       </View>
 
-      {/* Submit */}
       <Pressable
-        style={[styles.button, loading && { opacity: 0.7 }]}
+        style={[
+          styles.button,
+          { backgroundColor: Colors.primary },
+          loading && { opacity: 0.7 },
+        ]}
         onPress={handleCreate}
         disabled={loading}
       >
@@ -368,10 +370,6 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     padding: 16,
     marginBottom: 16,
-    shadowColor: '#000',
-    shadowOpacity: 0.05,
-    shadowRadius: 10,
-    elevation: 2,
   },
   label: {
     fontSize: 13,
@@ -384,25 +382,15 @@ const styles = StyleSheet.create({
     padding: 14,
     fontSize: 15,
   },
-  valueText: {
-    fontSize: 15,
-    fontWeight: '600',
-  },
   option: {
     padding: 12,
     borderRadius: 10,
     borderWidth: 1,
     marginBottom: 8,
   },
-  optionActive: {
-    backgroundColor: '#C9A24D',
-  },
   optionText: {
     fontSize: 14,
     fontWeight: '600',
-  },
-  optionTextActive: {
-    color: '#FFFFFF',
   },
   timeGrid: {
     flexDirection: 'row',
@@ -416,21 +404,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     alignItems: 'center',
   },
-  timeSlotActive: {
-    backgroundColor: '#C9A24D',
-  },
-  timeText: {
-    fontSize: 13,
-    fontWeight: '700',
-  },
-  timeTextActive: {
-    color: '#FFFFFF',
-  },
-  webDateWrapper: {
-    width: '100%',
-  },
   button: {
-    backgroundColor: '#C9A24D',
     paddingVertical: 18,
     borderRadius: 16,
     alignItems: 'center',

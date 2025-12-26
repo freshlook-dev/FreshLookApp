@@ -3,17 +3,16 @@ import { SafeAreaView, StyleSheet } from 'react-native';
 
 import { AuthProvider } from '../context/AuthContext';
 import { ThemeProvider, useTheme } from '../context/ThemeContext';
-import { LightColors, DarkColors } from '../constants/colors';
 
 function AppLayout() {
   const { theme } = useTheme();
-  const Colors = theme === 'dark' ? DarkColors : LightColors;
+  const isDark = theme === 'dark';
 
   return (
     <SafeAreaView
       style={[
         styles.safe,
-        { backgroundColor: Colors.background },
+        { backgroundColor: isDark ? '#0F0F10' : '#FAF8F4' },
       ]}
     >
       <Stack screenOptions={{ headerShown: false }} />
@@ -23,17 +22,17 @@ function AppLayout() {
 
 export default function RootLayout() {
   return (
-    <AuthProvider>
-      <ThemeProvider>
+    <ThemeProvider>
+      <AuthProvider>
         <AppLayout />
-      </ThemeProvider>
-    </AuthProvider>
+      </AuthProvider>
+    </ThemeProvider>
   );
 }
 
 const styles = StyleSheet.create({
   safe: {
     flex: 1,
-    paddingHorizontal: 16, // ✅ keeps your corner fix
+    paddingHorizontal: 16,
   },
 });

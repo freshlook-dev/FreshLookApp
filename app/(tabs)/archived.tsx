@@ -111,7 +111,9 @@ export default function ArchivedScreen() {
 
       logs = logRows ?? [];
 
-      const actorIds = [...new Set(logs.map((l) => l.actor_id).filter(Boolean))];
+      const actorIds = [
+        ...new Set(logs.map((l) => l.actor_id).filter(Boolean)),
+      ];
 
       if (actorIds.length > 0) {
         const { data: profiles } = await supabase
@@ -201,15 +203,27 @@ export default function ArchivedScreen() {
 
   if (loading) {
     return (
-      <View style={styles.center}>
+      <View
+        style={[
+          styles.center,
+          { backgroundColor: Colors.background },
+        ]}
+      >
         <ActivityIndicator size="large" color={Colors.primary} />
       </View>
     );
   }
 
   return (
-    <View style={[styles.container, { backgroundColor: Colors.background }]}>
-      <Text style={[styles.title, { color: Colors.text }]}>Arkivuar</Text>
+    <View
+      style={[
+        styles.container,
+        { backgroundColor: Colors.background },
+      ]}
+    >
+      <Text style={[styles.title, { color: Colors.text }]}>
+        Arkivuar
+      </Text>
 
       <TextInput
         placeholder="Kërko klientin..."
@@ -218,7 +232,10 @@ export default function ArchivedScreen() {
         onChangeText={setSearch}
         style={[
           styles.search,
-          { backgroundColor: Colors.card, color: Colors.text },
+          {
+            backgroundColor: Colors.card,
+            color: Colors.text,
+          },
         ]}
       />
 
@@ -236,10 +253,21 @@ export default function ArchivedScreen() {
       <Modal visible={!!selected} transparent animationType="fade">
         <View style={styles.modalOverlay}>
           <View
-            style={[styles.modalCard, { backgroundColor: Colors.card }]}
+            style={[
+              styles.modalCard,
+              { backgroundColor: Colors.card },
+            ]}
           >
-            <Pressable onPress={() => setSelected(null)} style={styles.close}>
-              <Text style={[styles.closeText, { color: Colors.text }]}>
+            <Pressable
+              onPress={() => setSelected(null)}
+              style={styles.close}
+            >
+              <Text
+                style={[
+                  styles.closeText,
+                  { color: Colors.text },
+                ]}
+              >
                 ✕
               </Text>
             </Pressable>
@@ -247,31 +275,46 @@ export default function ArchivedScreen() {
             {selected && (
               <>
                 <Text
-                  style={[styles.modalName, { color: Colors.text }]}
+                  style={[
+                    styles.modalName,
+                    { color: Colors.text },
+                  ]}
                 >
                   {selected.client_name}
                 </Text>
+
                 <Text
-                  style={[styles.modalText, { color: Colors.text }]}
+                  style={[
+                    styles.modalText,
+                    { color: Colors.text },
+                  ]}
                 >
                   {selected.service}
                 </Text>
 
-                {selected.archived_by && selected.archived_at && (
-                  <Text
-                    style={[styles.modalText, { color: Colors.muted }]}
-                  >
-                    📦 Arkivuar nga {selected.archived_by}
-                    {'\n'}
-                    🕒 {formatDateTime(selected.archived_at)}
-                  </Text>
-                )}
+                {selected.archived_by &&
+                  selected.archived_at && (
+                    <Text
+                      style={[
+                        styles.modalText,
+                        { color: Colors.muted },
+                      ]}
+                    >
+                      📦 Arkivuar nga {selected.archived_by}
+                      {'\n'}
+                      🕒 {formatDateTime(selected.archived_at)}
+                    </Text>
+                  )}
 
                 <Pressable
-                  onPress={() => unarchiveRecord(selected.id)}
+                  onPress={() =>
+                    unarchiveRecord(selected.id)
+                  }
                   style={styles.unarchiveBtn}
                 >
-                  <Text style={styles.unarchiveText}>Ç’arkivo</Text>
+                  <Text style={styles.unarchiveText}>
+                    Ç’arkivo
+                  </Text>
                 </Pressable>
               </>
             )}

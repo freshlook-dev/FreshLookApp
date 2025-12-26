@@ -11,7 +11,7 @@ import {
   Alert,
   Platform,
   Image,
-  Switch, // ✅ ADDED
+  Switch,
 } from 'react-native';
 import { router } from 'expo-router';
 
@@ -22,7 +22,6 @@ import Cropper from 'react-easy-crop';
 import { useAuth } from '../../context/AuthContext';
 import { supabase } from '../../context/supabase';
 
-// ✅ ADDED (theme only)
 import { useTheme } from '../../context/ThemeContext';
 import { LightColors, DarkColors } from '../../constants/colors';
 
@@ -60,7 +59,6 @@ const pickImageWeb = async (): Promise<string | null> => {
 export default function ProfileTab() {
   const { user, loading: authLoading, logout } = useAuth();
 
-  // ✅ ADDED (theme only)
   const { theme, toggleTheme } = useTheme();
   const Colors = theme === 'dark' ? DarkColors : LightColors;
 
@@ -240,17 +238,19 @@ export default function ProfileTab() {
 
   if (authLoading || loading) {
     return (
-      <View style={styles.center}>
-        <ActivityIndicator size="large" color="#C9A24D" />
-        <Text style={styles.loadingText}>Loading profile…</Text>
+      <View style={[styles.center, { backgroundColor: Colors.background }]}>
+        <ActivityIndicator size="large" color={Colors.primary} />
+        <Text style={[styles.loadingText, { color: Colors.muted }]}>
+          Loading profile…
+        </Text>
       </View>
     );
   }
 
   if (!profile) {
     return (
-      <View style={styles.center}>
-        <Text>Profile not found</Text>
+      <View style={[styles.center, { backgroundColor: Colors.background }]}>
+        <Text style={{ color: Colors.text }}>Profile not found</Text>
       </View>
     );
   }
@@ -279,13 +279,7 @@ export default function ProfileTab() {
               ? { uri: profile.avatar_url }
               : require('../../assets/images/avatar-placeholder.png')
           }
-          style={{
-            width: 110,
-            height: 110,
-            borderRadius: 55,
-            marginBottom: 8,
-            backgroundColor: '#EAEAEA',
-          }}
+          style={styles.avatar}
         />
 
         <Text style={{ fontSize: 12, color: Colors.muted }}>
@@ -319,7 +313,7 @@ export default function ProfileTab() {
           {profile.role.toUpperCase()}
         </Text>
 
-        {/* 🌙 DARK MODE SWITCH (ONLY ADDITION) */}
+        {/* 🌙 DARK MODE SWITCH */}
         <View style={styles.themeRow}>
           <Text style={{ color: Colors.text, fontWeight: '600' }}>
             Dark Mode
@@ -366,12 +360,14 @@ export default function ProfileTab() {
             </Pressable>
 
             {generatedCode && (
-              <View style={[styles.card, { marginTop: 12 }]}>
-                <Text style={styles.label}>Generated Access Code</Text>
-                <Text style={{ fontSize: 28, fontWeight: '800', letterSpacing: 3 }}>
+              <View style={[styles.card, { marginTop: 12, backgroundColor: Colors.background }]}>
+                <Text style={[styles.label, { color: Colors.muted }]}>
+                  Generated Access Code
+                </Text>
+                <Text style={{ fontSize: 28, fontWeight: '800', letterSpacing: 3, color: Colors.text }}>
                   {generatedCode.code}
                 </Text>
-                <Text style={{ marginTop: 6 }}>
+                <Text style={{ marginTop: 6, color: Colors.text }}>
                   Role: {generatedCode.role.toUpperCase()}
                 </Text>
               </View>
@@ -443,13 +439,11 @@ const styles = StyleSheet.create({
   },
   label: {
     fontSize: 12,
-    color: '#7A7A7A',
   },
   value: {
     fontSize: 15,
     fontWeight: '600',
     marginTop: 4,
-    color: '#2B2B2B',
   },
   primaryButton: {
     backgroundColor: '#C9A24D',
@@ -487,6 +481,12 @@ const styles = StyleSheet.create({
   },
   loadingText: {
     marginTop: 10,
-    color: '#7A7A7A',
+  },
+  avatar: {
+    width: 110,
+    height: 110,
+    borderRadius: 55,
+    marginBottom: 8,
+    backgroundColor: '#EAEAEA',
   },
 });

@@ -15,7 +15,7 @@ import {
 import { supabase } from '../../context/supabase';
 import { router } from 'expo-router';
 
-/* ✅ ADDED (theme only) */
+/* ✅ THEME */
 import { useTheme } from '../../context/ThemeContext';
 import { LightColors, DarkColors } from '../../constants/colors';
 
@@ -24,7 +24,6 @@ export default function Login() {
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
 
-  /* ✅ THEME */
   const { theme } = useTheme();
   const Colors = theme === 'dark' ? DarkColors : LightColors;
 

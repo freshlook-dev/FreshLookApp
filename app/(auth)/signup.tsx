@@ -16,7 +16,7 @@ import {
 } from 'react-native';
 import { supabase } from '../../context/supabase';
 
-/* ✅ ADDED (theme only) */
+/* ✅ THEME */
 import { useTheme } from '../../context/ThemeContext';
 import { LightColors, DarkColors } from '../../constants/colors';
 
@@ -27,7 +27,6 @@ export default function SignUpScreen() {
   const [accessCode, setAccessCode] = useState('');
   const [loading, setLoading] = useState(false);
 
-  /* ✅ THEME */
   const { theme } = useTheme();
   const Colors = theme === 'dark' ? DarkColors : LightColors;
 
@@ -74,7 +73,7 @@ export default function SignUpScreen() {
         .from('profiles')
         .upsert({
           id: userId,
-          email: email.toLowerCase().trim(), // ✅ REQUIRED
+          email: email.toLowerCase().trim(),
           full_name: fullName.trim(),
           role: codeData.role,
         });
@@ -97,7 +96,7 @@ export default function SignUpScreen() {
         return;
       }
 
-      /* 5️⃣ OPTIONAL AUDIT LOG */
+      /* 5️⃣ AUDIT LOG */
       await supabase.from('audit_logs').insert({
         actor_id: userId,
         action: 'USE_ACCESS_CODE',
@@ -105,7 +104,6 @@ export default function SignUpScreen() {
       });
 
       Alert.alert('Success', 'Account created successfully');
-      // AuthContext handles navigation
     } catch (err) {
       console.error(err);
       Alert.alert('Error', 'Something went wrong');
@@ -223,8 +221,6 @@ export default function SignUpScreen() {
     </KeyboardAvoidingView>
   );
 }
-
-/* ================= STYLES ================= */
 
 const styles = StyleSheet.create({
   container: {

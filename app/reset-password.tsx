@@ -15,7 +15,7 @@ import { Ionicons } from '@expo/vector-icons';
 
 import { supabase } from '../context/supabase';
 
-/* ✅ ADDED (theme only) */
+/* ✅ THEME */
 import { useTheme } from '../context/ThemeContext';
 import { LightColors, DarkColors } from '../constants/colors';
 
@@ -25,14 +25,12 @@ export default function ResetPasswordScreen() {
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [ready, setReady] = useState(false); // 🔑 recovery ready
+  const [ready, setReady] = useState(false);
 
-  /* ✅ THEME */
   const { theme } = useTheme();
   const Colors = theme === 'dark' ? DarkColors : LightColors;
 
   useEffect(() => {
-    // ✅ REQUIRED for mobile browsers (Safari, iOS, Android)
     const { data: listener } = supabase.auth.onAuthStateChange(
       (event) => {
         if (event === 'PASSWORD_RECOVERY') {
