@@ -42,14 +42,23 @@ export default function TabsLayout() {
         /* 🖼 LOGO ON LEFT */
         headerLeft: () => <HeaderLogo />,
 
-        /* ✅ THEME COLORS */
+        /* ✅ HEADER THEME (FIX) */
+        headerStyle: {
+          backgroundColor: Colors.background,
+        },
+        headerTintColor: Colors.text,
+        headerTitleStyle: {
+          color: Colors.text,
+          fontWeight: '700',
+        },
+
+        /* ✅ TAB BAR THEME */
         tabBarActiveTintColor: Colors.primary,
         tabBarInactiveTintColor: Colors.muted,
 
-        // 🔥 PERFECT TAB BAR POSITION (iOS + Android)
         tabBarStyle: {
           backgroundColor: Colors.background,
-          borderTopWidth: 1.0,
+          borderTopWidth: 1,
           borderTopColor: Colors.muted,
           height: 70 + insets.bottom,
           paddingBottom: Math.max(insets.bottom - 6, 8),
@@ -122,7 +131,6 @@ export default function TabsLayout() {
         }}
       />
 
-      {/* 🕒 HISTORY SCREEN */}
       <Tabs.Screen
         name="history"
         options={{
@@ -153,45 +161,11 @@ export default function TabsLayout() {
 
       {/* 🔒 HIDDEN SCREENS */}
 
-      <Tabs.Screen
-        name="edit"
-        options={{
-          href: null,
-          title: 'Edit Appointment',
-        }}
-      />
-
-      <Tabs.Screen
-        name="change-password"
-        options={{
-          href: null,
-          title: 'Change Password',
-        }}
-      />
-
-      <Tabs.Screen
-        name="manage-users"
-        options={{
-          href: null,
-          title: 'Manage Users',
-        }}
-      />
-
-      <Tabs.Screen
-        name="audit-log"
-        options={{
-          href: null,
-          title: 'Audit Logs',
-        }}
-      />
-
-      <Tabs.Screen
-        name="archived"
-        options={{
-          href: null,
-          title: 'Arkiva',
-        }}
-      />
+      <Tabs.Screen name="edit" options={{ href: null }} />
+      <Tabs.Screen name="change-password" options={{ href: null }} />
+      <Tabs.Screen name="manage-users" options={{ href: null }} />
+      <Tabs.Screen name="audit-log" options={{ href: null }} />
+      <Tabs.Screen name="archived" options={{ href: null }} />
     </Tabs>
   );
 }
