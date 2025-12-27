@@ -33,27 +33,6 @@ type Profile = {
   avatar_url?: string | null;
 };
 
-/* ================= WEB IMAGE PICKER ================= */
-const pickImageWeb = async (): Promise<string | null> => {
-  return new Promise((resolve) => {
-    const input = document.createElement('input');
-    input.type = 'file';
-    input.accept = 'image/*';
-
-    input.onchange = () => {
-      const file = input.files?.[0];
-      if (!file) return resolve(null);
-
-      const reader = new FileReader();
-      reader.onload = () => resolve(reader.result as string);
-      reader.readAsDataURL(file);
-    };
-
-    input.click();
-  });
-};
-/* ==================================================== */
-
 export default function ProfileTab() {
   const { user, loading: authLoading, logout } = useAuth();
   const { theme, toggleTheme } = useTheme();
@@ -66,6 +45,16 @@ export default function ProfileTab() {
     code: string;
     role: Role;
   } | null>(null);
+
+  /* 🔧 SAFARI FIX: restore browser UI */
+  useEffect(() => {
+    if (Platform.OS !== 'web') return;
+
+    setTimeout(() => {
+      window.scrollTo(0, 1);
+      window.scrollTo(0, 0);
+    }, 50);
+  }, []);
 
   useEffect(() => {
     if (!authLoading && !user) {
@@ -117,9 +106,7 @@ export default function ProfileTab() {
   /* ================= PICK & UPLOAD AVATAR ================= */
   const pickAndUploadAvatar = async () => {
     if (Platform.OS === 'web') {
-      const dataUrl = await pickImageWeb();
-      if (!dataUrl) return;
-      uploadFinalImage(dataUrl);
+      document.getElementById('avatar-upload')?.click();
       return;
     }
 
@@ -212,138 +199,127 @@ export default function ProfileTab() {
   const isOwner = profile.role === 'owner';
 
   return (
-    <ScrollView
-      contentContainerStyle={[
-        styles.container,
-        { backgroundColor: Colors.background },
-      ]}
-    >
-      <Text style={[styles.pageTitle, { color: Colors.text }]}>
-        My Profile
-      </Text>
+    <>
+      {/* 🧷 Hidden file input (Safari-safe) */}
+      {Platform.OS === 'web' && (
+        <input
+          id="avatar-upload"
+          type="file"
+          accept="image/*"
+          style={{ display: 'none' }}
+          onChange={(e) => {
+            const file = e.target.files?.[0];
+            if (!file) return;
 
-      <Pressable
-        onPress={pickAndUploadAvatar}
-        style={{ alignItems: 'center', marginBottom: 20 }}
-      >
-        <Image
-          key={profile.avatar_url}
-          source={
-            profile.avatar_url
-              ? { uri: profile.avatar_url }
-              : require('../../assets/images/avatar-placeholder.png')
-          }
-          style={styles.avatar}
+            const reader = new FileReader();
+            reader.onload = () => {
+              uploadFinalImage(reader.result as string);
+            };
+            reader.readAsDataURL(file);
+          }}
         />
-        <Text style={{ fontSize: 12, color: Colors.muted }}>
-          {uploading ? 'Uploading…' : 'Tap to change photo'}
-        </Text>
-      </Pressable>
+      )}
 
-      <View style={[styles.card, { backgroundColor: Colors.card }]}>
-        <Text style={[styles.label, { color: Colors.muted }]}>Email</Text>
-        <Text style={[styles.value, { color: Colors.text }]}>
-          {profile.email}
-        </Text>
-
-        <Text style={[styles.label, { marginTop: 12, color: Colors.muted }]}>
-          Full name
-        </Text>
-        <Text style={[styles.value, { color: Colors.text }]}>
-          {profile.full_name || 'Not set'}
+      <ScrollView
+        contentContainerStyle={[
+          styles.container,
+          { backgroundColor: Colors.background },
+        ]}
+      >
+        <Text style={[styles.pageTitle, { color: Colors.text }]}>
+          My Profile
         </Text>
 
-        <Text style={[styles.label, { marginTop: 12, color: Colors.muted }]}>
-          Role
-        </Text>
-        <Text
-          style={[
-            styles.value,
-            { color: isOwner ? Colors.primary : Colors.text },
-          ]}
-        >
-          {profile.role.toUpperCase()}
-        </Text>
-
-        <View style={styles.themeRow}>
-          <Text style={{ color: Colors.text, fontWeight: '600' }}>
-            Dark Mode
-          </Text>
-          <Switch
-            value={theme === 'dark'}
-            onValueChange={toggleTheme}
-            thumbColor={theme === 'dark' ? Colors.primary : '#f4f3f4'}
-            trackColor={{ false: '#ccc', true: Colors.primary }}
-          />
-        </View>
-      </View>
-
-      <View style={[styles.card, { backgroundColor: Colors.card }]}>
         <Pressable
-          onPress={() => router.push('../(tabs)/change-password')}
-          style={styles.primaryButton}
+          onPress={pickAndUploadAvatar}
+          style={{ alignItems: 'center', marginBottom: 20 }}
         >
-          <Text style={styles.primaryButtonText}>Change Password</Text>
+          <Image
+            key={profile.avatar_url}
+            source={
+              profile.avatar_url
+                ? { uri: profile.avatar_url }
+                : require('../../assets/images/avatar-placeholder.png')
+            }
+            style={styles.avatar}
+          />
+          <Text style={{ fontSize: 12, color: Colors.muted }}>
+            {uploading ? 'Uploading…' : 'Tap to change photo'}
+          </Text>
         </Pressable>
 
-        {isOwner && (
-          <>
-            <Pressable
-              onPress={() => router.push('../(tabs)/manage-users')}
-              style={[styles.primaryButton, { marginTop: 12 }]}
-            >
-              <Text style={styles.primaryButtonText}>Manage Users</Text>
-            </Pressable>
+        <View style={[styles.card, { backgroundColor: Colors.card }]}>
+          <Text style={[styles.label, { color: Colors.muted }]}>Email</Text>
+          <Text style={[styles.value, { color: Colors.text }]}>
+            {profile.email}
+          </Text>
 
-            <Pressable
-              onPress={() => router.push('../(tabs)/audit-log')}
-              style={[styles.primaryButton, { marginTop: 12 }]}
-            >
-              <Text style={styles.primaryButtonText}>Audit Logs</Text>
-            </Pressable>
+          <Text style={[styles.label, { marginTop: 12, color: Colors.muted }]}>
+            Full name
+          </Text>
+          <Text style={[styles.value, { color: Colors.text }]}>
+            {profile.full_name || 'Not set'}
+          </Text>
 
-            <Pressable
-              onPress={() => generateAccessCode('staff')}
-              style={[styles.primaryButton, { marginTop: 12 }]}
-            >
-              <Text style={styles.primaryButtonText}>
-                Generate Staff Code
-              </Text>
-            </Pressable>
+          <Text style={[styles.label, { marginTop: 12, color: Colors.muted }]}>
+            Role
+          </Text>
+          <Text
+            style={[
+              styles.value,
+              { color: isOwner ? Colors.primary : Colors.text },
+            ]}
+          >
+            {profile.role.toUpperCase()}
+          </Text>
 
-            {generatedCode && (
-              <View
-                style={[
-                  styles.card,
-                  { marginTop: 12, backgroundColor: Colors.background },
-                ]}
+          <View style={styles.themeRow}>
+            <Text style={{ color: Colors.text, fontWeight: '600' }}>
+              Dark Mode
+            </Text>
+            <Switch
+              value={theme === 'dark'}
+              onValueChange={toggleTheme}
+              thumbColor={theme === 'dark' ? Colors.primary : '#f4f3f4'}
+              trackColor={{ false: '#ccc', true: Colors.primary }}
+            />
+          </View>
+        </View>
+
+        <View style={[styles.card, { backgroundColor: Colors.card }]}>
+          <Pressable
+            onPress={() => router.push('../(tabs)/change-password')}
+            style={styles.primaryButton}
+          >
+            <Text style={styles.primaryButtonText}>Change Password</Text>
+          </Pressable>
+
+          {isOwner && (
+            <>
+              <Pressable
+                onPress={() => router.push('../(tabs)/manage-users')}
+                style={[styles.primaryButton, { marginTop: 12 }]}
               >
-                <Text style={[styles.label, { color: Colors.muted }]}>
-                  Generated Access Code
-                </Text>
-                <Text
-                  style={{
-                    fontSize: 28,
-                    fontWeight: '800',
-                    letterSpacing: 3,
-                    color: Colors.text,
-                  }}
-                >
-                  {generatedCode.code}
-                </Text>
-                <Text style={{ marginTop: 6, color: Colors.text }}>
-                  Role: {generatedCode.role.toUpperCase()}
-                </Text>
-              </View>
-            )}
-          </>
-        )}
-      </View>
+                <Text style={styles.primaryButtonText}>Manage Users</Text>
+              </Pressable>
 
-      <Pressable onPress={handleLogout} style={styles.logoutButton}>
-        <Text style={styles.logoutText}>Logout</Text>
-      </Pressable>
-    </ScrollView>
+              <Pressable
+                onPress={() => generateAccessCode('staff')}
+                style={[styles.primaryButton, { marginTop: 12 }]}
+              >
+                <Text style={styles.primaryButtonText}>
+                  Generate Staff Code
+                </Text>
+              </Pressable>
+            </>
+          )}
+        </View>
+
+        <Pressable onPress={handleLogout} style={styles.logoutButton}>
+          <Text style={styles.logoutText}>Logout</Text>
+        </Pressable>
+      </ScrollView>
+    </>
   );
 }
 
