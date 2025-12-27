@@ -14,14 +14,12 @@ import {
   Switch,
 } from 'react-native';
 import { router } from 'expo-router';
-
 import * as ImagePicker from 'expo-image-picker';
 import * as ImageManipulator from 'expo-image-manipulator';
 import Cropper from 'react-easy-crop';
 
 import { useAuth } from '../../context/AuthContext';
 import { supabase } from '../../context/supabase';
-
 import { useTheme } from '../../context/ThemeContext';
 import { LightColors, DarkColors } from '../../constants/colors';
 
@@ -55,43 +53,15 @@ const pickImageWeb = async (): Promise<string | null> => {
   });
 };
 /* ==================================================== */
-useEffect(() => {
-  if (Platform.OS !== 'web') return;
-
-  // 🔥 Force Safari to behave like normal browser
-  const html = document.documentElement;
-  const body = document.body;
-
-  const prevHtmlOverflow = html.style.overflow;
-  const prevBodyOverflow = body.style.overflow;
-  const prevBodyPosition = body.style.position;
-  const prevBodyHeight = body.style.height;
-
-  // Reset anything that could cause "standalone" mode
-  html.style.overflow = 'auto';
-  body.style.overflow = 'auto';
-  body.style.position = 'static';
-  body.style.height = 'auto';
-
-  return () => {
-    html.style.overflow = prevHtmlOverflow;
-    body.style.overflow = prevBodyOverflow;
-    body.style.position = prevBodyPosition;
-    body.style.height = prevBodyHeight;
-  };
-}, []);
-
 
 export default function ProfileTab() {
   const { user, loading: authLoading, logout } = useAuth();
-
   const { theme, toggleTheme } = useTheme();
   const Colors = theme === 'dark' ? DarkColors : LightColors;
 
   const [profile, setProfile] = useState<Profile | null>(null);
   const [loading, setLoading] = useState(true);
   const [uploading, setUploading] = useState(false);
-
   const [generatedCode, setGeneratedCode] = useState<{
     code: string;
     role: Role;
@@ -109,6 +79,7 @@ export default function ProfileTab() {
       router.replace('/(auth)/login');
       return;
     }
+
     if (user) loadProfile();
   }, [user, authLoading]);
 
@@ -155,7 +126,6 @@ export default function ProfileTab() {
   };
 
   /* ================= PICK IMAGE ================= */
-
   const pickAndUploadAvatar = async () => {
     if (Platform.OS === 'web') {
       const dataUrl = await pickImageWeb();
@@ -179,7 +149,6 @@ export default function ProfileTab() {
   };
 
   /* ================= FINAL UPLOAD ================= */
-
   const uploadFinalImage = async (uri: string) => {
     try {
       setUploading(true);
@@ -225,7 +194,6 @@ export default function ProfileTab() {
   };
 
   /* ================= SAVE CROPPED IMAGE ================= */
-
   const saveCroppedImage = async () => {
     if (!imageToCrop || !croppedAreaPixels) return;
 
@@ -250,7 +218,6 @@ export default function ProfileTab() {
   };
 
   /* ================= LOGOUT ================= */
-
   const handleLogout = () => {
     if (Platform.OS === 'web') {
       if (window.confirm('Are you sure you want to logout?')) logout();
@@ -307,13 +274,11 @@ export default function ProfileTab() {
           }
           style={styles.avatar}
         />
-
         <Text style={{ fontSize: 12, color: Colors.muted }}>
           {uploading ? 'Uploading…' : 'Tap to change photo'}
         </Text>
       </Pressable>
 
-      {/* BASIC INFO */}
       <View style={[styles.card, { backgroundColor: Colors.card }]}>
         <Text style={[styles.label, { color: Colors.muted }]}>Email</Text>
         <Text style={[styles.value, { color: Colors.text }]}>
@@ -339,7 +304,6 @@ export default function ProfileTab() {
           {profile.role.toUpperCase()}
         </Text>
 
-        {/* 🌙 DARK MODE SWITCH */}
         <View style={styles.themeRow}>
           <Text style={{ color: Colors.text, fontWeight: '600' }}>
             Dark Mode
@@ -353,7 +317,6 @@ export default function ProfileTab() {
         </View>
       </View>
 
-      {/* ACTION BUTTONS */}
       <View style={[styles.card, { backgroundColor: Colors.card }]}>
         <Pressable
           onPress={() => router.push('../(tabs)/change-password')}
@@ -382,15 +345,29 @@ export default function ProfileTab() {
               onPress={() => generateAccessCode('staff')}
               style={[styles.primaryButton, { marginTop: 12 }]}
             >
-              <Text style={styles.primaryButtonText}>Generate Staff Code</Text>
+              <Text style={styles.primaryButtonText}>
+                Generate Staff Code
+              </Text>
             </Pressable>
 
             {generatedCode && (
-              <View style={[styles.card, { marginTop: 12, backgroundColor: Colors.background }]}>
+              <View
+                style={[
+                  styles.card,
+                  { marginTop: 12, backgroundColor: Colors.background },
+                ]}
+              >
                 <Text style={[styles.label, { color: Colors.muted }]}>
                   Generated Access Code
                 </Text>
-                <Text style={{ fontSize: 28, fontWeight: '800', letterSpacing: 3, color: Colors.text }}>
+                <Text
+                  style={{
+                    fontSize: 28,
+                    fontWeight: '800',
+                    letterSpacing: 3,
+                    color: Colors.text,
+                  }}
+                >
                   {generatedCode.code}
                 </Text>
                 <Text style={{ marginTop: 6, color: Colors.text }}>
@@ -402,25 +379,20 @@ export default function ProfileTab() {
         )}
       </View>
 
-      {/* LOGOUT */}
       <Pressable onPress={handleLogout} style={styles.logoutButton}>
         <Text style={styles.logoutText}>Logout</Text>
       </Pressable>
 
-      {/* ================= WEB CROPPER UI ================= */}
       {Platform.OS === 'web' && showCropper && imageToCrop && (
         <View
-  style={{
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    backgroundColor: 'rgba(0,0,0,0.85)',
-    zIndex: 9999,
-    justifyContent: 'center',
-    alignItems: 'center',
-  }}
+          style={{
+            position: 'fixed' as any,
+            inset: 0,
+            backgroundColor: 'rgba(0,0,0,0.85)',
+            zIndex: 9999,
+            justifyContent: 'center',
+            alignItems: 'center',
+          }}
         >
           <View style={{ width: 300, height: 300, backgroundColor: '#000' }}>
             <Cropper
@@ -449,13 +421,12 @@ export default function ProfileTab() {
 }
 
 /* ================= STYLES ================= */
-
 const styles = StyleSheet.create({
   container: {
-  padding: 20,
-  paddingBottom: 40,
-},
-
+    flexGrow: 1,
+    padding: 20,
+    paddingBottom: 40,
+  },
   pageTitle: {
     fontSize: 26,
     fontWeight: '800',
