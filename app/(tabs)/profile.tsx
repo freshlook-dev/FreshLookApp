@@ -454,7 +454,6 @@ const styles = StyleSheet.create({
   container: {
   padding: 20,
   paddingBottom: 40,
-  minHeight: '100%',
 },
 
   pageTitle: {
