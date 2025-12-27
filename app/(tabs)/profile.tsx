@@ -383,7 +383,12 @@ export default function ProfileTab() {
         <Text style={styles.logoutText}>Logout</Text>
       </Pressable>
 
-      {Platform.OS === 'web' && showCropper && imageToCrop && (
+      {Platform.OS === 'web' &&
+        typeof window !== 'undefined' &&
+        window.innerWidth > 768 &&
+        showCropper &&
+        imageToCrop && (
+
         <View
           style={{
             position: 'fixed' as any,
