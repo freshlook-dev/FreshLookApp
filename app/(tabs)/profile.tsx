@@ -55,6 +55,32 @@ const pickImageWeb = async (): Promise<string | null> => {
   });
 };
 /* ==================================================== */
+useEffect(() => {
+  if (Platform.OS !== 'web') return;
+
+  // 🔥 Force Safari to behave like normal browser
+  const html = document.documentElement;
+  const body = document.body;
+
+  const prevHtmlOverflow = html.style.overflow;
+  const prevBodyOverflow = body.style.overflow;
+  const prevBodyPosition = body.style.position;
+  const prevBodyHeight = body.style.height;
+
+  // Reset anything that could cause "standalone" mode
+  html.style.overflow = 'auto';
+  body.style.overflow = 'auto';
+  body.style.position = 'static';
+  body.style.height = 'auto';
+
+  return () => {
+    html.style.overflow = prevHtmlOverflow;
+    body.style.overflow = prevBodyOverflow;
+    body.style.position = prevBodyPosition;
+    body.style.height = prevBodyHeight;
+  };
+}, []);
+
 
 export default function ProfileTab() {
   const { user, loading: authLoading, logout } = useAuth();
@@ -426,10 +452,11 @@ export default function ProfileTab() {
 
 const styles = StyleSheet.create({
   container: {
-    flexGrow: 1,
-    padding: 20,
-    paddingBottom: 40,
-  },
+  padding: 20,
+  paddingBottom: 40,
+  minHeight: '100%',
+},
+
   pageTitle: {
     fontSize: 26,
     fontWeight: '800',
