@@ -14,9 +14,9 @@ import {
   Switch,
 } from 'react-native';
 import { router } from 'expo-router';
+
 import * as ImagePicker from 'expo-image-picker';
 import * as ImageManipulator from 'expo-image-manipulator';
-import Cropper from 'react-easy-crop';
 
 import { useAuth } from '../../context/AuthContext';
 import { supabase } from '../../context/supabase';
@@ -67,13 +67,6 @@ export default function ProfileTab() {
     role: Role;
   } | null>(null);
 
-  /* 🟢 CROP STATES (WEB ONLY) */
-  const [imageToCrop, setImageToCrop] = useState<string | null>(null);
-  const [crop, setCrop] = useState({ x: 0, y: 0 });
-  const [zoom, setZoom] = useState(1);
-  const [croppedAreaPixels, setCroppedAreaPixels] = useState<any>(null);
-  const [showCropper, setShowCropper] = useState(false);
-
   useEffect(() => {
     if (!authLoading && !user) {
       router.replace('/(auth)/login');
@@ -94,10 +87,6 @@ export default function ProfileTab() {
 
     setProfile(data ?? null);
     setLoading(false);
-  };
-
-  const onCropComplete = (_: any, croppedPixels: any) => {
-    setCroppedAreaPixels(croppedPixels);
   };
 
   const generateAccessCode = async (role: Role) => {
@@ -125,16 +114,12 @@ export default function ProfileTab() {
     );
   };
 
-  /* ================= PICK IMAGE ================= */
+  /* ================= PICK & UPLOAD AVATAR ================= */
   const pickAndUploadAvatar = async () => {
     if (Platform.OS === 'web') {
       const dataUrl = await pickImageWeb();
       if (!dataUrl) return;
-
-      setImageToCrop(dataUrl);
-      setCrop({ x: 0, y: 0 });
-      setZoom(1);
-      setShowCropper(true);
+      uploadFinalImage(dataUrl);
       return;
     }
 
@@ -191,30 +176,6 @@ export default function ProfileTab() {
     } finally {
       setUploading(false);
     }
-  };
-
-  /* ================= SAVE CROPPED IMAGE ================= */
-  const saveCroppedImage = async () => {
-    if (!imageToCrop || !croppedAreaPixels) return;
-
-    const cropped = await ImageManipulator.manipulateAsync(
-      imageToCrop,
-      [
-        {
-          crop: {
-            originX: croppedAreaPixels.x,
-            originY: croppedAreaPixels.y,
-            width: croppedAreaPixels.width,
-            height: croppedAreaPixels.height,
-          },
-        },
-        { resize: { width: 512, height: 512 } },
-      ],
-      { compress: 0.8, format: ImageManipulator.SaveFormat.JPEG }
-    );
-
-    setShowCropper(false);
-    uploadFinalImage(cropped.uri);
   };
 
   /* ================= LOGOUT ================= */
@@ -382,45 +343,6 @@ export default function ProfileTab() {
       <Pressable onPress={handleLogout} style={styles.logoutButton}>
         <Text style={styles.logoutText}>Logout</Text>
       </Pressable>
-
-      {Platform.OS === 'web' &&
-        typeof window !== 'undefined' &&
-        window.innerWidth > 768 &&
-        showCropper &&
-        imageToCrop && (
-
-        <View
-          style={{
-            position: 'fixed' as any,
-            inset: 0,
-            backgroundColor: 'rgba(0,0,0,0.85)',
-            zIndex: 9999,
-            justifyContent: 'center',
-            alignItems: 'center',
-          }}
-        >
-          <View style={{ width: 300, height: 300, backgroundColor: '#000' }}>
-            <Cropper
-              image={imageToCrop}
-              crop={crop}
-              zoom={zoom}
-              aspect={1}
-              onCropChange={setCrop}
-              onZoomChange={setZoom}
-              onCropComplete={onCropComplete}
-            />
-          </View>
-
-          <View style={{ flexDirection: 'row', gap: 12, marginTop: 20 }}>
-            <Pressable onPress={() => setShowCropper(false)} style={{ padding: 12 }}>
-              <Text style={{ color: '#fff' }}>Cancel</Text>
-            </Pressable>
-            <Pressable onPress={saveCroppedImage} style={{ padding: 12 }}>
-              <Text style={{ color: '#C9A24D', fontWeight: '800' }}>Save</Text>
-            </Pressable>
-          </View>
-        </View>
-      )}
     </ScrollView>
   );
 }
