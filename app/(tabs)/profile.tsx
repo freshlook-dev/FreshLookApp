@@ -384,14 +384,17 @@ export default function ProfileTab() {
       {/* ================= WEB CROPPER UI ================= */}
       {Platform.OS === 'web' && showCropper && imageToCrop && (
         <View
-          style={{
-            position: 'fixed' as any,
-            inset: 0,
-            backgroundColor: 'rgba(0,0,0,0.85)',
-            zIndex: 9999,
-            justifyContent: 'center',
-            alignItems: 'center',
-          }}
+  style={{
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(0,0,0,0.85)',
+    zIndex: 9999,
+    justifyContent: 'center',
+    alignItems: 'center',
+  }}
         >
           <View style={{ width: 300, height: 300, backgroundColor: '#000' }}>
             <Cropper
