@@ -67,12 +67,17 @@ export default function ProfileTab() {
     role: Role;
   } | null>(null);
 
-  /* 🟢 CROP STATES (WEB ONLY) */
+  /* 🟢 CROP STATES (DESKTOP WEB ONLY) */
   const [imageToCrop, setImageToCrop] = useState<string | null>(null);
   const [crop, setCrop] = useState({ x: 0, y: 0 });
   const [zoom, setZoom] = useState(1);
   const [croppedAreaPixels, setCroppedAreaPixels] = useState<any>(null);
   const [showCropper, setShowCropper] = useState(false);
+
+  const isIOSWeb =
+    Platform.OS === 'web' &&
+    typeof navigator !== 'undefined' &&
+    /iPhone|iPad|iPod/i.test(navigator.userAgent);
 
   useEffect(() => {
     if (!authLoading && !user) {
@@ -127,30 +132,30 @@ export default function ProfileTab() {
 
   /* ================= PICK IMAGE ================= */
   const pickAndUploadAvatar = async () => {
-  // 🌐 WEB (desktop + iOS PWA)
-  if (Platform.OS === 'web') {
-    const dataUrl = await pickImageWeb();
-    if (!dataUrl) return;
+    // 🖥️ DESKTOP WEB → custom cropper
+    if (Platform.OS === 'web' && !isIOSWeb) {
+      const dataUrl = await pickImageWeb();
+      if (!dataUrl) return;
 
-    setImageToCrop(dataUrl);
-    setCrop({ x: 0, y: 0 });
-    setZoom(1);
-    setShowCropper(true);
-    return;
-  }
+      setImageToCrop(dataUrl);
+      setCrop({ x: 0, y: 0 });
+      setZoom(1);
+      setShowCropper(true);
+      return;
+    }
 
-  // 📱 NATIVE (iOS / Android app)
-  const result = await ImagePicker.launchImageLibraryAsync({
-    mediaTypes: ImagePicker.MediaTypeOptions.Images,
-    allowsEditing: true,
-    aspect: [1, 1],
-    quality: 1,
-  });
+    // 📱 iOS Web (PWA) + Native Apps → native editor
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      allowsEditing: true,
+      aspect: [1, 1],
+      quality: 1,
+    });
 
-  if (result.canceled) return;
+    if (result.canceled) return;
 
-  uploadFinalImage(result.assets[0].uri);
-};
+    uploadFinalImage(result.assets[0].uri);
+  };
 
   /* ================= FINAL UPLOAD ================= */
   const uploadFinalImage = async (uri: string) => {
@@ -262,9 +267,7 @@ export default function ProfileTab() {
         { backgroundColor: Colors.background },
       ]}
     >
-      <Text style={[styles.pageTitle, { color: Colors.text }]}>
-        My Profile
-      </Text>
+      <Text style={[styles.pageTitle, { color: Colors.text }]}>My Profile</Text>
 
       <Pressable
         onPress={pickAndUploadAvatar}
@@ -397,7 +400,7 @@ export default function ProfileTab() {
         <Text style={styles.logoutText}>Logout</Text>
       </Pressable>
 
-      {Platform.OS === 'web' && showCropper && imageToCrop && (
+      {Platform.OS === 'web' && !isIOSWeb && showCropper && imageToCrop && (
         <View
           style={{
             position: 'fixed' as any,
