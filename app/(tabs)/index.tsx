@@ -119,7 +119,7 @@ export default function HomeTab() {
           .map((r: any) => ({
             user_id: r.user_id,
             full_name: r.full_name,
-            avatar_url: null,
+            avatar_url: r.avatar_url,
             count: r.total,
           }))
           .sort((a: any, b: any) => b.count - a.count)
