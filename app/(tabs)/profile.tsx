@@ -127,28 +127,30 @@ export default function ProfileTab() {
 
   /* ================= PICK IMAGE ================= */
   const pickAndUploadAvatar = async () => {
-    if (Platform.OS === 'web') {
-      const dataUrl = await pickImageWeb();
-      if (!dataUrl) return;
+  // 🌐 WEB (desktop + iOS PWA)
+  if (Platform.OS === 'web') {
+    const dataUrl = await pickImageWeb();
+    if (!dataUrl) return;
 
-      setImageToCrop(dataUrl);
-      setCrop({ x: 0, y: 0 });
-      setZoom(1);
-      setShowCropper(true);
-      return;
-    }
+    setImageToCrop(dataUrl);
+    setCrop({ x: 0, y: 0 });
+    setZoom(1);
+    setShowCropper(true);
+    return;
+  }
 
-    const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.Images,
-      allowsEditing: true,
-      aspect: [1, 1],
-      quality: 1,
-    });
+  // 📱 NATIVE (iOS / Android app)
+  const result = await ImagePicker.launchImageLibraryAsync({
+    mediaTypes: ImagePicker.MediaTypeOptions.Images,
+    allowsEditing: true,
+    aspect: [1, 1],
+    quality: 1,
+  });
 
-    if (result.canceled) return;
+  if (result.canceled) return;
 
-    uploadFinalImage(result.assets[0].uri);
-  };
+  uploadFinalImage(result.assets[0].uri);
+};
 
   /* ================= FINAL UPLOAD ================= */
   const uploadFinalImage = async (uri: string) => {
