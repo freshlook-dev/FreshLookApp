@@ -46,6 +46,17 @@ const prettyAction = (action: string) => {
   }
 };
 
+/* ✅ FIXED CLIENT NAME RESOLVER */
+const getClientName = (metadata: any): string | null => {
+  return (
+    metadata?.client_name ||
+    metadata?.appointment?.client_name ||
+    metadata?.appointment?.client?.full_name ||
+    metadata?.target?.client_name ||
+    null
+  );
+};
+
 /* ✅ FILTER EMPTY LOGS */
 const hasValidChanges = (log: AuditLogRow) => {
   const changes = log?.metadata?.changed;
@@ -56,48 +67,24 @@ const hasValidChanges = (log: AuditLogRow) => {
   );
 };
 
-/* ✅ GET CLIENT NAME (MINIMAL ADDITION) */
-const getClientName = (metadata: any): string | null => {
-  return (
-    metadata?.appointment?.client_name ||
-    metadata?.client_name ||
-    null
-  );
-};
-
 /* ================= METADATA RENDER ================= */
 
 const renderMetadata = (metadata: any, Colors: any) => {
-  if (!metadata || typeof metadata !== 'object') return null;
-
-  const changes = metadata.changed;
+  const changes = metadata?.changed;
   if (!changes || typeof changes !== 'object') return null;
 
-  const entries = Object.entries(changes);
-  if (entries.length === 0) return null;
-
   return (
-    <View
-      style={[
-        styles.changesBox,
-        { backgroundColor: Colors.background },
-      ]}
-    >
+    <View style={[styles.changesBox, { backgroundColor: Colors.background }]}>
       <Text style={[styles.changesTitle, { color: Colors.text }]}>
         Changes
       </Text>
 
-      {entries.map(([field, value]: any) => {
-        if (!value || typeof value !== 'object') return null;
+      {Object.entries(changes).map(([field, value]: any) => {
+        if (!value) return null;
 
         return (
           <View key={field} style={styles.changeRow}>
-            <Text
-              style={[
-                styles.changeField,
-                { color: Colors.muted },
-              ]}
-            >
+            <Text style={[styles.changeField, { color: Colors.muted }]}>
               {field}
             </Text>
 
@@ -125,7 +112,6 @@ const renderMetadata = (metadata: any, Colors: any) => {
 
 export default function AuditLogsScreen() {
   const { user } = useAuth();
-
   const { theme } = useTheme();
   const Colors = theme === 'dark' ? DarkColors : LightColors;
 
@@ -167,29 +153,19 @@ export default function AuditLogsScreen() {
   };
 
   const loadLogs = async () => {
-    const { data, error } = await supabase
+    const { data } = await supabase
       .from('audit_logs')
       .select('id, action, created_at, metadata, actor_id')
       .order('created_at', { ascending: false });
-
-    if (error) {
-      console.error(error);
-      return;
-    }
 
     setLogs(data ?? []);
   };
 
   if (loading) {
     return (
-      <View
-        style={[
-          styles.center,
-          { backgroundColor: Colors.background },
-        ]}
-      >
+      <View style={[styles.center, { backgroundColor: Colors.background }]}>
         <ActivityIndicator size="large" color={Colors.primary} />
-        <Text style={[styles.loadingText, { color: Colors.muted }]}>
+        <Text style={{ color: Colors.muted, marginTop: 10 }}>
           Loading audit logs…
         </Text>
       </View>
@@ -197,12 +173,7 @@ export default function AuditLogsScreen() {
   }
 
   return (
-    <View
-      style={[
-        styles.container,
-        { backgroundColor: Colors.background },
-      ]}
-    >
+    <View style={[styles.container, { backgroundColor: Colors.background }]}>
       <Text style={[styles.pageTitle, { color: Colors.text }]}>
         Audit Logs
       </Text>
@@ -220,38 +191,39 @@ export default function AuditLogsScreen() {
           const clientName = getClientName(item.metadata);
 
           return (
-            <View
-              style={[
-                styles.card,
-                { backgroundColor: Colors.card },
-              ]}
-            >
-              <View
-                style={[
-                  styles.actionBadge,
-                  { backgroundColor: Colors.primary },
-                ]}
-              >
-                <Text style={styles.actionText}>
-                  {prettyAction(item.action)}
+            <View style={[styles.card, { backgroundColor: Colors.card }]}>
+              {/* HEADER */}
+              <View style={styles.headerRow}>
+                <View
+                  style={[
+                    styles.actionBadge,
+                    { backgroundColor: Colors.primary },
+                  ]}
+                >
+                  <Text style={styles.actionText}>
+                    {prettyAction(item.action)}
+                  </Text>
+                </View>
+
+                <Text style={[styles.time, { color: Colors.muted }]}>
+                  {formatDateTime(item.created_at)}
                 </Text>
               </View>
 
+              {/* CLIENT */}
               {clientName && (
-                <Text style={[styles.meta, { color: Colors.text }]}>
+                <Text style={[styles.client, { color: Colors.text }]}>
                   📌 {clientName}
                 </Text>
               )}
 
-              <Text style={[styles.meta, { color: Colors.muted }]}>
+              {/* ACTOR */}
+              <Text style={[styles.actor, { color: Colors.muted }]}>
                 👤 {actorName}
               </Text>
 
+              {/* CHANGES */}
               {renderMetadata(item.metadata, Colors)}
-
-              <Text style={[styles.time, { color: Colors.muted }]}>
-                {formatDateTime(item.created_at)}
-              </Text>
             </View>
           );
         }}
@@ -277,9 +249,6 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
-  loadingText: {
-    marginTop: 10,
-  },
 
   card: {
     borderRadius: 18,
@@ -287,12 +256,16 @@ const styles = StyleSheet.create({
     marginBottom: 14,
   },
 
+  headerRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+
   actionBadge: {
-    alignSelf: 'flex-start',
     paddingHorizontal: 10,
     paddingVertical: 4,
     borderRadius: 8,
-    marginBottom: 6,
   },
   actionText: {
     fontSize: 13,
@@ -300,23 +273,30 @@ const styles = StyleSheet.create({
     color: '#fff',
   },
 
-  meta: {
+  client: {
+    marginTop: 10,
+    fontSize: 14,
+    fontWeight: '700',
+  },
+
+  actor: {
+    marginTop: 4,
     fontSize: 13,
-    marginBottom: 6,
   },
 
   changesBox: {
-    marginTop: 8,
+    marginTop: 12,
     padding: 12,
     borderRadius: 12,
   },
   changesTitle: {
     fontSize: 13,
     fontWeight: '800',
-    marginBottom: 6,
+    marginBottom: 8,
   },
+
   changeRow: {
-    marginBottom: 6,
+    marginBottom: 8,
   },
   changeField: {
     fontSize: 12,
@@ -345,6 +325,5 @@ const styles = StyleSheet.create({
 
   time: {
     fontSize: 12,
-    marginTop: 10,
   },
 });
