@@ -46,24 +46,16 @@ const prettyAction = (action: string) => {
   }
 };
 
-/* ✅ FIXED CLIENT NAME RESOLVER */
-const getClientName = (metadata: any): string | null => {
-  return (
-    metadata?.client_name ||
-    metadata?.appointment?.client_name ||
-    metadata?.appointment?.client?.full_name ||
-    metadata?.target?.client_name ||
-    null
-  );
-};
+/* ✅ ALWAYS RESOLVE CLIENT NAME */
+const resolveClientName = (metadata: any): string | null => {
+  if (!metadata || typeof metadata !== 'object') return null;
 
-/* ✅ FILTER EMPTY LOGS */
-const hasValidChanges = (log: AuditLogRow) => {
-  const changes = log?.metadata?.changed;
   return (
-    changes &&
-    typeof changes === 'object' &&
-    Object.keys(changes).length > 0
+    metadata.client_name ||
+    metadata.appointment?.client_name ||
+    metadata.changed?.name?.new ||
+    metadata.changed?.name?.old ||
+    null
   );
 };
 
@@ -74,13 +66,18 @@ const renderMetadata = (metadata: any, Colors: any) => {
   if (!changes || typeof changes !== 'object') return null;
 
   return (
-    <View style={[styles.changesBox, { backgroundColor: Colors.background }]}>
+    <View
+      style={[
+        styles.changesBox,
+        { backgroundColor: Colors.background },
+      ]}
+    >
       <Text style={[styles.changesTitle, { color: Colors.text }]}>
         Changes
       </Text>
 
       {Object.entries(changes).map(([field, value]: any) => {
-        if (!value) return null;
+        if (!value || typeof value !== 'object') return null;
 
         return (
           <View key={field} style={styles.changeRow}>
@@ -92,11 +89,9 @@ const renderMetadata = (metadata: any, Colors: any) => {
               <Text style={styles.oldValue}>
                 {String(value.old ?? '—')}
               </Text>
-
               <Text style={[styles.arrow, { color: Colors.muted }]}>
                 →
               </Text>
-
               <Text style={styles.newValue}>
                 {String(value.new ?? '—')}
               </Text>
@@ -165,9 +160,6 @@ export default function AuditLogsScreen() {
     return (
       <View style={[styles.center, { backgroundColor: Colors.background }]}>
         <ActivityIndicator size="large" color={Colors.primary} />
-        <Text style={{ color: Colors.muted, marginTop: 10 }}>
-          Loading audit logs…
-        </Text>
       </View>
     );
   }
@@ -179,28 +171,27 @@ export default function AuditLogsScreen() {
       </Text>
 
       <FlatList
-        data={logs.filter(hasValidChanges)}
+        data={logs}
         keyExtractor={(item) => item.id}
         contentContainerStyle={{ paddingBottom: 40 }}
         renderItem={({ item }) => {
-          const actorName =
+          const actor =
             item.actor_id && users[item.actor_id]
               ? users[item.actor_id]
               : 'System';
 
-          const clientName = getClientName(item.metadata);
+          const clientName = resolveClientName(item.metadata);
 
           return (
             <View style={[styles.card, { backgroundColor: Colors.card }]}>
-              {/* HEADER */}
               <View style={styles.headerRow}>
                 <View
                   style={[
-                    styles.actionBadge,
+                    styles.badge,
                     { backgroundColor: Colors.primary },
                   ]}
                 >
-                  <Text style={styles.actionText}>
+                  <Text style={styles.badgeText}>
                     {prettyAction(item.action)}
                   </Text>
                 </View>
@@ -210,19 +201,16 @@ export default function AuditLogsScreen() {
                 </Text>
               </View>
 
-              {/* CLIENT */}
               {clientName && (
                 <Text style={[styles.client, { color: Colors.text }]}>
-                  📌 {clientName}
+                  👤 {clientName}
                 </Text>
               )}
 
-              {/* ACTOR */}
               <Text style={[styles.actor, { color: Colors.muted }]}>
-                👤 {actorName}
+                ✏️ {actor}
               </Text>
 
-              {/* CHANGES */}
               {renderMetadata(item.metadata, Colors)}
             </View>
           );
@@ -251,7 +239,7 @@ const styles = StyleSheet.create({
   },
 
   card: {
-    borderRadius: 18,
+    borderRadius: 20,
     padding: 16,
     marginBottom: 14,
   },
@@ -262,21 +250,21 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
 
-  actionBadge: {
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: 8,
+  badge: {
+    paddingHorizontal: 12,
+    paddingVertical: 5,
+    borderRadius: 10,
   },
-  actionText: {
+  badgeText: {
+    color: '#fff',
     fontSize: 13,
     fontWeight: '800',
-    color: '#fff',
   },
 
   client: {
     marginTop: 10,
-    fontSize: 14,
-    fontWeight: '700',
+    fontSize: 15,
+    fontWeight: '800',
   },
 
   actor: {
@@ -287,21 +275,19 @@ const styles = StyleSheet.create({
   changesBox: {
     marginTop: 12,
     padding: 12,
-    borderRadius: 12,
+    borderRadius: 14,
   },
   changesTitle: {
     fontSize: 13,
     fontWeight: '800',
-    marginBottom: 8,
+    marginBottom: 6,
   },
-
   changeRow: {
     marginBottom: 8,
   },
   changeField: {
     fontSize: 12,
     fontWeight: '700',
-    marginBottom: 2,
     textTransform: 'capitalize',
   },
   changeValues: {
@@ -315,7 +301,6 @@ const styles = StyleSheet.create({
   },
   arrow: {
     marginHorizontal: 6,
-    fontSize: 13,
   },
   newValue: {
     fontSize: 13,
