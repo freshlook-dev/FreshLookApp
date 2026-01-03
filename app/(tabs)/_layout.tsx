@@ -1,7 +1,13 @@
-import { Image, Pressable } from 'react-native';
-import { Tabs, Redirect, useRouter, usePathname } from 'expo-router';
+import { Image, Pressable, Animated, Easing } from 'react-native';
+import {
+  Tabs,
+  Redirect,
+  useRouter,
+  usePathname,
+} from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useRef } from 'react';
 
 import { useAuth } from '../../context/AuthContext';
 
@@ -32,13 +38,27 @@ export default function TabsLayout() {
   const router = useRouter();
   const pathname = usePathname();
 
-  // 🔄 HARD REFRESH FUNCTION
+  /* 🔄 ANIMATION */
+  const rotateAnim = useRef(new Animated.Value(0)).current;
+
+  /* 🔄 HARD REFRESH + ANIMATION */
   const hardRefresh = () => {
-  if (loading) return;
-  router.replace({ pathname: pathname as any });
-};
+    if (loading) return;
 
+    rotateAnim.setValue(0);
 
+    Animated.timing(rotateAnim, {
+      toValue: 1,
+      duration: 600,
+      easing: Easing.out(Easing.ease),
+      useNativeDriver: true,
+    }).start();
+
+    router.replace({
+      pathname: pathname as any,
+      params: { _refresh: Date.now().toString() },
+    });
+  };
 
   // ✅ Redirects AFTER hooks
   if (loading) return null;
@@ -54,18 +74,29 @@ export default function TabsLayout() {
         headerLeft: () => <HeaderLogo />,
 
         /* 🔄 REFRESH BUTTON ON RIGHT */
-        headerRight: () => (
-          <Pressable
-            onPress={hardRefresh}
-            style={{ marginRight: 20 }}
-          >
-            <Ionicons
-              name="refresh"
-              size={22}
-              color={Colors.text}
-            />
-          </Pressable>
-        ),
+        headerRight: () => {
+          const spin = rotateAnim.interpolate({
+            inputRange: [0, 1],
+            outputRange: ['0deg', '360deg'],
+          });
+
+          return (
+            <Pressable
+              onPress={hardRefresh}
+              style={{ marginRight: 20 }}
+            >
+              <Animated.View
+                style={{ transform: [{ rotate: spin }] }}
+              >
+                <Ionicons
+                  name="refresh"
+                  size={22}
+                  color={Colors.text}
+                />
+              </Animated.View>
+            </Pressable>
+          );
+        },
 
         /* ✅ HEADER THEME */
         headerStyle: {

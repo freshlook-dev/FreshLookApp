@@ -140,6 +140,8 @@ export default function ProfileTab() {
 
     const result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      allowsEditing: true,
+      aspect: [1, 1],
       quality: 1,
     });
 
@@ -162,12 +164,12 @@ export default function ProfileTab() {
       const response = await fetch(manipulated.uri);
       const blob = await response.blob();
 
-      const filePath = `${user!.id}-${Date.now()}.jpg`;
+      const filePath = `${user!.id}.jpg`;
 
       const { error } = await supabase.storage
         .from('avatars')
         .upload(filePath, blob, {
-          upsert: false,
+          upsert: true,
           contentType: 'image/jpeg',
         });
 
@@ -177,12 +179,14 @@ export default function ProfileTab() {
         .from('avatars')
         .getPublicUrl(filePath);
 
+      const avatarUrl = `${data.publicUrl}?t=${Date.now()}`;
+
       await supabase
         .from('profiles')
-        .update({ avatar_url: data.publicUrl })
+        .update({ avatar_url: avatarUrl })
         .eq('id', user!.id);
 
-      setProfile((p) => (p ? { ...p, avatar_url: data.publicUrl } : p));
+      setProfile((p) => (p ? { ...p, avatar_url: avatarUrl } : p));
     } catch (err) {
       console.error(err);
       Alert.alert('Error', 'Failed to upload photo');
@@ -256,7 +260,9 @@ export default function ProfileTab() {
         { backgroundColor: Colors.background },
       ]}
     >
-      <Text style={[styles.pageTitle, { color: Colors.text }]}>My Profile</Text>
+      <Text style={[styles.pageTitle, { color: Colors.text }]}>
+        My Profile
+      </Text>
 
       <Pressable
         onPress={pickAndUploadAvatar}
@@ -278,7 +284,9 @@ export default function ProfileTab() {
 
       <View style={[styles.card, { backgroundColor: Colors.card }]}>
         <Text style={[styles.label, { color: Colors.muted }]}>Email</Text>
-        <Text style={[styles.value, { color: Colors.text }]}>{profile.email}</Text>
+        <Text style={[styles.value, { color: Colors.text }]}>
+          {profile.email}
+        </Text>
 
         <Text style={[styles.label, { marginTop: 12, color: Colors.muted }]}>
           Full name
@@ -300,7 +308,9 @@ export default function ProfileTab() {
         </Text>
 
         <View style={styles.themeRow}>
-          <Text style={{ color: Colors.text, fontWeight: '600' }}>Dark Mode</Text>
+          <Text style={{ color: Colors.text, fontWeight: '600' }}>
+            Dark Mode
+          </Text>
           <Switch
             value={theme === 'dark'}
             onValueChange={toggleTheme}
@@ -338,7 +348,9 @@ export default function ProfileTab() {
               onPress={() => generateAccessCode('staff')}
               style={[styles.primaryButton, { marginTop: 12 }]}
             >
-              <Text style={styles.primaryButtonText}>Generate Staff Code</Text>
+              <Text style={styles.primaryButtonText}>
+                Generate Staff Code
+              </Text>
             </Pressable>
 
             {generatedCode && (
@@ -369,7 +381,6 @@ export default function ProfileTab() {
           </>
         )}
 
-        {/* ✅ ONLY ADDED BUTTON */}
         {canViewStats && (
           <Pressable
             onPress={() => router.push('../(tabs)/stats')}
@@ -415,7 +426,9 @@ export default function ProfileTab() {
               <Text style={{ color: '#fff' }}>Cancel</Text>
             </Pressable>
             <Pressable onPress={saveCroppedImage} style={{ padding: 12 }}>
-              <Text style={{ color: '#C9A24D', fontWeight: '800' }}>Save</Text>
+              <Text style={{ color: '#C9A24D', fontWeight: '800' }}>
+                Save
+              </Text>
             </Pressable>
           </View>
         </View>
