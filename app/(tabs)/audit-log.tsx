@@ -56,6 +56,15 @@ const hasValidChanges = (log: AuditLogRow) => {
   );
 };
 
+/* ✅ GET CLIENT NAME (MINIMAL ADDITION) */
+const getClientName = (metadata: any): string | null => {
+  return (
+    metadata?.appointment?.client_name ||
+    metadata?.client_name ||
+    null
+  );
+};
+
 /* ================= METADATA RENDER ================= */
 
 const renderMetadata = (metadata: any, Colors: any) => {
@@ -208,6 +217,8 @@ export default function AuditLogsScreen() {
               ? users[item.actor_id]
               : 'System';
 
+          const clientName = getClientName(item.metadata);
+
           return (
             <View
               style={[
@@ -225,6 +236,12 @@ export default function AuditLogsScreen() {
                   {prettyAction(item.action)}
                 </Text>
               </View>
+
+              {clientName && (
+                <Text style={[styles.meta, { color: Colors.text }]}>
+                  📌 {clientName}
+                </Text>
+              )}
 
               <Text style={[styles.meta, { color: Colors.muted }]}>
                 👤 {actorName}
