@@ -41,6 +41,8 @@ const prettyAction = (action: string) => {
       return 'Appointment Created';
     case 'UPDATE_APPOINTMENT':
       return 'Appointment Updated';
+    case 'STATUS_CHANGE':
+      return 'Status Change';
     default:
       return action.replaceAll('_', ' ');
   }
@@ -63,7 +65,21 @@ const resolveClientName = (metadata: any): string | null => {
 
 const renderMetadata = (metadata: any, Colors: any) => {
   const changes = metadata?.changed;
-  if (!changes || typeof changes !== 'object') return null;
+
+  if (!changes || typeof changes !== 'object' || Object.keys(changes).length === 0) {
+    return (
+      <View
+        style={[
+          styles.noChangesBox,
+          { backgroundColor: Colors.background },
+        ]}
+      >
+        <Text style={[styles.noChangesText, { color: Colors.muted }]}>
+          No detailed field changes recorded
+        </Text>
+      </View>
+    );
+  }
 
   return (
     <View
@@ -306,6 +322,17 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: '#2E7D32',
     fontWeight: '700',
+  },
+
+  noChangesBox: {
+    marginTop: 12,
+    padding: 12,
+    borderRadius: 14,
+    alignItems: 'center',
+  },
+  noChangesText: {
+    fontSize: 13,
+    fontStyle: 'italic',
   },
 
   time: {
