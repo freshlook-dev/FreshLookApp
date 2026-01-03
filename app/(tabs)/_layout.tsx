@@ -213,12 +213,54 @@ export default function TabsLayout() {
       />
 
       {/* 🔒 HIDDEN SCREENS */}
-      <Tabs.Screen name="edit" options={{ href: null }} />
-      <Tabs.Screen name="change-password" options={{ href: null }} />
-      <Tabs.Screen name="manage-users" options={{ href: null }} />
-      <Tabs.Screen name="audit-log" options={{ href: null }} />
-      <Tabs.Screen name="archived" options={{ href: null }} />
-      <Tabs.Screen name="stats" options={{ href: null }} />
+      <Tabs.Screen
+  name="edit"
+  options={{
+    href: null,
+    title: 'Edit Appointment',
+  }}
+/>
+
+<Tabs.Screen
+  name="change-password"
+  options={{
+    href: null,
+    title: 'Change Password',
+  }}
+/>
+
+<Tabs.Screen
+  name="manage-users"
+  options={{
+    href: null,
+    title: 'Manage Users',
+  }}
+/>
+
+<Tabs.Screen
+  name="audit-log"
+  options={{
+    href: null,
+    title: 'Audit Logs',
+  }}
+/>
+
+<Tabs.Screen
+  name="archived"
+  options={{
+    href: null,
+    title: 'Archived Appointments',
+  }}
+/>
+
+<Tabs.Screen
+  name="stats"
+  options={{
+    href: null,
+    title: 'Staff Statistics',
+  }}
+/>
+
     </Tabs>
   );
 }
