@@ -1,5 +1,5 @@
-import { Image } from 'react-native';
-import { Tabs, Redirect } from 'expo-router';
+import { Image, Pressable } from 'react-native';
+import { Tabs, Redirect, useRouter, usePathname } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -29,6 +29,17 @@ export default function TabsLayout() {
   const { theme } = useTheme();
   const Colors = theme === 'dark' ? DarkColors : LightColors;
 
+  const router = useRouter();
+  const pathname = usePathname();
+
+  // 🔄 HARD REFRESH FUNCTION
+  const hardRefresh = () => {
+  if (loading) return;
+  router.replace({ pathname: pathname as any });
+};
+
+
+
   // ✅ Redirects AFTER hooks
   if (loading) return null;
   if (!user) return <Redirect href="/(auth)/login" />;
@@ -42,7 +53,21 @@ export default function TabsLayout() {
         /* 🖼 LOGO ON LEFT */
         headerLeft: () => <HeaderLogo />,
 
-        /* ✅ HEADER THEME (FIX) */
+        /* 🔄 REFRESH BUTTON ON RIGHT */
+        headerRight: () => (
+          <Pressable
+            onPress={hardRefresh}
+            style={{ marginRight: 20 }}
+          >
+            <Ionicons
+              name="refresh"
+              size={22}
+              color={Colors.text}
+            />
+          </Pressable>
+        ),
+
+        /* ✅ HEADER THEME */
         headerStyle: {
           backgroundColor: Colors.background,
         },
@@ -160,12 +185,12 @@ export default function TabsLayout() {
       />
 
       {/* 🔒 HIDDEN SCREENS */}
-
       <Tabs.Screen name="edit" options={{ href: null }} />
       <Tabs.Screen name="change-password" options={{ href: null }} />
       <Tabs.Screen name="manage-users" options={{ href: null }} />
       <Tabs.Screen name="audit-log" options={{ href: null }} />
       <Tabs.Screen name="archived" options={{ href: null }} />
+      <Tabs.Screen name="stats" options={{ href: null }} />
     </Tabs>
   );
 }
