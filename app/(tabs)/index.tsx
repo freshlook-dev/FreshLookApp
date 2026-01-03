@@ -52,6 +52,7 @@ export default function HomeTab() {
     setLoading(true);
 
     const today = new Date().toISOString().split('T')[0];
+    const currentMonth = new Date().toISOString().slice(0, 7);
 
     const { data: profile } = await supabase
       .from('profiles')
@@ -73,6 +74,7 @@ export default function HomeTab() {
       .from('appointments')
       .select('*', { count: 'exact', head: true })
       .eq('created_by', user!.id)
+      .eq('archived', false)
       .gte('created_at', firstDayOfMonth);
 
     setTotalCount(total ?? 0);
@@ -106,41 +108,21 @@ export default function HomeTab() {
 
     setFusheToday(fushe ?? 0);
 
-    const { data: monthlyAppointments } = await supabase
-      .from('appointments')
-      .select(
-        `
-        created_by,
-        profiles:created_by (
-          full_name,
-          avatar_url
-        )
-      `
-      )
-      .gte('created_at', firstDayOfMonth);
+    const { data: staffMonthly } = await supabase.rpc(
+      'appointment_stats_by_user_month'
+    );
 
-    if (monthlyAppointments) {
-      const map: Record<string, StaffStat> = {};
-
-      monthlyAppointments.forEach((a: any) => {
-        const id = a.created_by;
-        const name = a.profiles?.full_name ?? 'Unknown';
-        const avatar = a.profiles?.avatar_url ?? null;
-
-        if (!map[id]) {
-          map[id] = {
-            user_id: id,
-            full_name: name,
-            avatar_url: avatar,
-            count: 0,
-          };
-        }
-
-        map[id].count += 1;
-      });
-
+    if (staffMonthly) {
       setStaffStats(
-        Object.values(map).sort((a, b) => b.count - a.count)
+        staffMonthly
+          .filter((r: any) => r.month === currentMonth)
+          .map((r: any) => ({
+            user_id: r.user_id,
+            full_name: r.full_name,
+            avatar_url: null,
+            count: r.total,
+          }))
+          .sort((a: any, b: any) => b.count - a.count)
       );
     }
 
@@ -168,9 +150,7 @@ export default function HomeTab() {
         Mirë se vini!
       </Text>
 
-      <Text style={[styles.name, { color: Colors.text }]}>
-        {fullName}
-      </Text>
+      <Text style={[styles.name, { color: Colors.text }]}>{fullName}</Text>
 
       <View style={styles.statsRow}>
         <Card>
@@ -242,9 +222,7 @@ export default function HomeTab() {
                   ]}
                 />
 
-                <Text
-                  style={[styles.staffName, { color: Colors.text }]}
-                >
+                <Text style={[styles.staffName, { color: Colors.text }]}>
                   {renderBadge(index)} {item.full_name}
                 </Text>
               </View>
