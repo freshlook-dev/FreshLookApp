@@ -182,9 +182,7 @@ export default function ProfileTab() {
         .update({ avatar_url: data.publicUrl })
         .eq('id', user!.id);
 
-      setProfile((p) =>
-        p ? { ...p, avatar_url: data.publicUrl } : p
-      );
+      setProfile((p) => (p ? { ...p, avatar_url: data.publicUrl } : p));
     } catch (err) {
       console.error(err);
       Alert.alert('Error', 'Failed to upload photo');
@@ -249,6 +247,7 @@ export default function ProfileTab() {
   }
 
   const isOwner = profile.role === 'owner';
+  const canViewStats = profile.role === 'owner' || profile.role === 'manager';
 
   return (
     <ScrollView
@@ -257,9 +256,7 @@ export default function ProfileTab() {
         { backgroundColor: Colors.background },
       ]}
     >
-      <Text style={[styles.pageTitle, { color: Colors.text }]}>
-        My Profile
-      </Text>
+      <Text style={[styles.pageTitle, { color: Colors.text }]}>My Profile</Text>
 
       <Pressable
         onPress={pickAndUploadAvatar}
@@ -281,9 +278,7 @@ export default function ProfileTab() {
 
       <View style={[styles.card, { backgroundColor: Colors.card }]}>
         <Text style={[styles.label, { color: Colors.muted }]}>Email</Text>
-        <Text style={[styles.value, { color: Colors.text }]}>
-          {profile.email}
-        </Text>
+        <Text style={[styles.value, { color: Colors.text }]}>{profile.email}</Text>
 
         <Text style={[styles.label, { marginTop: 12, color: Colors.muted }]}>
           Full name
@@ -305,9 +300,7 @@ export default function ProfileTab() {
         </Text>
 
         <View style={styles.themeRow}>
-          <Text style={{ color: Colors.text, fontWeight: '600' }}>
-            Dark Mode
-          </Text>
+          <Text style={{ color: Colors.text, fontWeight: '600' }}>Dark Mode</Text>
           <Switch
             value={theme === 'dark'}
             onValueChange={toggleTheme}
@@ -345,9 +338,7 @@ export default function ProfileTab() {
               onPress={() => generateAccessCode('staff')}
               style={[styles.primaryButton, { marginTop: 12 }]}
             >
-              <Text style={styles.primaryButtonText}>
-                Generate Staff Code
-              </Text>
+              <Text style={styles.primaryButtonText}>Generate Staff Code</Text>
             </Pressable>
 
             {generatedCode && (
@@ -376,6 +367,16 @@ export default function ProfileTab() {
               </View>
             )}
           </>
+        )}
+
+        {/* ✅ ONLY ADDED BUTTON */}
+        {canViewStats && (
+          <Pressable
+            onPress={() => router.push('../(tabs)/stats')}
+            style={[styles.primaryButton, { marginTop: 12 }]}
+          >
+            <Text style={styles.primaryButtonText}>📊 Staff Stats</Text>
+          </Pressable>
         )}
       </View>
 
@@ -407,7 +408,10 @@ export default function ProfileTab() {
           </View>
 
           <View style={{ flexDirection: 'row', gap: 12, marginTop: 20 }}>
-            <Pressable onPress={() => setShowCropper(false)} style={{ padding: 12 }}>
+            <Pressable
+              onPress={() => setShowCropper(false)}
+              style={{ padding: 12 }}
+            >
               <Text style={{ color: '#fff' }}>Cancel</Text>
             </Pressable>
             <Pressable onPress={saveCroppedImage} style={{ padding: 12 }}>
