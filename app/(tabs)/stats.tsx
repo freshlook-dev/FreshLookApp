@@ -20,8 +20,28 @@ import { LightColors, DarkColors } from '../../constants/colors';
 type StatRow = {
   user_id: string;
   full_name: string;
-  month: string;
+  month: string; // YYYY-MM
   total: number;
+};
+
+const MONTHS_SQ: Record<string, string> = {
+  '01': 'Janar',
+  '02': 'Shkurt',
+  '03': 'Mars',
+  '04': 'Prill',
+  '05': 'Maj',
+  '06': 'Qershor',
+  '07': 'Korrik',
+  '08': 'Gusht',
+  '09': 'Shtator',
+  '10': 'Tetor',
+  '11': 'Nëntor',
+  '12': 'Dhjetor',
+};
+
+const formatMonth = (value: string) => {
+  const [year, month] = value.split('-');
+  return `${MONTHS_SQ[month]} ${year}`;
 };
 
 export default function StatsScreen() {
@@ -32,7 +52,6 @@ export default function StatsScreen() {
   const [stats, setStats] = useState<StatRow[]>([]);
   const [loading, setLoading] = useState(true);
 
-  // modal state
   const [selectedUser, setSelectedUser] = useState<string | null>(null);
   const [userStats, setUserStats] = useState<StatRow[]>([]);
   const [showModal, setShowModal] = useState(false);
@@ -45,7 +64,6 @@ export default function StatsScreen() {
   const init = async () => {
     setLoading(true);
 
-    // 🔒 role check
     const { data: profile } = await supabase
       .from('profiles')
       .select('role')
@@ -86,15 +104,9 @@ export default function StatsScreen() {
     );
   }
 
-  // unique users
   const users = Array.from(new Set(stats.map((s) => s.full_name)));
-
-  // max for bar scaling
   const maxValue = Math.max(...userStats.map((s) => s.total), 1);
-  const totalAppointments = userStats.reduce(
-    (sum, s) => sum + s.total,
-    0
-  );
+  const totalAppointments = userStats.reduce((sum, s) => sum + s.total, 0);
 
   return (
     <ScrollView
@@ -109,16 +121,18 @@ export default function StatsScreen() {
           key={name}
           style={[styles.card, { backgroundColor: Colors.card }]}
         >
-          <Text style={[styles.userName, { color: Colors.text }]}>
-            {name || 'Unnamed User'}
-          </Text>
+          <View style={styles.userRow}>
+            <Text style={[styles.userName, { color: Colors.text }]}>
+              {name}
+            </Text>
 
-          <Pressable
-            onPress={() => openStats(name)}
-            style={styles.viewBtn}
-          >
-            <Text style={styles.viewBtnText}>Shiko statistikat</Text>
-          </Pressable>
+            <Pressable
+              onPress={() => openStats(name)}
+              style={styles.viewBtn}
+            >
+              <Text style={styles.viewBtnText}>Shiko statistikat</Text>
+            </Pressable>
+          </View>
         </View>
       ))}
 
@@ -126,7 +140,7 @@ export default function StatsScreen() {
       <Modal
         visible={showModal}
         transparent
-        animationType="slide"
+        animationType="fade"
         onRequestClose={() => setShowModal(false)}
       >
         <View style={styles.modalOverlay}>
@@ -140,45 +154,47 @@ export default function StatsScreen() {
               {selectedUser}
             </Text>
 
-            {userStats.map((s) => {
-              const ratio = s.total / maxValue;
+            <View style={styles.verticalChart}>
+              {userStats.map((s) => {
+                const heightRatio = s.total / maxValue;
 
-              return (
-                <View key={s.month} style={styles.barRow}>
-                  <Text
-                    style={[styles.monthLabel, { color: Colors.muted }]}
-                  >
-                    {s.month}
-                  </Text>
+                return (
+                  <View key={s.month} style={styles.columnWrapper}>
+                    <View style={styles.columnBg}>
+                      <View
+                        style={[
+                          styles.columnFill,
+                          {
+                            flex: heightRatio,
+                            backgroundColor: '#2ECC71',
+                          },
+                        ]}
+                      />
+                    </View>
 
-                  <View style={styles.barBg}>
-                    <View
+                    <Text
                       style={[
-                        styles.barFill,
-                        {
-                          flex: ratio,
-                          backgroundColor: Colors.primary,
-                        },
+                        styles.columnValue,
+                        { color: Colors.text },
                       ]}
-                    />
-                    <View style={{ flex: 1 - ratio }} />
+                    >
+                      {s.total}
+                    </Text>
+
+                    <Text
+                      style={[
+                        styles.monthLabel,
+                        { color: Colors.muted },
+                      ]}
+                    >
+                      {formatMonth(s.month)}
+                    </Text>
                   </View>
+                );
+              })}
+            </View>
 
-                  <Text
-                    style={[styles.barValue, { color: Colors.text }]}
-                  >
-                    {s.total}
-                  </Text>
-                </View>
-              );
-            })}
-
-            <Text
-              style={[
-                styles.totalText,
-                { color: Colors.text },
-              ]}
-            >
+            <Text style={[styles.totalText, { color: Colors.text }]}>
               Totali: {totalAppointments} termine
             </Text>
 
@@ -217,75 +233,91 @@ const styles = StyleSheet.create({
     padding: 16,
     marginBottom: 14,
   },
+
+  userRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
   userName: {
     fontSize: 16,
     fontWeight: '800',
-    marginBottom: 10,
+    flex: 1,
+    marginRight: 12,
   },
 
   viewBtn: {
-    alignSelf: 'flex-start',
     backgroundColor: '#C9A24D',
-    paddingVertical: 8,
+    paddingVertical: 6,
     paddingHorizontal: 14,
-    borderRadius: 20,
+    borderRadius: 16,
   },
   viewBtnText: {
     color: '#fff',
     fontWeight: '700',
-    fontSize: 13,
+    fontSize: 12,
   },
 
-  /* MODAL */
   modalOverlay: {
     flex: 1,
     backgroundColor: 'rgba(0,0,0,0.6)',
-    justifyContent: 'flex-end',
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   modalContent: {
-    borderTopLeftRadius: 24,
-    borderTopRightRadius: 24,
+    width: '90%',
+    borderRadius: 24,
     padding: 20,
-    maxHeight: '85%',
   },
   modalTitle: {
     fontSize: 18,
     fontWeight: '800',
-    marginBottom: 16,
+    marginBottom: 20,
+    textAlign: 'center',
   },
 
-  barRow: {
-    marginBottom: 14,
-  },
-  monthLabel: {
-    fontSize: 12,
-    marginBottom: 4,
-  },
-  barBg: {
-    height: 10,
-    borderRadius: 10,
-    backgroundColor: '#E6E6E6',
-    overflow: 'hidden',
+  verticalChart: {
     flexDirection: 'row',
+    justifyContent: 'space-around',
+    alignItems: 'flex-end',
+    marginBottom: 20,
   },
-  barFill: {
-    height: 10,
+
+  columnWrapper: {
+    alignItems: 'center',
+    width: 60,
+  },
+  columnBg: {
+    height: 140,
+    width: 16,
+    backgroundColor: '#E6E6E6',
+    borderRadius: 10,
+    justifyContent: 'flex-end',
+    overflow: 'hidden',
+    marginBottom: 6,
+  },
+  columnFill: {
+    width: '100%',
     borderRadius: 10,
   },
-  barValue: {
-    marginTop: 4,
+  columnValue: {
     fontSize: 13,
     fontWeight: '700',
   },
+  monthLabel: {
+    fontSize: 11,
+    textAlign: 'center',
+    marginTop: 4,
+  },
 
   totalText: {
-    marginTop: 14,
+    textAlign: 'center',
     fontSize: 14,
     fontWeight: '800',
+    marginBottom: 16,
   },
 
   closeBtn: {
-    marginTop: 20,
     paddingVertical: 14,
     borderRadius: 16,
     backgroundColor: '#D64545',
