@@ -41,24 +41,26 @@ export default function TabsLayout() {
   /* 🔄 ANIMATION */
   const rotateAnim = useRef(new Animated.Value(0)).current;
 
-  /* 🔄 HARD REFRESH + ANIMATION */
+  /* 🔄 TRUE HARD REFRESH */
   const hardRefresh = () => {
-    if (loading) return;
+  if (loading) return;
 
-    rotateAnim.setValue(0);
+  rotateAnim.setValue(0);
 
-    Animated.timing(rotateAnim, {
-      toValue: 1,
-      duration: 600,
-      easing: Easing.out(Easing.ease),
-      useNativeDriver: true,
-    }).start();
+  Animated.timing(rotateAnim, {
+    toValue: 1,
+    duration: 600,
+    easing: Easing.out(Easing.ease),
+    useNativeDriver: true,
+  }).start();
 
-    router.replace({
-      pathname: pathname as any,
-      params: { _refresh: Date.now().toString() },
-    });
-  };
+  // 👇 FORCE FULL REMOUNT (tabs-safe)
+  router.replace('/_sitemap');
+  setTimeout(() => {
+    router.replace('/(tabs)');
+  }, 1);
+};
+
 
   // ✅ Redirects AFTER hooks
   if (loading) return null;
@@ -73,7 +75,7 @@ export default function TabsLayout() {
         /* 🖼 LOGO ON LEFT */
         headerLeft: () => <HeaderLogo />,
 
-        /* 🔄 REFRESH BUTTON ON RIGHT */
+        /* 🔄 REFRESH BUTTON */
         headerRight: () => {
           const spin = rotateAnim.interpolate({
             inputRange: [0, 1],
@@ -81,13 +83,8 @@ export default function TabsLayout() {
           });
 
           return (
-            <Pressable
-              onPress={hardRefresh}
-              style={{ marginRight: 20 }}
-            >
-              <Animated.View
-                style={{ transform: [{ rotate: spin }] }}
-              >
+            <Pressable onPress={hardRefresh} style={{ marginRight: 20 }}>
+              <Animated.View style={{ transform: [{ rotate: spin }] }}>
                 <Ionicons
                   name="refresh"
                   size={22}
