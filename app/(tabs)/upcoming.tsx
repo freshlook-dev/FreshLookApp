@@ -161,6 +161,9 @@ export default function UpcomingAppointments() {
 
     setProcessingId(id);
 
+    // 🔹 FIND APPOINTMENT SNAPSHOT FOR AUDIT LOG
+    const appointment = appointments.find((a) => a.id === id);
+
     const prev = appointments;
     setAppointments((p) => p.filter((a) => a.id !== id));
 
@@ -180,6 +183,26 @@ export default function UpcomingAppointments() {
       );
       setProcessingId(null);
       return;
+    }
+
+    // 🔹 AUDIT LOG (ONLY ADDITION)
+    if (appointment) {
+      await supabase.from('audit_logs').insert({
+        action: 'UPDATE_APPOINTMENT',
+        actor_id: user!.id,
+        metadata: {
+          appointment: {
+            client_name: appointment.client_name,
+            service: appointment.service,
+          },
+          changed: {
+            status: {
+              old: 'upcoming',
+              new: status,
+            },
+          },
+        },
+      });
     }
 
     setProcessingId(null);
