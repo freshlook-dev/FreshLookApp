@@ -289,6 +289,7 @@ export default function HistoryScreen() {
       {filter === 'arrived' && (
         <FlatList
           data={arrived}
+          extraData={filter}
           keyExtractor={(item) => item.id}
           renderItem={({ item }) => renderItem(item)}
         />
@@ -297,6 +298,7 @@ export default function HistoryScreen() {
       {filter === 'canceled' && (
         <FlatList
           data={canceled}
+          extraData={filter}
           keyExtractor={(item) => item.id}
           renderItem={({ item }) => renderItem(item)}
         />
@@ -340,10 +342,7 @@ export default function HistoryScreen() {
                         onPress={() =>
                           updateStatus(selected.id, 'arrived')
                         }
-                        style={[
-                          styles.statusBtn,
-                          { backgroundColor: Colors.card },
-                        ]}
+                        style={[styles.statusBtn, { backgroundColor: Colors.card }]}
                       >
                         <Text style={{ color: Colors.text, fontWeight: '700' }}>
                           Ka ardhur
@@ -356,10 +355,7 @@ export default function HistoryScreen() {
                         onPress={() =>
                           updateStatus(selected.id, 'canceled')
                         }
-                        style={[
-                          styles.statusBtn,
-                          { backgroundColor: Colors.card },
-                        ]}
+                        style={[styles.statusBtn, { backgroundColor: Colors.card }]}
                       >
                         <Text style={{ color: Colors.text, fontWeight: '700' }}>
                           Anulim
@@ -371,10 +367,7 @@ export default function HistoryScreen() {
                       onPress={() =>
                         updateStatus(selected.id, 'upcoming')
                       }
-                      style={[
-                        styles.statusBtn,
-                        { backgroundColor: Colors.card },
-                      ]}
+                      style={[styles.statusBtn, { backgroundColor: Colors.card }]}
                     >
                       <Text style={{ color: Colors.text, fontWeight: '700' }}>
                         Ne pritje
@@ -384,10 +377,7 @@ export default function HistoryScreen() {
                     {canManage && (
                       <Pressable
                         onPress={() => archiveRecord(selected.id)}
-                        style={[
-                          styles.hideBtn,
-                          { backgroundColor: Colors.primary },
-                        ]}
+                        style={[styles.hideBtn, { backgroundColor: Colors.primary }]}
                       >
                         <Text style={styles.hideText}>Fshih</Text>
                       </Pressable>
@@ -398,10 +388,7 @@ export default function HistoryScreen() {
                 {selected.archived && canManage && (
                   <Pressable
                     onPress={() => unarchiveRecord(selected.id)}
-                    style={[
-                      styles.unarchiveBtn,
-                      { backgroundColor: Colors.text },
-                    ]}
+                    style={[styles.unarchiveBtn, { backgroundColor: Colors.text }]}
                   >
                     <Text style={styles.unarchiveText}>Ç’arkivo</Text>
                   </Pressable>
