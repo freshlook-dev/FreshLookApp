@@ -35,88 +35,34 @@ const formatDateTime = (iso: string) => {
   })}`;
 };
 
-const prettyAction = (action: string) => {
+const actionLabel = (action: string) => {
   switch (action) {
-    case 'CREATE_APPOINTMENT':
-      return 'Appointment Created';
-    case 'UPDATE_APPOINTMENT':
-      return 'Appointment Updated';
     case 'STATUS_CHANGE':
       return 'Status Change';
+    case 'ARCHIVE':
+      return 'Archived';
+    case 'UNARCHIVE':
+      return 'Unarchived';
+    case 'UPDATE_APPOINTMENT':
+      return 'Appointment Updated';
     default:
       return action.replaceAll('_', ' ');
   }
 };
 
-/* ✅ ALWAYS RESOLVE CLIENT NAME */
-const resolveClientName = (metadata: any): string | null => {
-  if (!metadata || typeof metadata !== 'object') return null;
-
-  return (
-    metadata.client_name ||
-    metadata.appointment?.client_name ||
-    metadata.changed?.name?.new ||
-    metadata.changed?.name?.old ||
-    null
-  );
-};
-
-/* ================= METADATA RENDER ================= */
-
-const renderMetadata = (metadata: any, Colors: any) => {
-  const changes = metadata?.changed;
-
-  if (!changes || typeof changes !== 'object' || Object.keys(changes).length === 0) {
-    return (
-      <View
-        style={[
-          styles.noChangesBox,
-          { backgroundColor: Colors.background },
-        ]}
-      >
-        <Text style={[styles.noChangesText, { color: Colors.muted }]}>
-          No detailed field changes recorded
-        </Text>
-      </View>
-    );
+const prettyField = (field: string) => {
+  switch (field) {
+    case 'status':
+      return 'Status';
+    case 'archived':
+      return 'Archived';
+    case 'date':
+      return 'Date';
+    case 'time':
+      return 'Time';
+    default:
+      return field;
   }
-
-  return (
-    <View
-      style={[
-        styles.changesBox,
-        { backgroundColor: Colors.background },
-      ]}
-    >
-      <Text style={[styles.changesTitle, { color: Colors.text }]}>
-        Changes
-      </Text>
-
-      {Object.entries(changes).map(([field, value]: any) => {
-        if (!value || typeof value !== 'object') return null;
-
-        return (
-          <View key={field} style={styles.changeRow}>
-            <Text style={[styles.changeField, { color: Colors.muted }]}>
-              {field}
-            </Text>
-
-            <View style={styles.changeValues}>
-              <Text style={styles.oldValue}>
-                {String(value.old ?? '—')}
-              </Text>
-              <Text style={[styles.arrow, { color: Colors.muted }]}>
-                →
-              </Text>
-              <Text style={styles.newValue}>
-                {String(value.new ?? '—')}
-              </Text>
-            </View>
-          </View>
-        );
-      })}
-    </View>
-  );
 };
 
 /* ================= SCREEN ================= */
@@ -159,7 +105,10 @@ export default function AuditLogsScreen() {
       .select('id, full_name');
 
     const map: Record<string, string> = {};
-    data?.forEach((u: any) => (map[u.id] = u.full_name || 'Unknown'));
+    data?.forEach((u: any) => {
+      map[u.id] = u.full_name || 'Unknown';
+    });
+
     setUsers(map);
   };
 
@@ -196,7 +145,10 @@ export default function AuditLogsScreen() {
               ? users[item.actor_id]
               : 'System';
 
-          const clientName = resolveClientName(item.metadata);
+          const clientName =
+            item.metadata?.client_name ?? null;
+
+          const changes = item.metadata?.changed ?? null;
 
           return (
             <View style={[styles.card, { backgroundColor: Colors.card }]}>
@@ -208,7 +160,7 @@ export default function AuditLogsScreen() {
                   ]}
                 >
                   <Text style={styles.badgeText}>
-                    {prettyAction(item.action)}
+                    {actionLabel(item.action)}
                   </Text>
                 </View>
 
@@ -227,7 +179,58 @@ export default function AuditLogsScreen() {
                 ✏️ {actor}
               </Text>
 
-              {renderMetadata(item.metadata, Colors)}
+              {/* CHANGES */}
+              {changes && Object.keys(changes).length > 0 ? (
+                <View
+                  style={[
+                    styles.changesBox,
+                    { backgroundColor: Colors.background },
+                  ]}
+                >
+                  <Text
+                    style={[
+                      styles.changesTitle,
+                      { color: Colors.text },
+                    ]}
+                  >
+                    Changes
+                  </Text>
+
+                  {Object.entries(changes).map(([field, value]: any) => (
+                    <View key={field} style={styles.changeRow}>
+                      <Text
+                        style={[
+                          styles.changeField,
+                          { color: Colors.muted },
+                        ]}
+                      >
+                        {prettyField(field)}
+                      </Text>
+
+                      <View style={styles.changeValues}>
+                        <Text style={styles.oldValue}>
+                          {String(value.old ?? '—')}
+                        </Text>
+                        <Text
+                          style={[
+                            styles.arrow,
+                            { color: Colors.muted },
+                          ]}
+                        >
+                          →
+                        </Text>
+                        <Text style={styles.newValue}>
+                          {String(value.new ?? '—')}
+                        </Text>
+                      </View>
+                    </View>
+                  ))}
+                </View>
+              ) : (
+                <Text style={[styles.noChanges, { color: Colors.muted }]}>
+                  No detailed field changes recorded
+                </Text>
+              )}
             </View>
           );
         }}
@@ -243,15 +246,15 @@ const styles = StyleSheet.create({
     flex: 1,
     padding: 20,
   },
-  pageTitle: {
-    fontSize: 26,
-    fontWeight: '800',
-    marginBottom: 16,
-  },
   center: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
+  },
+  pageTitle: {
+    fontSize: 26,
+    fontWeight: '800',
+    marginBottom: 16,
   },
 
   card: {
@@ -324,13 +327,8 @@ const styles = StyleSheet.create({
     fontWeight: '700',
   },
 
-  noChangesBox: {
+  noChanges: {
     marginTop: 12,
-    padding: 12,
-    borderRadius: 14,
-    alignItems: 'center',
-  },
-  noChangesText: {
     fontSize: 13,
     fontStyle: 'italic',
   },
