@@ -198,7 +198,7 @@ export default function HistoryScreen() {
       Platform.OS === 'web'
         ? window.confirm('A jeni të sigurt?')
         : await new Promise<boolean>((resolve) => {
-            Alert.alert('Fshih regjistrimin', 'A jeni të sigurt?', [
+            Alert.alert('Arkivo regjistrimin', 'A jeni të sigurt?', [
               { text: 'Jo', style: 'cancel', onPress: () => resolve(false) },
               { text: 'Po', onPress: () => resolve(true) },
             ]);
@@ -308,7 +308,7 @@ export default function HistoryScreen() {
             onPress={() => router.push('/archived')}
             style={[
               styles.archiveNavBtn,
-              { backgroundColor: Colors.text },
+              { backgroundColor: Colors.primary },
             ]}
           >
             <Text style={styles.archiveNavText}>Arkivuar</Text>
@@ -395,7 +395,7 @@ export default function HistoryScreen() {
                         onPress={() => archiveRecord(selected.id)}
                         style={[styles.hideBtn, { backgroundColor: Colors.primary }]}
                       >
-                        <Text style={styles.hideText}>Fshih</Text>
+                        <Text style={styles.hideText}>Arkivo</Text>
                       </Pressable>
                     )}
                   </>
@@ -404,7 +404,7 @@ export default function HistoryScreen() {
                 {selected.archived && canManage && (
                   <Pressable
                     onPress={() => unarchiveRecord(selected.id)}
-                    style={[styles.unarchiveBtn, { backgroundColor: Colors.text }]}
+                    style={[styles.unarchiveBtn, { backgroundColor: Colors.primary }]}
                   >
                     <Text style={styles.unarchiveText}>Ç’arkivo</Text>
                   </Pressable>
