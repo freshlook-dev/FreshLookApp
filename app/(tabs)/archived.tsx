@@ -160,6 +160,9 @@ export default function ArchivedScreen() {
   /* ---------------- UNARCHIVE ---------------- */
 
   const unarchiveRecord = async (id: string) => {
+    const appointment = appointments.find((a) => a.id === id);
+    if (!appointment) return;
+
     const { error } = await supabase
       .from('appointments')
       .update({ archived: false })
@@ -174,7 +177,12 @@ export default function ArchivedScreen() {
       actor_id: user!.id,
       action: 'UNARCHIVE',
       target_id: id,
-      metadata: { screen: 'archived' },
+      metadata: {
+        appointment: {
+          client_name: appointment.client_name,
+          service: appointment.service,
+        },
+      },
     });
 
     setSelected(null);

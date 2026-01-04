@@ -131,7 +131,10 @@ export default function HistoryScreen() {
       action: 'STATUS_CHANGE',
       target_id: appointment.id,
       metadata: {
-        client_name: appointment.client_name,
+        appointment: {
+          client_name: appointment.client_name,
+          service: appointment.service,
+        },
         changed: {
           status: {
             old: appointment.status,
@@ -153,7 +156,10 @@ export default function HistoryScreen() {
       action: archived ? 'ARCHIVE' : 'UNARCHIVE',
       target_id: appointment.id,
       metadata: {
-        client_name: appointment.client_name,
+        appointment: {
+          client_name: appointment.client_name,
+          service: appointment.service,
+        },
         changed: {
           archived: {
             old: !archived,
@@ -378,7 +384,6 @@ export default function HistoryScreen() {
                       </Pressable>
                     )}
 
-                    {/* 🔥 RESTORED BUTTON */}
                     {selected.status !== 'upcoming' && (
                       <Pressable
                         onPress={() =>
