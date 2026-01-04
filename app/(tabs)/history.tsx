@@ -16,7 +16,6 @@ import { router } from 'expo-router';
 
 import { supabase } from '../../context/supabase';
 import { useAuth } from '../../context/AuthContext';
-
 import { useTheme } from '../../context/ThemeContext';
 import { LightColors, DarkColors } from '../../constants/colors';
 
@@ -46,7 +45,6 @@ const formatDate = (date: string) => {
 
 export default function HistoryScreen() {
   const { user } = useAuth();
-
   const { theme } = useTheme();
   const Colors = theme === 'dark' ? DarkColors : LightColors;
 
@@ -55,7 +53,6 @@ export default function HistoryScreen() {
   const [canceled, setCanceled] = useState<Appointment[]>([]);
   const [archived, setArchived] = useState<Appointment[]>([]);
   const [selected, setSelected] = useState<Appointment | null>(null);
-
   const [canManage, setCanManage] = useState(false);
   const [filter, setFilter] = useState<Filter>('arrived');
 
@@ -66,24 +63,7 @@ export default function HistoryScreen() {
     }
   }, [user]);
 
-  /* ---------------- AUDIT LOG ---------------- */
-
-  const logAction = async (
-    action: 'STATUS_CHANGE' | 'ARCHIVE' | 'UNARCHIVE',
-    targetId: string,
-    metadata?: any
-  ) => {
-    if (!user?.id) return;
-
-    await supabase.from('audit_logs').insert({
-      actor_id: user.id,
-      action,
-      target_id: targetId,
-      metadata,
-    });
-  };
-
-  /* ---------------- LOAD DATA ---------------- */
+  /* ================= LOAD DATA ================= */
 
   const loadData = async () => {
     setLoading(true);
@@ -124,7 +104,7 @@ export default function HistoryScreen() {
     setLoading(false);
   };
 
-  /* ---------------- ROLE ---------------- */
+  /* ================= ROLE ================= */
 
   const checkUserRole = async () => {
     if (!user?.id) return;
@@ -138,9 +118,60 @@ export default function HistoryScreen() {
     setCanManage(data?.role === 'owner' || data?.role === 'manager');
   };
 
-  /* ---------------- ACTIONS ---------------- */
+  /* ================= AUDIT HELPERS ================= */
+
+  const logStatusChange = async (
+    appointment: Appointment,
+    newStatus: Status
+  ) => {
+    if (!user?.id) return;
+
+    await supabase.from('audit_logs').insert({
+      actor_id: user.id,
+      action: 'STATUS_CHANGE',
+      target_id: appointment.id,
+      metadata: {
+        client_name: appointment.client_name,
+        changed: {
+          status: {
+            old: appointment.status,
+            new: newStatus,
+          },
+        },
+      },
+    });
+  };
+
+  const logArchiveChange = async (
+    appointment: Appointment,
+    archived: boolean
+  ) => {
+    if (!user?.id) return;
+
+    await supabase.from('audit_logs').insert({
+      actor_id: user.id,
+      action: archived ? 'ARCHIVE' : 'UNARCHIVE',
+      target_id: appointment.id,
+      metadata: {
+        client_name: appointment.client_name,
+        changed: {
+          archived: {
+            old: !archived,
+            new: archived,
+          },
+        },
+      },
+    });
+  };
+
+  /* ================= ACTIONS ================= */
 
   const updateStatus = async (id: string, status: Status) => {
+    const appointment = [...arrived, ...canceled, ...archived].find(
+      (a) => a.id === id
+    );
+    if (!appointment) return;
+
     const { error } = await supabase
       .from('appointments')
       .update({ status })
@@ -151,7 +182,7 @@ export default function HistoryScreen() {
       return;
     }
 
-    await logAction('STATUS_CHANGE', id, { status });
+    await logStatusChange(appointment, status);
 
     setSelected(null);
     loadData();
@@ -160,13 +191,14 @@ export default function HistoryScreen() {
   const archiveRecord = async (id: string) => {
     if (!canManage) return;
 
-    const message = 'A jeni të sigurt që doni ta fshihni këtë regjistrim?';
+    const appointment = [...arrived, ...canceled].find((a) => a.id === id);
+    if (!appointment) return;
 
     const confirmed =
       Platform.OS === 'web'
-        ? window.confirm(message)
+        ? window.confirm('A jeni të sigurt?')
         : await new Promise<boolean>((resolve) => {
-            Alert.alert('Fshih regjistrimin', message, [
+            Alert.alert('Fshih regjistrimin', 'A jeni të sigurt?', [
               { text: 'Jo', style: 'cancel', onPress: () => resolve(false) },
               { text: 'Po', onPress: () => resolve(true) },
             ]);
@@ -174,14 +206,12 @@ export default function HistoryScreen() {
 
     if (!confirmed) return;
 
-    const { error } = await supabase
+    await supabase
       .from('appointments')
       .update({ archived: true })
       .eq('id', id);
 
-    if (!error) {
-      await logAction('ARCHIVE', id);
-    }
+    await logArchiveChange(appointment, true);
 
     setSelected(null);
     loadData();
@@ -190,20 +220,21 @@ export default function HistoryScreen() {
   const unarchiveRecord = async (id: string) => {
     if (!canManage) return;
 
-    const { error } = await supabase
+    const appointment = archived.find((a) => a.id === id);
+    if (!appointment) return;
+
+    await supabase
       .from('appointments')
       .update({ archived: false })
       .eq('id', id);
 
-    if (!error) {
-      await logAction('UNARCHIVE', id);
-    }
+    await logArchiveChange(appointment, false);
 
     setSelected(null);
     loadData();
   };
 
-  /* ---------------- RENDER ---------------- */
+  /* ================= RENDER ================= */
 
   const renderItem = (item: Appointment) => (
     <Pressable
@@ -231,7 +262,6 @@ export default function HistoryScreen() {
 
   return (
     <View style={[styles.container, { backgroundColor: Colors.background }]}>
-      {/* FILTER BUTTONS */}
       <View style={styles.filterRow}>
         <Pressable
           onPress={() => setFilter('arrived')}
@@ -289,7 +319,6 @@ export default function HistoryScreen() {
       {filter === 'arrived' && (
         <FlatList
           data={arrived}
-          extraData={filter}
           keyExtractor={(item) => item.id}
           renderItem={({ item }) => renderItem(item)}
         />
@@ -298,20 +327,16 @@ export default function HistoryScreen() {
       {filter === 'canceled' && (
         <FlatList
           data={canceled}
-          extraData={filter}
           keyExtractor={(item) => item.id}
           renderItem={({ item }) => renderItem(item)}
         />
       )}
 
-      {/* MODAL */}
       <Modal visible={!!selected} transparent animationType="fade">
         <View style={styles.modalOverlay}>
           <View style={[styles.modalCard, { backgroundColor: Colors.card }]}>
             <Pressable onPress={() => setSelected(null)} style={styles.close}>
-              <Text style={[styles.closeText, { color: Colors.text }]}>
-                ✕
-              </Text>
+              <Text style={[styles.closeText, { color: Colors.text }]}>✕</Text>
             </Pressable>
 
             {selected && (
@@ -329,12 +354,6 @@ export default function HistoryScreen() {
                   {selected.appointment_time}
                 </Text>
 
-                {selected.creator_name && (
-                  <Text style={[styles.modalText, { color: Colors.muted }]}>
-                    👤 {selected.creator_name}
-                  </Text>
-                )}
-
                 {!selected.archived && (
                   <>
                     {selected.status !== 'arrived' && (
@@ -342,11 +361,9 @@ export default function HistoryScreen() {
                         onPress={() =>
                           updateStatus(selected.id, 'arrived')
                         }
-                        style={[styles.statusBtn, { backgroundColor: Colors.card }]}
+                        style={styles.statusBtn}
                       >
-                        <Text style={{ color: Colors.text, fontWeight: '700' }}>
-                          Ka ardhur
-                        </Text>
+                        <Text style={styles.statusText}>Ka ardhur</Text>
                       </Pressable>
                     )}
 
@@ -355,24 +372,11 @@ export default function HistoryScreen() {
                         onPress={() =>
                           updateStatus(selected.id, 'canceled')
                         }
-                        style={[styles.statusBtn, { backgroundColor: Colors.card }]}
+                        style={styles.statusBtn}
                       >
-                        <Text style={{ color: Colors.text, fontWeight: '700' }}>
-                          Anulim
-                        </Text>
+                        <Text style={styles.statusText}>Anulim</Text>
                       </Pressable>
                     )}
-
-                    <Pressable
-                      onPress={() =>
-                        updateStatus(selected.id, 'upcoming')
-                      }
-                      style={[styles.statusBtn, { backgroundColor: Colors.card }]}
-                    >
-                      <Text style={{ color: Colors.text, fontWeight: '700' }}>
-                        Ne pritje
-                      </Text>
-                    </Pressable>
 
                     {canManage && (
                       <Pressable
@@ -402,22 +406,12 @@ export default function HistoryScreen() {
   );
 }
 
-/* ---------------- STYLES ---------------- */
+/* ================= STYLES ================= */
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    padding: 20,
-  },
-  center: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  filterRow: {
-    flexDirection: 'row',
-    marginBottom: 16,
-  },
+  container: { flex: 1, padding: 20 },
+  center: { flex: 1, justifyContent: 'center', alignItems: 'center' },
+  filterRow: { flexDirection: 'row', marginBottom: 16 },
   filterBtn: {
     flex: 1,
     paddingVertical: 10,
@@ -425,85 +419,48 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginRight: 6,
   },
-  filterText: {
-    fontWeight: '700',
-  },
+  filterText: { fontWeight: '700' },
   archiveNavBtn: {
     paddingVertical: 10,
     paddingHorizontal: 12,
     borderRadius: 10,
     alignItems: 'center',
   },
-  archiveNavText: {
-    color: '#FFFFFF',
-    fontWeight: '700',
-  },
-  row: {
-    padding: 14,
-    borderRadius: 14,
-    marginBottom: 8,
-  },
-  client: {
-    fontSize: 15,
-    fontWeight: '700',
-  },
-  creator: {
-    fontSize: 12,
-    marginTop: 4,
-  },
+  archiveNavText: { color: '#fff', fontWeight: '700' },
+  row: { padding: 14, borderRadius: 14, marginBottom: 8 },
+  client: { fontSize: 15, fontWeight: '700' },
+  creator: { fontSize: 12, marginTop: 4 },
   modalOverlay: {
     flex: 1,
     backgroundColor: 'rgba(0,0,0,0.4)',
     justifyContent: 'center',
     alignItems: 'center',
   },
-  modalCard: {
-    borderRadius: 16,
-    padding: 20,
-    width: '90%',
-  },
-  close: {
-    position: 'absolute',
-    top: 10,
-    right: 14,
-  },
-  closeText: {
-    fontSize: 18,
-    fontWeight: '800',
-  },
-  modalName: {
-    fontSize: 18,
-    fontWeight: '800',
-    marginBottom: 6,
-  },
-  modalText: {
-    fontSize: 14,
-    marginBottom: 4,
-  },
+  modalCard: { borderRadius: 16, padding: 20, width: '90%' },
+  close: { position: 'absolute', top: 10, right: 14 },
+  closeText: { fontSize: 18, fontWeight: '800' },
+  modalName: { fontSize: 18, fontWeight: '800', marginBottom: 6 },
+  modalText: { fontSize: 14, marginBottom: 4 },
   statusBtn: {
     marginTop: 10,
     paddingVertical: 10,
     borderRadius: 10,
     alignItems: 'center',
+    backgroundColor: '#EDEDED',
   },
+  statusText: { fontWeight: '700' },
   hideBtn: {
     marginTop: 12,
     paddingVertical: 10,
     borderRadius: 10,
     alignItems: 'center',
   },
-  hideText: {
-    color: '#FFFFFF',
-    fontWeight: '700',
-  },
+  hideText: { color: '#fff', fontWeight: '700' },
   unarchiveBtn: {
     marginTop: 16,
     paddingVertical: 10,
     borderRadius: 10,
     alignItems: 'center',
   },
-  unarchiveText: {
-    color: '#FFFFFF',
-    fontWeight: '700',
-  },
+  unarchiveText: { color: '#fff', fontWeight: '700' },
 });
