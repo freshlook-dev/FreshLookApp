@@ -378,6 +378,18 @@ export default function HistoryScreen() {
                       </Pressable>
                     )}
 
+                    {/* 🔥 RESTORED BUTTON */}
+                    {selected.status !== 'upcoming' && (
+                      <Pressable
+                        onPress={() =>
+                          updateStatus(selected.id, 'upcoming')
+                        }
+                        style={styles.statusBtn}
+                      >
+                        <Text style={styles.statusText}>Në pritje</Text>
+                      </Pressable>
+                    )}
+
                     {canManage && (
                       <Pressable
                         onPress={() => archiveRecord(selected.id)}
