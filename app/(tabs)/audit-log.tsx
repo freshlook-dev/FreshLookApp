@@ -35,16 +35,18 @@ const formatDateTime = (iso: string) => {
   })}`;
 };
 
-const actionLabel = (action: string) => {
+const actionLabel = (action: string, metadata: any) => {
+  if (metadata?.changed?.status) {
+    return 'Status Change';
+  }
+
   switch (action) {
-    case 'STATUS_CHANGE':
-      return 'Status Change';
-    case 'ARCHIVE':
-      return 'Archived';
-    case 'UNARCHIVE':
-      return 'Unarchived';
     case 'UPDATE_APPOINTMENT':
       return 'Appointment Updated';
+    case 'CREATE_APPOINTMENT':
+      return 'Create Appointment';
+    case 'USE_ACCESS_CODE':
+      return 'Use Access Code';
     default:
       return action.replaceAll('_', ' ');
   }
@@ -145,19 +147,10 @@ export default function AuditLogsScreen() {
               ? users[item.actor_id]
               : 'System';
 
-          const clientName = item.metadata?.client_name ?? null;
+          const clientName =
+            item.metadata?.appointment?.client_name ?? null;
 
-          // 🔥 NORMALIZE CHANGES
-          let changes = item.metadata?.changed ?? null;
-
-          if (!changes && item.metadata?.old_status !== undefined) {
-            changes = {
-              status: {
-                old: item.metadata.old_status,
-                new: item.metadata.new_status,
-              },
-            };
-          }
+          const changes = item.metadata?.changed ?? null;
 
           return (
             <View style={[styles.card, { backgroundColor: Colors.card }]}>
@@ -169,7 +162,7 @@ export default function AuditLogsScreen() {
                   ]}
                 >
                   <Text style={styles.badgeText}>
-                    {actionLabel(item.action)}
+                    {actionLabel(item.action, item.metadata)}
                   </Text>
                 </View>
 
@@ -264,19 +257,16 @@ const styles = StyleSheet.create({
     fontWeight: '800',
     marginBottom: 16,
   },
-
   card: {
     borderRadius: 20,
     padding: 16,
     marginBottom: 14,
   },
-
   headerRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
   },
-
   badge: {
     paddingHorizontal: 12,
     paddingVertical: 5,
@@ -287,18 +277,15 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: '800',
   },
-
   client: {
     marginTop: 10,
     fontSize: 15,
     fontWeight: '800',
   },
-
   actor: {
     marginTop: 4,
     fontSize: 13,
   },
-
   changesBox: {
     marginTop: 12,
     padding: 12,
@@ -334,13 +321,11 @@ const styles = StyleSheet.create({
     color: '#2E7D32',
     fontWeight: '700',
   },
-
   noChanges: {
     marginTop: 12,
     fontSize: 13,
     fontStyle: 'italic',
   },
-
   time: {
     fontSize: 12,
   },
