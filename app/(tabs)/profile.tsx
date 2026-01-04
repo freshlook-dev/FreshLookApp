@@ -16,12 +16,16 @@ import {
 import { router } from 'expo-router';
 import * as ImagePicker from 'expo-image-picker';
 import * as ImageManipulator from 'expo-image-manipulator';
-import Cropper from 'react-easy-crop';
-
 import { useAuth } from '../../context/AuthContext';
 import { supabase } from '../../context/supabase';
 import { useTheme } from '../../context/ThemeContext';
 import { LightColors, DarkColors } from '../../constants/colors';
+let Cropper: any = null;
+
+if (Platform.OS === 'web') {
+  Cropper = require('react-easy-crop').default;
+}
+
 
 type Role = 'owner' | 'manager' | 'staff';
 
