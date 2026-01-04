@@ -145,10 +145,19 @@ export default function AuditLogsScreen() {
               ? users[item.actor_id]
               : 'System';
 
-          const clientName =
-            item.metadata?.client_name ?? null;
+          const clientName = item.metadata?.client_name ?? null;
 
-          const changes = item.metadata?.changed ?? null;
+          // 🔥 NORMALIZE CHANGES
+          let changes = item.metadata?.changed ?? null;
+
+          if (!changes && item.metadata?.old_status !== undefined) {
+            changes = {
+              status: {
+                old: item.metadata.old_status,
+                new: item.metadata.new_status,
+              },
+            };
+          }
 
           return (
             <View style={[styles.card, { backgroundColor: Colors.card }]}>
@@ -179,7 +188,6 @@ export default function AuditLogsScreen() {
                 ✏️ {actor}
               </Text>
 
-              {/* CHANGES */}
               {changes && Object.keys(changes).length > 0 ? (
                 <View
                   style={[
