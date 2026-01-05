@@ -21,6 +21,7 @@ import { LightColors, DarkColors } from '../../constants/colors';
 
 type Status = 'arrived' | 'canceled' | 'upcoming';
 type Filter = 'arrived' | 'canceled';
+type Role = 'owner' | 'manager' | 'staff';
 
 type Appointment = {
   id: string;
@@ -34,7 +35,7 @@ type Appointment = {
   status: Status;
   archived: boolean;
   creator_name: string | null;
-  payment_method: string | null; // ✅ ONLY added for badge
+  payment_method: string | null;
 };
 
 const formatDate = (date: string) => {
@@ -55,6 +56,7 @@ export default function HistoryScreen() {
   const [archived, setArchived] = useState<Appointment[]>([]);
   const [selected, setSelected] = useState<Appointment | null>(null);
   const [canManage, setCanManage] = useState(false);
+  const [role, setRole] = useState<Role>('staff');
   const [filter, setFilter] = useState<Filter>('arrived');
 
   useEffect(() => {
@@ -118,6 +120,7 @@ export default function HistoryScreen() {
       .single();
 
     setCanManage(data?.role === 'owner' || data?.role === 'manager');
+    setRole((data?.role as Role) ?? 'staff');
   };
 
   /* ================= AUDIT HELPERS ================= */
@@ -393,9 +396,14 @@ export default function HistoryScreen() {
                   </Text>
                 )}
 
+                {/* 🔐 ONLY THIS LOGIC CHANGED */}
                 {selected.status === 'arrived' &&
                   !selected.archived &&
-                  canManage && (
+                  (
+                    role === 'owner' ||
+                    (role === 'manager' &&
+                      selected.payment_method === null)
+                  ) && (
                     <Pressable
                       onPress={() => {
                         setSelected(null);

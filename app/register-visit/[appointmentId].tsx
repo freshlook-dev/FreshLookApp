@@ -57,7 +57,8 @@ export default function RegisterVisitScreen() {
         .single(),
     ]);
 
-    setRole(profile?.role ?? 'staff');
+    const userRole: Role = profile?.role ?? 'staff';
+    setRole(userRole);
 
     if (appointment?.payment_method) {
       setExisting(true);
@@ -66,13 +67,28 @@ export default function RegisterVisitScreen() {
       setPaidCash(appointment.paid_cash?.toString() ?? '');
       setPaidBank(appointment.paid_bank?.toString() ?? '');
       setNotes(appointment.visit_notes ?? '');
+
+      // 🔒 Block ONLY non-owner
+      if (userRole !== 'owner') {
+        Alert.alert(
+          'E bllokuar',
+          'Kjo vizitë është regjistruar dhe nuk mund të ndryshohet.',
+          [{ text: 'OK', onPress: () => router.replace('/(tabs)') }]
+        );
+        setLoading(false);
+        return;
+      }
     }
 
     setLoading(false);
   };
 
+  // ✅ Owner can ALWAYS save
+  // ✅ Manager only before registration
   const canSave =
     role === 'owner' || (role === 'manager' && !existing);
+
+  const inputsDisabled = !canSave;
 
   const validate = () => {
     if (paymentMethod === 'cash' && !paidCash) return false;
@@ -152,27 +168,8 @@ export default function RegisterVisitScreen() {
     }
   };
 
-  /* ================= LEAVE WITHOUT SAVING ================= */
-
   const handleLeave = () => {
-    if (Platform.OS === 'web') {
-      if (
-        window.confirm(
-          'Ndryshimet nuk janë ruajtur. A jeni të sigurt që dëshironi të largoheni?'
-        )
-      ) {
-        router.replace('/(tabs)');
-      }
-    } else {
-      Alert.alert(
-        'Pa ruajtur',
-        'Ndryshimet nuk janë ruajtur. A jeni të sigurt që dëshironi të largoheni?',
-        [
-          { text: 'Qëndro', style: 'cancel' },
-          { text: 'Largohu', onPress: () => router.replace('/(tabs)') },
-        ]
-      );
-    }
+    router.replace('/(tabs)');
   };
 
   if (loading) {
@@ -193,12 +190,14 @@ export default function RegisterVisitScreen() {
         {(['cash', 'bank', 'mixed'] as PaymentMethod[]).map((m) => (
           <Pressable
             key={m}
+            disabled={inputsDisabled}
             onPress={() => setPaymentMethod(m)}
             style={[
               styles.methodBtn,
               {
                 backgroundColor:
                   paymentMethod === m ? Colors.primary : Colors.card,
+                opacity: inputsDisabled ? 0.5 : 1,
               },
             ]}
           >
@@ -217,6 +216,7 @@ export default function RegisterVisitScreen() {
         <View style={styles.moneyRow}>
           <Text style={styles.euro}>€</Text>
           <TextInput
+            editable={!inputsDisabled}
             value={paidCash}
             onChangeText={setPaidCash}
             keyboardType="numeric"
@@ -229,6 +229,7 @@ export default function RegisterVisitScreen() {
         <View style={styles.moneyRow}>
           <Text style={styles.euro}>€</Text>
           <TextInput
+            editable={!inputsDisabled}
             value={paidBank}
             onChangeText={setPaidBank}
             keyboardType="numeric"
@@ -238,6 +239,7 @@ export default function RegisterVisitScreen() {
       )}
 
       <TextInput
+        editable={!inputsDisabled}
         value={notes}
         onChangeText={setNotes}
         placeholder="Shënime shtesë"
@@ -245,16 +247,21 @@ export default function RegisterVisitScreen() {
         style={[styles.input, { height: 90 }]}
       />
 
-      {/* SAVE */}
       <Pressable
         onPress={handleSave}
-        disabled={saving}
-        style={[styles.saveBtn, { backgroundColor: Colors.primary }]}
+        disabled={!canSave || saving}
+        style={[
+          styles.saveBtn,
+          {
+            backgroundColor: canSave ? Colors.primary : Colors.muted,
+          },
+        ]}
       >
-        <Text style={styles.saveText}>Ruaj</Text>
+        <Text style={styles.saveText}>
+          {existing ? 'Përditëso' : 'Ruaj'}
+        </Text>
       </Pressable>
 
-      {/* LEAVE WITHOUT SAVING */}
       <Pressable
         onPress={handleLeave}
         style={[styles.homeBtn, { backgroundColor: Colors.card }]}
