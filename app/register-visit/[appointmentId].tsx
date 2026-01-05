@@ -32,8 +32,7 @@ export default function RegisterVisitScreen() {
 
   const [role, setRole] = useState<Role>('staff');
 
-  const [paymentMethod, setPaymentMethod] =
-    useState<PaymentMethod>('cash');
+  const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('cash');
   const [paidCash, setPaidCash] = useState('');
   const [paidBank, setPaidBank] = useState('');
   const [notes, setNotes] = useState('');
@@ -53,9 +52,7 @@ export default function RegisterVisitScreen() {
       supabase.from('profiles').select('role').eq('id', user!.id).single(),
       supabase
         .from('appointments')
-        .select(
-          'payment_method, paid_cash, paid_bank, visit_notes'
-        )
+        .select('payment_method, paid_cash, paid_bank, visit_notes')
         .eq('id', appointmentId)
         .single(),
     ]);
@@ -82,6 +79,25 @@ export default function RegisterVisitScreen() {
     if (paymentMethod === 'bank' && !paidBank) return false;
     if (paymentMethod === 'mixed' && (!paidCash || !paidBank)) return false;
     return true;
+  };
+
+  const finishSuccess = () => {
+    if (Platform.OS === 'web') {
+      window.alert(
+        existing
+          ? 'Regjistrimi u përditësua me sukses.'
+          : 'Vizita u regjistrua me sukses.'
+      );
+      router.replace('/(tabs)');
+    } else {
+      Alert.alert(
+        'Sukses ✅',
+        existing
+          ? 'Regjistrimi u përditësua me sukses.'
+          : 'Vizita u regjistrua me sukses.',
+        [{ text: 'OK', onPress: () => router.replace('/(tabs)') }]
+      );
+    }
   };
 
   const doSave = async () => {
@@ -117,14 +133,7 @@ export default function RegisterVisitScreen() {
     });
 
     setSaving(false);
-
-    Alert.alert(
-      'Sukses ✅',
-      existing
-        ? 'Regjistrimi u përditësua me sukses.'
-        : 'Vizita u regjistrua me sukses.',
-      [{ text: 'OK', onPress: () => router.replace('/(tabs)') }]
-    );
+    finishSuccess();
   };
 
   const handleSave = () => {
@@ -136,12 +145,31 @@ export default function RegisterVisitScreen() {
         doSave();
       }
     } else {
+      Alert.alert('Konfirmim', 'A jeni të sigurt?', [
+        { text: 'Jo', style: 'cancel' },
+        { text: 'Po', onPress: doSave },
+      ]);
+    }
+  };
+
+  /* ================= LEAVE WITHOUT SAVING ================= */
+
+  const handleLeave = () => {
+    if (Platform.OS === 'web') {
+      if (
+        window.confirm(
+          'Ndryshimet nuk janë ruajtur. A jeni të sigurt që dëshironi të largoheni?'
+        )
+      ) {
+        router.replace('/(tabs)');
+      }
+    } else {
       Alert.alert(
-        'Konfirmim',
-        'A jeni të sigurt që dëshironi ta ruani?',
+        'Pa ruajtur',
+        'Ndryshimet nuk janë ruajtur. A jeni të sigurt që dëshironi të largoheni?',
         [
-          { text: 'Jo', style: 'cancel' },
-          { text: 'Po', onPress: doSave },
+          { text: 'Qëndro', style: 'cancel' },
+          { text: 'Largohu', onPress: () => router.replace('/(tabs)') },
         ]
       );
     }
@@ -192,7 +220,6 @@ export default function RegisterVisitScreen() {
             value={paidCash}
             onChangeText={setPaidCash}
             keyboardType="numeric"
-            placeholder="Cash"
             style={styles.moneyInput}
           />
         </View>
@@ -205,7 +232,6 @@ export default function RegisterVisitScreen() {
             value={paidBank}
             onChangeText={setPaidBank}
             keyboardType="numeric"
-            placeholder="Bank"
             style={styles.moneyInput}
           />
         </View>
@@ -219,12 +245,23 @@ export default function RegisterVisitScreen() {
         style={[styles.input, { height: 90 }]}
       />
 
+      {/* SAVE */}
       <Pressable
         onPress={handleSave}
         disabled={saving}
         style={[styles.saveBtn, { backgroundColor: Colors.primary }]}
       >
         <Text style={styles.saveText}>Ruaj</Text>
+      </Pressable>
+
+      {/* LEAVE WITHOUT SAVING */}
+      <Pressable
+        onPress={handleLeave}
+        style={[styles.homeBtn, { backgroundColor: Colors.card }]}
+      >
+        <Text style={[styles.homeText, { color: Colors.text }]}>
+          Kthehu në Home
+        </Text>
       </Pressable>
     </View>
   );
@@ -267,4 +304,11 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   saveText: { color: '#fff', fontWeight: '800' },
+  homeBtn: {
+    marginTop: 12,
+    paddingVertical: 12,
+    borderRadius: 12,
+    alignItems: 'center',
+  },
+  homeText: { fontWeight: '700' },
 });
