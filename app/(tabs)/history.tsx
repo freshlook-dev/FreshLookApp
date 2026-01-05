@@ -366,6 +366,20 @@ export default function HistoryScreen() {
                   </Text>
                 )}
 
+                {selected.status === 'arrived' &&
+                  !selected.archived &&
+                  canManage && (
+                    <Pressable
+                      onPress={() => {
+                        setSelected(null);
+                        router.push(`../register-visit/${selected.id}`);
+                      }}
+                      style={[styles.hideBtn, { backgroundColor: Colors.primary }]}
+                    >
+                      <Text style={styles.hideText}>Regjistro</Text>
+                    </Pressable>
+                  )}
+
                 {!selected.archived && (
                   <>
                     {selected.status !== 'arrived' && (
