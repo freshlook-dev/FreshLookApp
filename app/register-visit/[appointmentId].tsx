@@ -9,6 +9,7 @@ import {
   Pressable,
   ActivityIndicator,
   Alert,
+  Platform,
 } from 'react-native';
 import { useLocalSearchParams, router } from 'expo-router';
 
@@ -40,8 +41,6 @@ export default function RegisterVisitScreen() {
   const [existing, setExisting] = useState(false);
   const [originalData, setOriginalData] = useState<any>(null);
 
-  /* ================= LOAD ================= */
-
   useEffect(() => {
     if (!user?.id || !appointmentId) return;
     loadAll();
@@ -55,7 +54,7 @@ export default function RegisterVisitScreen() {
       supabase
         .from('appointments')
         .select(
-          'status, payment_method, paid_cash, paid_bank, visit_notes'
+          'payment_method, paid_cash, paid_bank, visit_notes'
         )
         .eq('id', appointmentId)
         .single(),
@@ -67,260 +66,193 @@ export default function RegisterVisitScreen() {
       setExisting(true);
       setOriginalData(appointment);
       setPaymentMethod(appointment.payment_method);
-      setPaidCash(
-        appointment.paid_cash !== null
-          ? String(appointment.paid_cash)
-          : ''
-      );
-      setPaidBank(
-        appointment.paid_bank !== null
-          ? String(appointment.paid_bank)
-          : ''
-      );
+      setPaidCash(appointment.paid_cash?.toString() ?? '');
+      setPaidBank(appointment.paid_bank?.toString() ?? '');
       setNotes(appointment.visit_notes ?? '');
     }
 
     setLoading(false);
   };
 
-  /* ================= PERMISSIONS ================= */
-
   const canSave =
     role === 'owner' || (role === 'manager' && !existing);
 
-  /* ================= SAVE ================= */
+  const validate = () => {
+    if (paymentMethod === 'cash' && !paidCash) return false;
+    if (paymentMethod === 'bank' && !paidBank) return false;
+    if (paymentMethod === 'mixed' && (!paidCash || !paidBank)) return false;
+    return true;
+  };
 
-  const handleSave = async () => {
-    if (!canSave) {
-      Alert.alert('Nuk keni leje për këtë veprim');
+  const doSave = async () => {
+    setSaving(true);
+
+    const payload = {
+      payment_method: paymentMethod,
+      paid_cash: paidCash ? Number(paidCash) : null,
+      paid_bank: paidBank ? Number(paidBank) : null,
+      visit_notes: notes || null,
+    };
+
+    const { error } = await supabase
+      .from('appointments')
+      .update(payload)
+      .eq('id', appointmentId);
+
+    if (error) {
+      Alert.alert('Error', error.message);
+      setSaving(false);
       return;
     }
 
-    if (
-      paymentMethod === 'cash' &&
-      paidCash.trim() === ''
-    ) {
-      Alert.alert('Shkruani shumën cash');
-      return;
-    }
+    await supabase.from('audit_logs').insert({
+      actor_id: user!.id,
+      action: existing ? 'VISIT_UPDATED' : 'VISIT_REGISTERED',
+      target_id: appointmentId,
+      metadata: {
+        before: existing ? originalData : null,
+        after: payload,
+        role,
+      },
+    });
 
-    if (
-      paymentMethod === 'bank' &&
-      paidBank.trim() === ''
-    ) {
-      Alert.alert('Shkruani shumën bankë');
-      return;
-    }
-
-    if (
-      paymentMethod === 'mixed' &&
-      (paidCash.trim() === '' || paidBank.trim() === '')
-    ) {
-      Alert.alert('Shkruani të dy shumat');
-      return;
-    }
+    setSaving(false);
 
     Alert.alert(
-      existing ? 'Përditëso regjistrimin' : 'Regjistro vizitën',
-      'A jeni të sigurt që dëshironi ta ruani këtë regjistrim?',
-      [
-        { text: 'Jo', style: 'cancel' },
-        {
-          text: 'Po',
-          onPress: async () => {
-            setSaving(true);
-
-            const payload = {
-              payment_method: paymentMethod,
-              paid_cash:
-                paidCash.trim() === '' ? null : Number(paidCash),
-              paid_bank:
-                paidBank.trim() === '' ? null : Number(paidBank),
-              visit_notes: notes || null,
-            };
-
-            const { error } = await supabase
-              .from('appointments')
-              .update(payload)
-              .eq('id', appointmentId);
-
-            if (error) {
-              Alert.alert('Error', error.message);
-              setSaving(false);
-              return;
-            }
-
-            /* ================= AUDIT LOG ================= */
-
-            await supabase.from('audit_logs').insert({
-              actor_id: user!.id,
-              action: existing
-                ? 'VISIT_UPDATED'
-                : 'VISIT_REGISTERED',
-              target_id: appointmentId,
-              metadata: {
-                before: existing ? originalData : null,
-                after: payload,
-                role,
-              },
-            });
-
-            setSaving(false);
-
-            Alert.alert(
-              'Sukses ✅',
-              existing
-                ? 'Regjistrimi u përditësua me sukses.'
-                : 'Vizita u regjistrua me sukses.',
-              [
-                {
-                  text: 'OK',
-                  onPress: () => router.replace('/(tabs)'),
-                },
-              ]
-            );
-          },
-        },
-      ]
+      'Sukses ✅',
+      existing
+        ? 'Regjistrimi u përditësua me sukses.'
+        : 'Vizita u regjistrua me sukses.',
+      [{ text: 'OK', onPress: () => router.replace('/(tabs)') }]
     );
+  };
+
+  const handleSave = () => {
+    if (!canSave) return Alert.alert('Nuk keni leje');
+    if (!validate()) return Alert.alert('Plotësoni fushat e pagesës');
+
+    if (Platform.OS === 'web') {
+      if (window.confirm('A jeni të sigurt që dëshironi ta ruani?')) {
+        doSave();
+      }
+    } else {
+      Alert.alert(
+        'Konfirmim',
+        'A jeni të sigurt që dëshironi ta ruani?',
+        [
+          { text: 'Jo', style: 'cancel' },
+          { text: 'Po', onPress: doSave },
+        ]
+      );
+    }
   };
 
   if (loading) {
     return (
-      <View
-        style={[styles.center, { backgroundColor: Colors.background }]}
-      >
+      <View style={styles.center}>
         <ActivityIndicator size="large" color={Colors.primary} />
       </View>
     );
   }
 
   return (
-    <View
-      style={[styles.container, { backgroundColor: Colors.background }]}
-    >
+    <View style={[styles.container, { backgroundColor: Colors.background }]}>
       <Text style={[styles.title, { color: Colors.text }]}>
         Regjistrim vizite
       </Text>
 
       <View style={styles.methodRow}>
-        {(['cash', 'bank', 'mixed'] as PaymentMethod[]).map(
-          (m) => (
-            <Pressable
-              key={m}
-              onPress={() => setPaymentMethod(m)}
-              style={[
-                styles.methodBtn,
-                {
-                  backgroundColor:
-                    paymentMethod === m
-                      ? Colors.primary
-                      : Colors.card,
-                },
-              ]}
-            >
-              <Text
-                style={{
-                  color:
-                    paymentMethod === m
-                      ? '#fff'
-                      : Colors.text,
-                  fontWeight: '700',
-                }}
-              >
-                {m === 'cash'
-                  ? 'Cash'
-                  : m === 'bank'
-                  ? 'Bank'
-                  : 'Cash + Bank'}
-              </Text>
-            </Pressable>
-          )
-        )}
+        {(['cash', 'bank', 'mixed'] as PaymentMethod[]).map((m) => (
+          <Pressable
+            key={m}
+            onPress={() => setPaymentMethod(m)}
+            style={[
+              styles.methodBtn,
+              {
+                backgroundColor:
+                  paymentMethod === m ? Colors.primary : Colors.card,
+              },
+            ]}
+          >
+            <Text style={{ color: paymentMethod === m ? '#fff' : Colors.text }}>
+              {m === 'cash'
+                ? 'Cash'
+                : m === 'bank'
+                ? 'Bank'
+                : 'Cash + Bank'}
+            </Text>
+          </Pressable>
+        ))}
       </View>
 
-      {(paymentMethod === 'cash' ||
-        paymentMethod === 'mixed') && (
-        <TextInput
-          value={paidCash}
-          onChangeText={setPaidCash}
-          keyboardType="numeric"
-          placeholder="Sa ka paguar cash"
-          style={[styles.input, { color: Colors.text }]}
-        />
+      {(paymentMethod === 'cash' || paymentMethod === 'mixed') && (
+        <View style={styles.moneyRow}>
+          <Text style={styles.euro}>€</Text>
+          <TextInput
+            value={paidCash}
+            onChangeText={setPaidCash}
+            keyboardType="numeric"
+            placeholder="Cash"
+            style={styles.moneyInput}
+          />
+        </View>
       )}
 
-      {(paymentMethod === 'bank' ||
-        paymentMethod === 'mixed') && (
-        <TextInput
-          value={paidBank}
-          onChangeText={setPaidBank}
-          keyboardType="numeric"
-          placeholder="Sa ka paguar bankë"
-          style={[styles.input, { color: Colors.text }]}
-        />
+      {(paymentMethod === 'bank' || paymentMethod === 'mixed') && (
+        <View style={styles.moneyRow}>
+          <Text style={styles.euro}>€</Text>
+          <TextInput
+            value={paidBank}
+            onChangeText={setPaidBank}
+            keyboardType="numeric"
+            placeholder="Bank"
+            style={styles.moneyInput}
+          />
+        </View>
       )}
 
       <TextInput
         value={notes}
         onChangeText={setNotes}
-        placeholder="Shënime shtesë pas vizitës"
+        placeholder="Shënime shtesë"
         multiline
-        style={[
-          styles.input,
-          { height: 90, color: Colors.text },
-        ]}
+        style={[styles.input, { height: 90 }]}
       />
 
       <Pressable
         onPress={handleSave}
-        disabled={!canSave || saving}
-        style={[
-          styles.saveBtn,
-          {
-            backgroundColor: canSave
-              ? Colors.primary
-              : Colors.muted,
-          },
-        ]}
+        disabled={saving}
+        style={[styles.saveBtn, { backgroundColor: Colors.primary }]}
       >
-        <Text style={styles.saveText}>
-          {existing ? 'Përditëso' : 'Ruaj'}
-        </Text>
-      </Pressable>
-
-      <Pressable
-        onPress={() => router.replace('/(tabs)')}
-        style={[styles.homeBtn, { backgroundColor: Colors.card }]}
-      >
-        <Text style={[styles.homeText, { color: Colors.text }]}>
-          Shko në Home
-        </Text>
+        <Text style={styles.saveText}>Ruaj</Text>
       </Pressable>
     </View>
   );
 }
 
-/* ================= STYLES ================= */
-
 const styles = StyleSheet.create({
   container: { flex: 1, padding: 20 },
-  center: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
+  center: { flex: 1, justifyContent: 'center', alignItems: 'center' },
   title: { fontSize: 20, fontWeight: '800', marginBottom: 20 },
-  methodRow: {
-    flexDirection: 'row',
-    marginBottom: 16,
-  },
+  methodRow: { flexDirection: 'row', marginBottom: 16 },
   methodBtn: {
     flex: 1,
-    paddingVertical: 10,
+    padding: 10,
     borderRadius: 10,
     alignItems: 'center',
     marginRight: 6,
+  },
+  moneyRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  euro: { fontSize: 18, marginRight: 6 },
+  moneyInput: {
+    flex: 1,
+    borderWidth: 1,
+    borderRadius: 10,
+    padding: 12,
   },
   input: {
     borderWidth: 1,
@@ -335,11 +267,4 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   saveText: { color: '#fff', fontWeight: '800' },
-  homeBtn: {
-    marginTop: 12,
-    paddingVertical: 12,
-    borderRadius: 12,
-    alignItems: 'center',
-  },
-  homeText: { fontWeight: '700' },
 });

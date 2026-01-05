@@ -34,6 +34,7 @@ type Appointment = {
   status: Status;
   archived: boolean;
   creator_name: string | null;
+  payment_method: string | null; // ✅ ONLY added for badge
 };
 
 const formatDate = (date: string) => {
@@ -81,6 +82,7 @@ export default function HistoryScreen() {
         comment,
         status,
         archived,
+        payment_method,
         creator:profiles!appointments_created_by_fkey(full_name)
       `)
       .in('status', ['arrived', 'canceled'])
@@ -242,21 +244,46 @@ export default function HistoryScreen() {
 
   /* ================= RENDER ================= */
 
-  const renderItem = (item: Appointment) => (
-    <Pressable
-      onPress={() => setSelected(item)}
-      style={[styles.row, { backgroundColor: Colors.card }]}
-    >
-      <Text style={[styles.client, { color: Colors.text }]}>
-        {item.client_name}
-      </Text>
-      {item.creator_name && (
-        <Text style={[styles.creator, { color: Colors.muted }]}>
-          Krijuar nga: {item.creator_name}
-        </Text>
-      )}
-    </Pressable>
-  );
+  const renderItem = (item: Appointment) => {
+    const isRegistered = item.payment_method !== null;
+
+    return (
+      <Pressable
+        onPress={() => setSelected(item)}
+        style={[styles.row, { backgroundColor: Colors.card }]}
+      >
+        <View style={styles.rowHeader}>
+          <Text style={[styles.client, { color: Colors.text }]}>
+            {item.client_name}
+          </Text>
+
+          <View
+            style={[
+              styles.badge,
+              {
+                backgroundColor: isRegistered ? '#1DB954' : '#E0E0E0',
+              },
+            ]}
+          >
+            <Text
+              style={[
+                styles.badgeText,
+                { color: isRegistered ? '#fff' : '#333' },
+              ]}
+            >
+              {isRegistered ? '🟢 REGJISTRUAR' : '⚪ PA REGJISTRUAR'}
+            </Text>
+          </View>
+        </View>
+
+        {item.creator_name && (
+          <Text style={[styles.creator, { color: Colors.muted }]}>
+            Krijuar nga: {item.creator_name}
+          </Text>
+        )}
+      </Pressable>
+    );
+  };
 
   if (loading) {
     return (
@@ -374,7 +401,10 @@ export default function HistoryScreen() {
                         setSelected(null);
                         router.push(`../register-visit/${selected.id}`);
                       }}
-                      style={[styles.hideBtn, { backgroundColor: Colors.primary }]}
+                      style={[
+                        styles.hideBtn,
+                        { backgroundColor: Colors.primary },
+                      ]}
                     >
                       <Text style={styles.hideText}>Regjistro</Text>
                     </Pressable>
@@ -418,7 +448,10 @@ export default function HistoryScreen() {
                     {canManage && (
                       <Pressable
                         onPress={() => archiveRecord(selected.id)}
-                        style={[styles.hideBtn, { backgroundColor: Colors.primary }]}
+                        style={[
+                          styles.hideBtn,
+                          { backgroundColor: Colors.primary },
+                        ]}
                       >
                         <Text style={styles.hideText}>Arkivo</Text>
                       </Pressable>
@@ -429,7 +462,10 @@ export default function HistoryScreen() {
                 {selected.archived && canManage && (
                   <Pressable
                     onPress={() => unarchiveRecord(selected.id)}
-                    style={[styles.unarchiveBtn, { backgroundColor: Colors.primary }]}
+                    style={[
+                      styles.unarchiveBtn,
+                      { backgroundColor: Colors.primary },
+                    ]}
                   >
                     <Text style={styles.unarchiveText}>Ç’arkivo</Text>
                   </Pressable>
@@ -465,8 +501,22 @@ const styles = StyleSheet.create({
   },
   archiveNavText: { color: '#fff', fontWeight: '700' },
   row: { padding: 14, borderRadius: 14, marginBottom: 8 },
+  rowHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
   client: { fontSize: 15, fontWeight: '700' },
   creator: { fontSize: 12, marginTop: 4 },
+  badge: {
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 10,
+  },
+  badgeText: {
+    fontSize: 11,
+    fontWeight: '700',
+  },
   modalOverlay: {
     flex: 1,
     backgroundColor: 'rgba(0,0,0,0.4)',
