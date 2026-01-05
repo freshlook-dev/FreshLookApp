@@ -360,6 +360,12 @@ export default function HistoryScreen() {
                   {selected.appointment_time}
                 </Text>
 
+                {selected.phone && (
+                  <Text style={[styles.modalText, { color: Colors.text }]}>
+                    📞 {selected.phone}
+                  </Text>
+                )}
+
                 {!selected.archived && (
                   <>
                     {selected.status !== 'arrived' && (
