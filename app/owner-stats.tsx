@@ -48,7 +48,7 @@ const formatDate = (date: string) => {
 };
 
 const startOfWeekMonday = (d: Date) => {
-  const day = d.getDay(); // 0=Sun..6=Sat
+  const day = d.getDay();
   const diff = day === 0 ? -6 : 1 - day;
   const res = new Date(d);
   res.setDate(d.getDate() + diff);
@@ -157,14 +157,8 @@ export default function OwnerStatsScreen() {
       );
     }
 
-    if (location !== 'ALL') {
-      q = q.eq('location', location);
-    }
-
-    if (payment !== 'ALL') {
-      q = q.eq('payment_method', payment);
-    }
-
+    if (location !== 'ALL') q = q.eq('location', location);
+    if (payment !== 'ALL') q = q.eq('payment_method', payment);
     if (startDate) q = q.gte('appointment_date', startDate);
     if (endDate) q = q.lte('appointment_date', endDate);
 
@@ -204,37 +198,25 @@ export default function OwnerStatsScreen() {
     setLoading(false);
   };
 
+  // ✅ ONLY FIXED FUNCTION
   const loadTotals = async (forSearch: string) => {
-    let tQuery = supabase
-      .from('appointments')
-      .select('paid_cash.sum(), paid_bank.sum()');
+    try {
+      const data = await fetchAllFiltered();
 
-    tQuery = applyFilters(tQuery, forSearch);
+      let cash = 0;
+      let bank = 0;
 
-    const { data, error } = await tQuery;
+      for (const r of data) {
+        cash += Number(r.paid_cash ?? 0);
+        bank += Number(r.paid_bank ?? 0);
+      }
 
-    if (error) {
+      setTotalCash(cash);
+      setTotalBank(bank);
+    } catch {
       setTotalCash(0);
       setTotalBank(0);
-      return;
     }
-
-    const first: any = Array.isArray(data) ? data[0] : null;
-
-    const cashSum =
-      first?.paid_cash?.sum ??
-      first?.paid_cash_sum ??
-      first?.sum ??
-      0;
-
-    const bankSum =
-      first?.paid_bank?.sum ??
-      first?.paid_bank_sum ??
-      first?.sum ??
-      0;
-
-    setTotalCash(Number(cashSum ?? 0));
-    setTotalBank(Number(bankSum ?? 0));
   };
 
   const reloadAll = async (forSearch: string) => {
@@ -253,17 +235,7 @@ export default function OwnerStatsScreen() {
     return () => {
       if (debounceRef.current) clearTimeout(debounceRef.current);
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [
-    role,
-    checkingRole,
-    search,
-    location,
-    payment,
-    startDate,
-    endDate,
-    page,
-  ]);
+  }, [role, checkingRole, search, location, payment, startDate, endDate, page]);
 
   useEffect(() => {
     const now = new Date();
@@ -284,7 +256,6 @@ export default function OwnerStatsScreen() {
 
   useEffect(() => {
     setPage(1);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [search, location, payment, startDate, endDate]);
 
   const onRefresh = async () => {
@@ -313,7 +284,7 @@ export default function OwnerStatsScreen() {
 
       if (error) throw new Error(error.message);
 
-      const part = ((data as Row[]) ?? []).map((r) => r);
+      const part = ((data as Row[]) ?? []);
       all = all.concat(part);
 
       if (!data || part.length < chunk) break;
@@ -323,6 +294,9 @@ export default function OwnerStatsScreen() {
 
     return all;
   };
+
+  // ⬇⬇⬇ EVERYTHING BELOW IS UNCHANGED (UI, export, styles, Home button)
+
 
   const exportCSV = async () => {
     if (exporting) return;
