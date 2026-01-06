@@ -557,64 +557,67 @@ export default function OwnerStatsScreen() {
         ]}
       />
 
-      <ScrollView
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        contentContainerStyle={{ paddingBottom: 10 }}
-      >
-        <View style={{ minWidth: 900 }}>
-          <Text style={[styles.sectionTitle, { color: Colors.muted }]}>
-            Location
-          </Text>
-          {LocationButtons}
+      <View style={{ marginBottom: 10 }}>
+  <Text style={[styles.sectionTitle, { color: Colors.muted }]}>
+    Location
+  </Text>
+  {LocationButtons}
 
-          <Text style={[styles.sectionTitle, { color: Colors.muted }]}>
-            Payment method
-          </Text>
-          {PaymentButtons}
+  <Text style={[styles.sectionTitle, { color: Colors.muted }]}>
+    Payment method
+  </Text>
+  {PaymentButtons}
 
-          <Text style={[styles.sectionTitle, { color: Colors.muted }]}>
-            Date range
-          </Text>
-          {DatePresetButtons}
+  <Text style={[styles.sectionTitle, { color: Colors.muted }]}>
+    Date range
+  </Text>
+  {DatePresetButtons}
 
-          {datePreset === 'CUSTOM' && (
-            <View style={styles.customDates}>
-              <View style={styles.customInputWrap}>
-                <Text style={[styles.customLabel, { color: Colors.muted }]}>
-                  Start (YYYY-MM-DD)
-                </Text>
-                <TextInput
-                  value={startDate}
-                  onChangeText={setStartDate}
-                  placeholder="YYYY-MM-DD"
-                  placeholderTextColor={Colors.muted}
-                  style={[
-                    styles.customInput,
-                    { borderColor: Colors.card, color: Colors.text, backgroundColor: Colors.card },
-                  ]}
-                />
-              </View>
+  {datePreset === 'CUSTOM' && (
+    <View style={styles.customDates}>
+      <View style={styles.customInputWrap}>
+        <Text style={[styles.customLabel, { color: Colors.muted }]}>
+          Start (YYYY-MM-DD)
+        </Text>
+        <TextInput
+          value={startDate}
+          onChangeText={setStartDate}
+          placeholder="YYYY-MM-DD"
+          placeholderTextColor={Colors.muted}
+          style={[
+            styles.customInput,
+            {
+              borderColor: Colors.card,
+              color: Colors.text,
+              backgroundColor: Colors.card,
+            },
+          ]}
+        />
+      </View>
 
-              <View style={styles.customInputWrap}>
-                <Text style={[styles.customLabel, { color: Colors.muted }]}>
-                  End (YYYY-MM-DD)
-                </Text>
-                <TextInput
-                  value={endDate}
-                  onChangeText={setEndDate}
-                  placeholder="YYYY-MM-DD"
-                  placeholderTextColor={Colors.muted}
-                  style={[
-                    styles.customInput,
-                    { borderColor: Colors.card, color: Colors.text, backgroundColor: Colors.card },
-                  ]}
-                />
-              </View>
-            </View>
-          )}
-        </View>
-      </ScrollView>
+      <View style={styles.customInputWrap}>
+        <Text style={[styles.customLabel, { color: Colors.muted }]}>
+          End (YYYY-MM-DD)
+        </Text>
+        <TextInput
+          value={endDate}
+          onChangeText={setEndDate}
+          placeholder="YYYY-MM-DD"
+          placeholderTextColor={Colors.muted}
+          style={[
+            styles.customInput,
+            {
+              borderColor: Colors.card,
+              color: Colors.text,
+              backgroundColor: Colors.card,
+            },
+          ]}
+        />
+      </View>
+    </View>
+  )}
+</View>
+
 
       <View style={[styles.paginationRow, { backgroundColor: Colors.background }]}>
         <Pressable
