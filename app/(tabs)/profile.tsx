@@ -354,6 +354,13 @@ export default function ProfileTab() {
             </Pressable>
 
             <Pressable
+              onPress={() => router.push('../owner-stats')}
+              style={[styles.primaryButton, { marginTop: 12 }]}
+            >
+              <Text style={styles.primaryButtonText}>📊 Owner Stats</Text>
+            </Pressable>
+
+            <Pressable
               onPress={() => generateAccessCode('staff')}
               style={[styles.primaryButton, { marginTop: 12 }]}
             >
@@ -399,6 +406,8 @@ export default function ProfileTab() {
           </Pressable>
         )}
       </View>
+
+
 
       <Pressable onPress={handleLogout} style={styles.logoutButton}>
         <Text style={styles.logoutText}>Logout</Text>
