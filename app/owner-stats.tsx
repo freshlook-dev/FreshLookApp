@@ -537,18 +537,32 @@ const LocationButtons = useMemo(() => {
   <View style={styles.customDates}>
     {Platform.OS === 'web' ? (
       <>
-        <TextInput
+        <input
+          type="date"
           value={startDate}
-          onChangeText={(v) => setStartDateObj(new Date(v))}
-          placeholder="Start (YYYY-MM-DD)"
-          style={[styles.customInput, { backgroundColor: Colors.card, color: Colors.text }]}
+          onChange={(e) => setStartDateObj(new Date(e.target.value))}
+          style={{
+            flex: 1,
+            padding: 12,
+            borderRadius: 12,
+            border: `1px solid ${Colors.card}`,
+            backgroundColor: Colors.card,
+            color: Colors.text,
+          }}
         />
 
-        <TextInput
+        <input
+          type="date"
           value={endDate}
-          onChangeText={(v) => setEndDateObj(new Date(v))}
-          placeholder="End (YYYY-MM-DD)"
-          style={[styles.customInput, { backgroundColor: Colors.card, color: Colors.text }]}
+          onChange={(e) => setEndDateObj(new Date(e.target.value))}
+          style={{
+            flex: 1,
+            padding: 12,
+            borderRadius: 12,
+            border: `1px solid ${Colors.card}`,
+            backgroundColor: Colors.card,
+            color: Colors.text,
+          }}
         />
       </>
     ) : (
