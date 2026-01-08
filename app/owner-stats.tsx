@@ -11,8 +11,8 @@ import {
   TextInput,
   Alert,
   Platform,
-  ScrollView,
 } from 'react-native';
+import DateTimePicker from '@react-native-community/datetimepicker';
 import { router } from 'expo-router';
 
 import { supabase } from '../context/supabase';
@@ -24,7 +24,7 @@ type Role = 'owner' | 'manager' | 'staff';
 type PaymentMethod = 'cash' | 'bank' | 'mixed';
 type LocationFilter = 'ALL' | 'Prishtinë' | 'Fushë Kosovë';
 type PaymentFilter = 'ALL' | PaymentMethod;
-type DatePreset = 'TODAY' | 'WEEK' | 'MONTH' | 'CUSTOM';
+type DatePreset = 'TODAY' | 'MONTH' | 'LAST_MONTH' | 'CUSTOM';
 
 type Row = {
   id: string;
@@ -39,29 +39,13 @@ type Row = {
 };
 
 const pad2 = (n: number) => String(n).padStart(2, '0');
+
 const toISODate = (d: Date) =>
   `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`;
 
 const formatDate = (date: string) => {
   const d = new Date(date);
-  return `${pad2(d.getDate())}.${pad2(d.getMonth() + 1)}.${d.getFullYear()}`;
-};
-
-const startOfWeekMonday = (d: Date) => {
-  const day = d.getDay();
-  const diff = day === 0 ? -6 : 1 - day;
-  const res = new Date(d);
-  res.setDate(d.getDate() + diff);
-  res.setHours(0, 0, 0, 0);
-  return res;
-};
-
-const endOfWeekSunday = (d: Date) => {
-  const start = startOfWeekMonday(d);
-  const res = new Date(start);
-  res.setDate(start.getDate() + 6);
-  res.setHours(0, 0, 0, 0);
-  return res;
+  return `${pad2(d.getDate())}-${pad2(d.getMonth() + 1)}-${d.getFullYear()}`;
 };
 
 const startOfMonth = (d: Date) => {
@@ -72,6 +56,18 @@ const startOfMonth = (d: Date) => {
 
 const endOfMonth = (d: Date) => {
   const res = new Date(d.getFullYear(), d.getMonth() + 1, 0);
+  res.setHours(0, 0, 0, 0);
+  return res;
+};
+
+const startOfLastMonth = (d: Date) => {
+  const res = new Date(d.getFullYear(), d.getMonth() - 1, 1);
+  res.setHours(0, 0, 0, 0);
+  return res;
+};
+
+const endOfLastMonth = (d: Date) => {
+  const res = new Date(d.getFullYear(), d.getMonth(), 0);
   res.setHours(0, 0, 0, 0);
   return res;
 };
@@ -100,14 +96,19 @@ export default function OwnerStatsScreen() {
   const [payment, setPayment] = useState<PaymentFilter>('ALL');
 
   const [datePreset, setDatePreset] = useState<DatePreset>('MONTH');
-  const [startDate, setStartDate] = useState<string>(() => {
-    const now = new Date();
-    return toISODate(startOfMonth(now));
-  });
-  const [endDate, setEndDate] = useState<string>(() => {
-    const now = new Date();
-    return toISODate(endOfMonth(now));
-  });
+
+  const [startDateObj, setStartDateObj] = useState<Date>(() =>
+    startOfMonth(new Date())
+  );
+  const [endDateObj, setEndDateObj] = useState<Date>(() =>
+    endOfMonth(new Date())
+  );
+
+  const startDate = toISODate(startDateObj);
+  const endDate = toISODate(endDateObj);
+
+  const [showStartPicker, setShowStartPicker] = useState(false);
+  const [showEndPicker, setShowEndPicker] = useState(false);
 
   const [page, setPage] = useState(1);
   const pageSize = 20;
@@ -198,7 +199,35 @@ export default function OwnerStatsScreen() {
     setLoading(false);
   };
 
-  // ✅ ONLY FIXED FUNCTION
+  const fetchAllFiltered = async (): Promise<Row[]> => {
+    let all: Row[] = [];
+    const chunk = 1000;
+    let offset = 0;
+
+    while (true) {
+      let q = supabase
+        .from('appointments')
+        .select(
+          `id, appointment_date, client_name, phone, location, visit_notes, payment_method, paid_cash, paid_bank`
+        )
+        .order('appointment_date', { ascending: false })
+        .range(offset, offset + chunk - 1);
+
+      q = applyFilters(q, search);
+
+      const { data, error } = await q;
+      if (error) throw new Error(error.message);
+
+      const part = (data as Row[]) ?? [];
+      all = all.concat(part);
+
+      if (part.length < chunk) break;
+      offset += chunk;
+    }
+
+    return all;
+  };
+
   const loadTotals = async (forSearch: string) => {
     try {
       const data = await fetchAllFiltered();
@@ -239,18 +268,20 @@ export default function OwnerStatsScreen() {
 
   useEffect(() => {
     const now = new Date();
+
     if (datePreset === 'TODAY') {
-      const d = toISODate(now);
-      setStartDate(d);
-      setEndDate(d);
+      setStartDateObj(now);
+      setEndDateObj(now);
     }
-    if (datePreset === 'WEEK') {
-      setStartDate(toISODate(startOfWeekMonday(now)));
-      setEndDate(toISODate(endOfWeekSunday(now)));
-    }
+
     if (datePreset === 'MONTH') {
-      setStartDate(toISODate(startOfMonth(now)));
-      setEndDate(toISODate(endOfMonth(now)));
+      setStartDateObj(startOfMonth(now));
+      setEndDateObj(endOfMonth(now));
+    }
+
+    if (datePreset === 'LAST_MONTH') {
+      setStartDateObj(startOfLastMonth(now));
+      setEndDateObj(endOfLastMonth(now));
     }
   }, [datePreset]);
 
@@ -263,40 +294,6 @@ export default function OwnerStatsScreen() {
     await reloadAll(search);
     setRefreshing(false);
   };
-
-  const fetchAllFiltered = async (): Promise<Row[]> => {
-    let all: Row[] = [];
-    const chunk = 1000;
-    let offset = 0;
-
-    while (true) {
-      let q = supabase
-        .from('appointments')
-        .select(
-          `id, appointment_date, client_name, phone, location, visit_notes, payment_method, paid_cash, paid_bank`
-        )
-        .order('appointment_date', { ascending: false })
-        .range(offset, offset + chunk - 1);
-
-      q = applyFilters(q, search);
-
-      const { data, error } = await q;
-
-      if (error) throw new Error(error.message);
-
-      const part = ((data as Row[]) ?? []);
-      all = all.concat(part);
-
-      if (!data || part.length < chunk) break;
-
-      offset += chunk;
-    }
-
-    return all;
-  };
-
-  // ⬇⬇⬇ EVERYTHING BELOW IS UNCHANGED (UI, export, styles, Home button)
-
 
   const exportCSV = async () => {
     if (exporting) return;
@@ -339,7 +336,7 @@ export default function OwnerStatsScreen() {
       lines.push(`TOTAL BANK,${escapeCSV(totalBank)}`);
 
       const csv = lines.join('\n');
-      const filename = `owner-stats-${startDate || 'all'}-to-${endDate || 'all'}.csv`;
+      const filename = `owner-stats-${startDate}-to-${endDate}.csv`;
 
       if (Platform.OS === 'web') {
         const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
@@ -365,7 +362,7 @@ export default function OwnerStatsScreen() {
         if (!FileSystem?.default?.writeAsStringAsync || !Sharing?.default?.shareAsync) {
           Alert.alert(
             'Export',
-            'Exporti nuk është i disponueshëm në këtë build. (expo-file-system / expo-sharing mungon)'
+            'Exporti nuk është i disponueshëm në këtë build.'
           );
           setExporting(false);
           return;
@@ -385,110 +382,73 @@ export default function OwnerStatsScreen() {
     setExporting(false);
   };
 
-  const RowCard = ({ item }: { item: Row }) => {
-    return (
-      <View style={[styles.card, { backgroundColor: Colors.card }]}>
-        <View style={styles.cardTop}>
-          <Text style={[styles.name, { color: Colors.text }]}>
-            {item.client_name}
-          </Text>
-          <Text style={[styles.date, { color: Colors.muted }]}>
-            {formatDate(item.appointment_date)}
-          </Text>
-        </View>
-
-        <Text style={[styles.line, { color: Colors.text }]}>
-          📞 {item.phone ?? '-'}
+  const RowCard = ({ item }: { item: Row }) => (
+    <View style={[styles.card, { backgroundColor: Colors.card }]}>
+      <View style={styles.cardTop}>
+        <Text style={[styles.name, { color: Colors.text }]}>
+          {item.client_name}
         </Text>
-        <Text style={[styles.line, { color: Colors.text }]}>
-          📍 {item.location ?? '-'}
+        <Text style={[styles.date, { color: Colors.muted }]}>
+          {formatDate(item.appointment_date)}
         </Text>
+      </View>
 
-        <Text style={[styles.line, { color: Colors.text }]}>
-          💳 {item.payment_method ?? '-'}
+      <Text style={[styles.line, { color: Colors.text }]}>📞 {item.phone ?? '-'}</Text>
+      <Text style={[styles.line, { color: Colors.text }]}>📍 {item.location ?? '-'}</Text>
+      <Text style={[styles.line, { color: Colors.text }]}>
+        💳 {item.payment_method ?? '-'}
+      </Text>
+
+      <View style={styles.moneyRow}>
+        <Text style={[styles.money, { color: Colors.text }]}>
+          Cash: €{Number(item.paid_cash ?? 0).toFixed(2)}
         </Text>
-
-        <View style={styles.moneyRow}>
-          <Text style={[styles.money, { color: Colors.text }]}>
-            Cash: €{Number(item.paid_cash ?? 0).toFixed(2)}
-          </Text>
-          <Text style={[styles.money, { color: Colors.text }]}>
-            Bank: €{Number(item.paid_bank ?? 0).toFixed(2)}
-          </Text>
-        </View>
-
-        {item.visit_notes ? (
-          <Text style={[styles.notes, { color: Colors.muted }]}>
-            📝 {item.visit_notes}
-          </Text>
-        ) : null}
+        <Text style={[styles.money, { color: Colors.text }]}>
+          Bank: €{Number(item.paid_bank ?? 0).toFixed(2)}
+        </Text>
       </View>
-    );
-  };
 
-  const LocationButtons = useMemo(() => {
-    const opts: LocationFilter[] = ['ALL', 'Prishtinë', 'Fushë Kosovë'];
-    return (
-      <View style={styles.btnRow}>
-        {opts.map((opt) => {
-          const active = location === opt;
-          return (
-            <Pressable
-              key={opt}
-              onPress={() => setLocation(opt)}
-              style={[
-                styles.pill,
-                { backgroundColor: active ? Colors.primary : Colors.card },
-              ]}
-            >
-              <Text style={{ color: active ? '#fff' : Colors.text }}>
-                {opt === 'ALL' ? 'All' : opt}
-              </Text>
-            </Pressable>
-          );
-        })}
-      </View>
-    );
-  }, [location, Colors.primary, Colors.card, Colors.text]);
+      {item.visit_notes ? (
+        <Text style={[styles.notes, { color: Colors.muted }]}>
+          📝 {item.visit_notes}
+        </Text>
+      ) : null}
+    </View>
+  );
+const LocationButtons = useMemo(() => {
+  const opts: LocationFilter[] = ['ALL', 'Prishtinë', 'Fushë Kosovë'];
 
-  const PaymentButtons = useMemo(() => {
-    const opts: PaymentFilter[] = ['ALL', 'cash', 'bank', 'mixed'];
-    return (
-      <View style={styles.btnRow}>
-        {opts.map((opt) => {
-          const active = payment === opt;
-          const label =
-            opt === 'ALL'
-              ? 'All'
-              : opt === 'cash'
-              ? 'Cash'
-              : opt === 'bank'
-              ? 'Bank'
-              : 'Mixed';
-          return (
-            <Pressable
-              key={opt}
-              onPress={() => setPayment(opt)}
-              style={[
-                styles.pill,
-                { backgroundColor: active ? Colors.primary : Colors.card },
-              ]}
-            >
-              <Text style={{ color: active ? '#fff' : Colors.text }}>
-                {label}
-              </Text>
-            </Pressable>
-          );
-        })}
-      </View>
-    );
-  }, [payment, Colors.primary, Colors.card, Colors.text]);
+  return (
+    <View style={styles.btnRow}>
+      {opts.map((opt) => {
+        const active = location === opt;
+
+        return (
+          <Pressable
+            key={opt}
+            onPress={() => setLocation(opt)}
+            style={[
+              styles.pill,
+              {
+                backgroundColor: active ? Colors.primary : Colors.card,
+              },
+            ]}
+          >
+            <Text style={{ color: active ? '#fff' : Colors.text }}>
+              {opt === 'ALL' ? 'All' : opt}
+            </Text>
+          </Pressable>
+        );
+      })}
+    </View>
+  );
+}, [location, Colors.primary, Colors.card, Colors.text]);
 
   const DatePresetButtons = useMemo(() => {
     const opts: { key: DatePreset; label: string }[] = [
       { key: 'TODAY', label: 'Today' },
-      { key: 'WEEK', label: 'This week' },
       { key: 'MONTH', label: 'This month' },
+      { key: 'LAST_MONTH', label: 'Last month' },
       { key: 'CUSTOM', label: 'Custom' },
     ];
     return (
@@ -515,6 +475,11 @@ export default function OwnerStatsScreen() {
   }, [datePreset, Colors.primary, Colors.card, Colors.text]);
 
   if (checkingRole) {
+
+    
+
+
+    
     return (
       <View style={[styles.center, { backgroundColor: Colors.background }]}>
         <ActivityIndicator size="large" color={Colors.primary} />
@@ -557,67 +522,62 @@ export default function OwnerStatsScreen() {
         ]}
       />
 
-      <View style={{ marginBottom: 10 }}>
-  <Text style={[styles.sectionTitle, { color: Colors.muted }]}>
-    Location
-  </Text>
-  {LocationButtons}
+        
+       <Text style={[styles.sectionTitle, { color: Colors.muted }]}>
+  Location
+</Text>
+{LocationButtons}
 
-  <Text style={[styles.sectionTitle, { color: Colors.muted }]}>
-    Payment method
-  </Text>
-  {PaymentButtons}
 
-  <Text style={[styles.sectionTitle, { color: Colors.muted }]}>
-    Date range
-  </Text>
-  {DatePresetButtons}
 
-  {datePreset === 'CUSTOM' && (
-    <View style={styles.customDates}>
-      <View style={styles.customInputWrap}>
-        <Text style={[styles.customLabel, { color: Colors.muted }]}>
-          Start (YYYY-MM-DD)
-        </Text>
-        <TextInput
-          value={startDate}
-          onChangeText={setStartDate}
-          placeholder="YYYY-MM-DD"
-          placeholderTextColor={Colors.muted}
-          style={[
-            styles.customInput,
-            {
-              borderColor: Colors.card,
-              color: Colors.text,
-              backgroundColor: Colors.card,
-            },
-          ]}
+      <Text style={[styles.sectionTitle, { color: Colors.muted }]}>Date range</Text>
+      {DatePresetButtons}
+
+      {datePreset === 'CUSTOM' && (
+        <View style={styles.customDates}>
+          <Pressable
+            onPress={() => setShowStartPicker(true)}
+            style={[styles.customInput, { backgroundColor: Colors.card }]}
+          >
+            <Text style={{ color: Colors.text }}>
+              Start: {formatDate(startDate)}
+            </Text>
+          </Pressable>
+
+          <Pressable
+            onPress={() => setShowEndPicker(true)}
+            style={[styles.customInput, { backgroundColor: Colors.card }]}
+          >
+            <Text style={{ color: Colors.text }}>
+              End: {formatDate(endDate)}
+            </Text>
+          </Pressable>
+        </View>
+      )}
+
+      {showStartPicker && (
+        <DateTimePicker
+          value={startDateObj}
+          mode="date"
+          display="default"
+          onChange={(_, d) => {
+            setShowStartPicker(false);
+            if (d) setStartDateObj(d);
+          }}
         />
-      </View>
+      )}
 
-      <View style={styles.customInputWrap}>
-        <Text style={[styles.customLabel, { color: Colors.muted }]}>
-          End (YYYY-MM-DD)
-        </Text>
-        <TextInput
-          value={endDate}
-          onChangeText={setEndDate}
-          placeholder="YYYY-MM-DD"
-          placeholderTextColor={Colors.muted}
-          style={[
-            styles.customInput,
-            {
-              borderColor: Colors.card,
-              color: Colors.text,
-              backgroundColor: Colors.card,
-            },
-          ]}
+      {showEndPicker && (
+        <DateTimePicker
+          value={endDateObj}
+          mode="date"
+          display="default"
+          onChange={(_, d) => {
+            setShowEndPicker(false);
+            if (d) setEndDateObj(d);
+          }}
         />
-      </View>
-    </View>
-  )}
-</View>
-
+      )}
 
       <View style={[styles.paginationRow, { backgroundColor: Colors.background }]}>
         <Pressable
@@ -628,9 +588,7 @@ export default function OwnerStatsScreen() {
             { backgroundColor: page <= 1 ? Colors.card : Colors.primary },
           ]}
         >
-          <Text style={{ color: page <= 1 ? Colors.muted : '#fff' }}>
-            Prev
-          </Text>
+          <Text style={{ color: page <= 1 ? Colors.muted : '#fff' }}>Prev</Text>
         </Pressable>
 
         <Text style={[styles.pageInfo, { color: Colors.text }]}>
@@ -645,9 +603,7 @@ export default function OwnerStatsScreen() {
             { backgroundColor: page >= totalPages ? Colors.card : Colors.primary },
           ]}
         >
-          <Text style={{ color: page >= totalPages ? Colors.muted : '#fff' }}>
-            Next
-          </Text>
+          <Text style={{ color: page >= totalPages ? Colors.muted : '#fff' }}>Next</Text>
         </Pressable>
       </View>
 
@@ -733,12 +689,10 @@ const styles = StyleSheet.create({
   },
 
   customDates: { flexDirection: 'row', gap: 12, marginBottom: 10 },
-  customInputWrap: { width: 220 },
-  customLabel: { fontSize: 12, fontWeight: '700', marginBottom: 6 },
   customInput: {
-    borderWidth: 1,
+    flex: 1,
     borderRadius: 12,
-    paddingVertical: 10,
+    paddingVertical: 12,
     paddingHorizontal: 12,
   },
 
