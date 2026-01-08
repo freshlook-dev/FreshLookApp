@@ -303,85 +303,93 @@ const excelSafePhone = (s?: string | null) =>
   };
 
   const exportCSV = async () => {
-    if (exporting) return;
-    setExporting(true);
+  if (exporting) return;
+  setExporting(true);
 
-    try {
-      const data = await fetchAllFiltered();
+  try {
+    const data = await fetchAllFiltered();
 
-      const headers = [
-        'appointment_date',
-        'client_name',
-        'phone',
-        'location',
-        'visit_notes',
-        'payment_method',
-        'paid_cash',
-        'paid_bank',
-      ];
+    const headers = [
+      'Date',
+      'Client Name',
+      'Phone',
+      'Location',
+      'Notes',
+      'Payment Method',
+      'Cash (€)',
+      'Bank (€)',
+    ];
 
-      const lines: string[] = [];
-      lines.push(headers.join(','));
+    const lines: string[] = [];
+    lines.push(headers.join(','));
 
-      data.forEach((r) => {
-        lines.push('');
-lines.push('SUMMARY,,,');
-lines.push(`Total Cash (€),${totalCash}`);
-lines.push(`Total Bank (€),${totalBank}`);
-lines.push(`Grand Total (€),${totalCash + totalBank}`);
+    // ✅ DATA ROWS
+    data.forEach((r) => {
+      lines.push(
+        [
+          escapeCSV(formatDate(r.appointment_date)),
+          escapeCSV(r.client_name),
+          escapeCSV(excelSafePhone(r.phone)),
+          escapeCSV(r.location ?? ''),
+          escapeCSV(cleanNotes(r.visit_notes)),
+          escapeCSV(r.payment_method ?? ''),
+          Number(r.paid_cash ?? 0),
+          Number(r.paid_bank ?? 0),
+        ].join(',')
+      );
+    });
 
+    // ✅ SUMMARY (ONLY ONCE)
+    lines.push('');
+    lines.push('SUMMARY,,,');
+    lines.push(`Total Cash (€),${totalCash}`);
+    lines.push(`Total Bank (€),${totalBank}`);
+    lines.push(`Grand Total (€),${totalCash + totalBank}`);
+
+    const csv = lines.join('\n');
+    const filename = `owner-stats-${startDate}-to-${endDate}.csv`;
+
+    if (Platform.OS === 'web') {
+      const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.setAttribute('download', filename);
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    } else {
+      let FileSystem: any = null;
+      let Sharing: any = null;
+
+      try {
+        FileSystem = await import('expo-file-system');
+      } catch {}
+      try {
+        Sharing = await import('expo-sharing');
+      } catch {}
+
+      if (!FileSystem?.default?.writeAsStringAsync || !Sharing?.default?.shareAsync) {
+        Alert.alert('Export', 'Exporti nuk është i disponueshëm.');
+        setExporting(false);
+        return;
+      }
+
+      const path = `${FileSystem.default.cacheDirectory}${filename}`;
+      await FileSystem.default.writeAsStringAsync(path, csv, {
+        encoding: FileSystem.default.EncodingType.UTF8,
       });
 
-      lines.push('');
-      lines.push(`TOTAL CASH,${escapeCSV(totalCash)}`);
-      lines.push(`TOTAL BANK,${escapeCSV(totalBank)}`);
-
-      const csv = lines.join('\n');
-      const filename = `owner-stats-${startDate}-to-${endDate}.csv`;
-
-      if (Platform.OS === 'web') {
-        const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.setAttribute('download', filename);
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
-        URL.revokeObjectURL(url);
-      } else {
-        let FileSystem: any = null;
-        let Sharing: any = null;
-
-        try {
-          FileSystem = await import('expo-file-system');
-        } catch {}
-        try {
-          Sharing = await import('expo-sharing');
-        } catch {}
-
-        if (!FileSystem?.default?.writeAsStringAsync || !Sharing?.default?.shareAsync) {
-          Alert.alert(
-            'Export',
-            'Exporti nuk është i disponueshëm në këtë build.'
-          );
-          setExporting(false);
-          return;
-        }
-
-        const path = `${FileSystem.default.cacheDirectory}${filename}`;
-        await FileSystem.default.writeAsStringAsync(path, csv, {
-          encoding: FileSystem.default.EncodingType.UTF8,
-        });
-
-        await Sharing.default.shareAsync(path);
-      }
-    } catch (e: any) {
-      Alert.alert('Export Error', e?.message ?? 'Ndodhi një gabim gjatë eksportit.');
+      await Sharing.default.shareAsync(path);
     }
+  } catch (e: any) {
+    Alert.alert('Export Error', e?.message ?? 'Ndodhi një gabim.');
+  }
 
-    setExporting(false);
-  };
+  setExporting(false);
+};
+
 
   const RowCard = ({ item }: { item: Row }) => (
     <View style={[styles.card, { backgroundColor: Colors.card }]}>
