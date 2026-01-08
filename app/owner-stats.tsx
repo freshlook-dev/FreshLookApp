@@ -19,7 +19,7 @@ import { supabase } from '../context/supabase';
 import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
 import { LightColors, DarkColors } from '../constants/colors';
-import * as FileSystem from 'expo-file-system';
+import * as FileSystem from 'expo-file-system/legacy';
 import * as Sharing from 'expo-sharing';
 import * as XLSX from 'xlsx';
 
