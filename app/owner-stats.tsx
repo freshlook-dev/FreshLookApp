@@ -19,6 +19,11 @@ import { supabase } from '../context/supabase';
 import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
 import { LightColors, DarkColors } from '../constants/colors';
+import * as FileSystem from 'expo-file-system';
+import * as Sharing from 'expo-sharing';
+import * as XLSX from 'xlsx';
+
+
 
 type Role = 'owner' | 'manager' | 'staff';
 type PaymentMethod = 'cash' | 'bank' | 'mixed';
@@ -302,93 +307,99 @@ const excelSafePhone = (s?: string | null) =>
     setRefreshing(false);
   };
 
-  const exportCSV = async () => {
+  const exportExcel = async () => {
   if (exporting) return;
   setExporting(true);
 
   try {
     const data = await fetchAllFiltered();
 
-    const headers = [
-      'Date',
-      'Client Name',
-      'Phone',
-      'Location',
-      'Notes',
-      'Payment Method',
-      'Cash (€)',
-      'Bank (€)',
+    // =======================
+    // MAIN SHEET DATA
+    // =======================
+    const rowsForExcel = data.map((r) => ({
+      Date: formatDate(r.appointment_date),
+      'Client Name': r.client_name,
+      Phone: excelSafePhone(r.phone),
+      Location: r.location ?? '',
+      Notes: cleanNotes(r.visit_notes),
+      'Payment Method': r.payment_method ?? '',
+      'Cash (€)': Number(r.paid_cash ?? 0),
+      'Bank (€)': Number(r.paid_bank ?? 0),
+    }));
+
+    // =======================
+    // SUMMARY SHEET
+    // =======================
+    const summarySheet = [
+      { Label: 'Total Cash (€)', Value: totalCash },
+      { Label: 'Total Bank (€)', Value: totalBank },
+      { Label: 'Grand Total (€)', Value: totalCash + totalBank },
     ];
 
-    const lines: string[] = [];
-    lines.push(headers.join(','));
+    // =======================
+    // CREATE WORKBOOK
+    // =======================
+    const wb = XLSX.utils.book_new();
 
-    // ✅ DATA ROWS
-    data.forEach((r) => {
-      lines.push(
-        [
-          escapeCSV(formatDate(r.appointment_date)),
-          escapeCSV(r.client_name),
-          escapeCSV(excelSafePhone(r.phone)),
-          escapeCSV(r.location ?? ''),
-          escapeCSV(cleanNotes(r.visit_notes)),
-          escapeCSV(r.payment_method ?? ''),
-          Number(r.paid_cash ?? 0),
-          Number(r.paid_bank ?? 0),
-        ].join(',')
-      );
+    const dataSheet = XLSX.utils.json_to_sheet(rowsForExcel);
+    const summarySheetXLS = XLSX.utils.json_to_sheet(summarySheet);
+
+    XLSX.utils.book_append_sheet(wb, dataSheet, 'Appointments');
+    XLSX.utils.book_append_sheet(wb, summarySheetXLS, 'Summary');
+
+    // =======================
+    // WRITE FILE
+    // =======================
+    const FS = FileSystem as unknown as {
+  cacheDirectory: string;
+  writeAsStringAsync: (
+    uri: string,
+    data: string,
+    options: { encoding: string }
+  ) => Promise<void>;
+  EncodingType: {
+    Base64: string;
+  };
+};
+
+    const wbout = XLSX.write(wb, {
+      type: 'base64',
+      bookType: 'xlsx',
     });
 
-    // ✅ SUMMARY (ONLY ONCE)
-    lines.push('');
-    lines.push('SUMMARY,,,');
-    lines.push(`Total Cash (€),${totalCash}`);
-    lines.push(`Total Bank (€),${totalBank}`);
-    lines.push(`Grand Total (€),${totalCash + totalBank}`);
+    const filename = `owner-stats-${startDate}-to-${endDate}.xlsx`;
+    const path = `${FS.cacheDirectory}${filename}`;
 
-    const csv = lines.join('\n');
-    const filename = `owner-stats-${startDate}-to-${endDate}.csv`;
+
+
+    await FileSystem.writeAsStringAsync(
+  path,
+  wbout,
+  { encoding: 'base64' } as any
+);
+
+
+
 
     if (Platform.OS === 'web') {
-      const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.setAttribute('download', filename);
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      URL.revokeObjectURL(url);
-    } else {
-      let FileSystem: any = null;
-      let Sharing: any = null;
+  const link = document.createElement('a');
+  link.href = path;
+  link.download = filename;
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+} else {
+  await Sharing.shareAsync(path);
+}
 
-      try {
-        FileSystem = await import('expo-file-system');
-      } catch {}
-      try {
-        Sharing = await import('expo-sharing');
-      } catch {}
-
-      if (!FileSystem?.default?.writeAsStringAsync || !Sharing?.default?.shareAsync) {
-        Alert.alert('Export', 'Exporti nuk është i disponueshëm.');
-        setExporting(false);
-        return;
-      }
-
-      const path = `${FileSystem.default.cacheDirectory}${filename}`;
-      await FileSystem.default.writeAsStringAsync(path, csv, {
-        encoding: FileSystem.default.EncodingType.UTF8,
-      });
-
-      await Sharing.default.shareAsync(path);
-    }
   } catch (e: any) {
-    Alert.alert('Export Error', e?.message ?? 'Ndodhi një gabim.');
+    Alert.alert('Export Error', e?.message ?? 'Ndodhi një gabim gjatë eksportit.');
   }
 
   setExporting(false);
 };
+
 
 
   const RowCard = ({ item }: { item: Row }) => (
@@ -521,13 +532,14 @@ const LocationButtons = useMemo(() => {
         <Text style={[styles.title, { color: Colors.text }]}>Owner Stats</Text>
 
         <Pressable
-          onPress={exportCSV}
+          onPress={exportExcel}
           disabled={exporting}
           style={[styles.exportBtn, { backgroundColor: Colors.primary }]}
         >
           <Text style={styles.exportText}>
-            {exporting ? 'Exporting…' : 'Export CSV'}
+            {exporting ? 'Exporting…' : 'Export Excel'}
           </Text>
+
         </Pressable>
       </View>
 
