@@ -534,26 +534,47 @@ const LocationButtons = useMemo(() => {
       {DatePresetButtons}
 
       {datePreset === 'CUSTOM' && (
-        <View style={styles.customDates}>
-          <Pressable
-            onPress={() => setShowStartPicker(true)}
-            style={[styles.customInput, { backgroundColor: Colors.card }]}
-          >
-            <Text style={{ color: Colors.text }}>
-              Start: {formatDate(startDate)}
-            </Text>
-          </Pressable>
+  <View style={styles.customDates}>
+    {Platform.OS === 'web' ? (
+      <>
+        <TextInput
+          value={startDate}
+          onChangeText={(v) => setStartDateObj(new Date(v))}
+          placeholder="Start (YYYY-MM-DD)"
+          style={[styles.customInput, { backgroundColor: Colors.card, color: Colors.text }]}
+        />
 
-          <Pressable
-            onPress={() => setShowEndPicker(true)}
-            style={[styles.customInput, { backgroundColor: Colors.card }]}
-          >
-            <Text style={{ color: Colors.text }}>
-              End: {formatDate(endDate)}
-            </Text>
-          </Pressable>
-        </View>
-      )}
+        <TextInput
+          value={endDate}
+          onChangeText={(v) => setEndDateObj(new Date(v))}
+          placeholder="End (YYYY-MM-DD)"
+          style={[styles.customInput, { backgroundColor: Colors.card, color: Colors.text }]}
+        />
+      </>
+    ) : (
+      <>
+        <Pressable
+          onPress={() => setShowStartPicker(true)}
+          style={[styles.customInput, { backgroundColor: Colors.card }]}
+        >
+          <Text style={{ color: Colors.text }}>
+            Start: {formatDate(startDate)}
+          </Text>
+        </Pressable>
+
+        <Pressable
+          onPress={() => setShowEndPicker(true)}
+          style={[styles.customInput, { backgroundColor: Colors.card }]}
+        >
+          <Text style={{ color: Colors.text }}>
+            End: {formatDate(endDate)}
+          </Text>
+        </Pressable>
+      </>
+    )}
+  </View>
+)}
+
 
       {showStartPicker && (
         <DateTimePicker
