@@ -314,91 +314,81 @@ const excelSafePhone = (s?: string | null) =>
   try {
     const data = await fetchAllFiltered();
 
-    // =======================
-    // MAIN SHEET DATA
-    // =======================
     const rowsForExcel = data.map((r) => ({
       Date: formatDate(r.appointment_date),
       'Client Name': r.client_name,
-      Phone: excelSafePhone(r.phone),
+      Phone: r.phone ? `'${r.phone}` : '',
       Location: r.location ?? '',
-      Notes: cleanNotes(r.visit_notes),
+      Notes: (r.visit_notes ?? '').replace(/\r?\n|\r/g, ' • '),
       'Payment Method': r.payment_method ?? '',
       'Cash (€)': Number(r.paid_cash ?? 0),
       'Bank (€)': Number(r.paid_bank ?? 0),
     }));
 
-    // =======================
-    // SUMMARY SHEET
-    // =======================
     const summarySheet = [
       { Label: 'Total Cash (€)', Value: totalCash },
       { Label: 'Total Bank (€)', Value: totalBank },
       { Label: 'Grand Total (€)', Value: totalCash + totalBank },
     ];
 
-    // =======================
-    // CREATE WORKBOOK
-    // =======================
     const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(
+      wb,
+      XLSX.utils.json_to_sheet(rowsForExcel),
+      'Appointments'
+    );
+    XLSX.utils.book_append_sheet(
+      wb,
+      XLSX.utils.json_to_sheet(summarySheet),
+      'Summary'
+    );
 
-    const dataSheet = XLSX.utils.json_to_sheet(rowsForExcel);
-    const summarySheetXLS = XLSX.utils.json_to_sheet(summarySheet);
-
-    XLSX.utils.book_append_sheet(wb, dataSheet, 'Appointments');
-    XLSX.utils.book_append_sheet(wb, summarySheetXLS, 'Summary');
-
-    // =======================
-    // WRITE FILE
-    // =======================
-    const FS = FileSystem as unknown as {
-  cacheDirectory: string;
-  writeAsStringAsync: (
-    uri: string,
-    data: string,
-    options: { encoding: string }
-  ) => Promise<void>;
-  EncodingType: {
-    Base64: string;
-  };
-};
-
-    const wbout = XLSX.write(wb, {
-      type: 'base64',
-      bookType: 'xlsx',
-    });
-
-    const filename = `owner-stats-${startDate}-to-${endDate}.xlsx`;
-    const path = `${FS.cacheDirectory}${filename}`;
-
-
-
-    await FileSystem.writeAsStringAsync(
-  path,
-  wbout,
-  { encoding: 'base64' } as any
-);
-
-
-
-
+    // =========================
+    // WEB EXPORT (DOWNLOAD)
+    // =========================
     if (Platform.OS === 'web') {
-  const link = document.createElement('a');
-  link.href = path;
-  link.download = filename;
-  document.body.appendChild(link);
-  link.click();
-  document.body.removeChild(link);
-} else {
-  await Sharing.shareAsync(path);
-}
+      const wbout = XLSX.write(wb, { type: 'array', bookType: 'xlsx' });
+      const blob = new Blob([wbout], {
+        type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+      });
 
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `owner-stats-${startDate}-to-${endDate}.xlsx`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    }
+
+    // =========================
+    // MOBILE EXPORT (SHARE)
+    // =========================
+    else {
+      const wbout = XLSX.write(wb, { type: 'base64', bookType: 'xlsx' });
+      const path =
+        FileSystem.documentDirectory +
+        `owner-stats-${startDate}-to-${endDate}.xlsx`;
+
+      await FileSystem.writeAsStringAsync(
+        path,
+        wbout,
+        { encoding: 'base64' } as any
+      );
+
+      await Sharing.shareAsync(path);
+    }
   } catch (e: any) {
-    Alert.alert('Export Error', e?.message ?? 'Ndodhi një gabim gjatë eksportit.');
+    Alert.alert(
+      'Export Error',
+      e?.message ?? 'Excel export failed.'
+    );
   }
 
   setExporting(false);
 };
+
 
 
 
