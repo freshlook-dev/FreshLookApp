@@ -123,6 +123,13 @@ export default function OwnerStatsScreen() {
 
   const debounceRef = useRef<any>(null);
 
+  const cleanNotes = (s?: string | null) =>
+  (s ?? '').replace(/\r?\n|\r/g, ' • ');
+
+const excelSafePhone = (s?: string | null) =>
+  s ? `'${s}` : '';
+
+
   useEffect(() => {
     if (!user?.id) return;
 
@@ -317,18 +324,12 @@ export default function OwnerStatsScreen() {
       lines.push(headers.join(','));
 
       data.forEach((r) => {
-        lines.push(
-          [
-            escapeCSV(r.appointment_date),
-            escapeCSV(r.client_name),
-            escapeCSV(r.phone ?? ''),
-            escapeCSV(r.location ?? ''),
-            escapeCSV(r.visit_notes ?? ''),
-            escapeCSV(r.payment_method ?? ''),
-            escapeCSV(r.paid_cash ?? ''),
-            escapeCSV(r.paid_bank ?? ''),
-          ].join(',')
-        );
+        lines.push('');
+lines.push('SUMMARY,,,');
+lines.push(`Total Cash (€),${totalCash}`);
+lines.push(`Total Bank (€),${totalBank}`);
+lines.push(`Grand Total (€),${totalCash + totalBank}`);
+
       });
 
       lines.push('');
@@ -494,6 +495,17 @@ const LocationButtons = useMemo(() => {
       </View>
     );
   }
+
+  const headers = [
+  'Date',
+  'Client Name',
+  'Phone',
+  'Location',
+  'Notes',
+  'Payment Method',
+  'Cash (€)',
+  'Bank (€)',
+];
 
   return (
     <View style={[styles.container, { backgroundColor: Colors.background }]}>
