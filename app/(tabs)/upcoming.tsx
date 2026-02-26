@@ -24,6 +24,10 @@ import { SectionTitle } from '../../components/SectionTitle';
 import { useTheme } from '../../context/ThemeContext';
 import { LightColors, DarkColors } from '../../constants/colors';
 
+import AppointmentCardModal, {
+  AppointmentReceiptData,
+} from '../../components/AppointmentCardModal';
+
 type Status = 'upcoming' | 'arrived' | 'canceled';
 type Role = 'owner' | 'manager' | 'staff';
 
@@ -65,6 +69,11 @@ export default function UpcomingAppointments() {
   >('all');
 
   const [processingId, setProcessingId] = useState<string | null>(null);
+
+  const [receiptVisible, setReceiptVisible] = useState(false);
+  const [receiptData, setReceiptData] = useState<AppointmentReceiptData | null>(
+    null
+  );
 
   useEffect(() => {
     return () => {
@@ -210,6 +219,18 @@ export default function UpcomingAppointments() {
 
   const canEdit = role === 'owner' || role === 'manager';
 
+  const openReceipt = (item: Appointment) => {
+    setReceiptData({
+      client_name: item.client_name,
+      service: item.service,
+      appointment_date: formatDate(item.appointment_date),
+      appointment_time: formatTime(item.appointment_time),
+      location: item.location ?? '',
+      phone: item.phone ?? '',
+    });
+    setReceiptVisible(true);
+  };
+
   if (!user || loading) {
     return (
       <View style={[styles.center, { backgroundColor: Colors.background }]}>
@@ -260,7 +281,11 @@ export default function UpcomingAppointments() {
         renderItem={({ item }) => (
           <Card>
             <View style={styles.row}>
-              <View style={{ flex: 1 }}>
+              <TouchableOpacity
+                activeOpacity={0.9}
+                onPress={() => openReceipt(item)}
+                style={{ flex: 1 }}
+              >
                 <Text style={[styles.client, { color: Colors.text }]}>
                   {item.client_name}
                 </Text>
@@ -297,7 +322,7 @@ export default function UpcomingAppointments() {
                     📝 {item.comment}
                   </Text>
                 )}
-              </View>
+              </TouchableOpacity>
 
               <View style={styles.sideActions}>
                 {canEdit && (
@@ -350,6 +375,12 @@ export default function UpcomingAppointments() {
             </View>
           </Card>
         )}
+      />
+
+      <AppointmentCardModal
+        visible={receiptVisible}
+        onClose={() => setReceiptVisible(false)}
+        data={receiptData}
       />
     </View>
   );
