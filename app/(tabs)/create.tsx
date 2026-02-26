@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useState } from 'react';
 import {
   View,
   Text,
@@ -10,8 +10,6 @@ import {
   Alert,
   Platform,
   ScrollView,
-  Modal,
-  FlatList,
 } from 'react-native';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { router } from 'expo-router';
@@ -78,27 +76,6 @@ export default function CreateAppointmentScreen() {
   const { user } = useAuth();
 
   const formatDate = (d: Date) => d.toISOString().split('T')[0];
-
-  const webDateOptions = useMemo(() => {
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-
-    const arr: { key: string; d: Date; label: string }[] = [];
-    for (let i = 0; i < 365; i++) {
-      const nd = new Date(today);
-      nd.setDate(today.getDate() + i);
-      const key = nd.toISOString();
-      const yyyy = nd.getFullYear();
-      const mm = String(nd.getMonth() + 1).padStart(2, '0');
-      const dd = String(nd.getDate()).padStart(2, '0');
-      arr.push({
-        key,
-        d: nd,
-        label: `${yyyy}-${mm}-${dd}`,
-      });
-    }
-    return arr;
-  }, []);
 
   const handleCreate = async () => {
     if (!fullName || !phone || !treatment || !location || !time || !user) {
@@ -260,87 +237,52 @@ export default function CreateAppointmentScreen() {
         </View>
 
         <Text style={[styles.label, { color: Colors.text }]}>Data</Text>
-        <Pressable
-          style={[
-            styles.input,
-            styles.dateInput,
-            {
-              backgroundColor: Colors.background,
-              borderColor: Colors.primary,
-            },
-          ]}
-          onPress={() => setShowDatePicker(true)}
-        >
-          <Text style={{ color: Colors.text, fontWeight: '700' }}>
-            {formatDate(date)}
-          </Text>
-        </Pressable>
 
-        {Platform.OS !== 'web' ? (
+        {Platform.OS === 'web' ? (
+          <input
+            type="date"
+            value={formatDate(date)}
+            onChange={(e) => setDate(new Date(e.target.value))}
+            style={{
+              width: '100%',
+              padding: 14,
+              fontSize: 15,
+              borderRadius: 12,
+              border: `1px solid ${Colors.primary}`,
+              backgroundColor: Colors.background,
+              color: Colors.text,
+            }}
+          />
+        ) : (
           <>
+            <Pressable
+              onPress={() => setShowDatePicker(true)}
+              style={[
+                styles.input,
+                styles.dateInput,
+                {
+                  backgroundColor: Colors.background,
+                  borderColor: Colors.primary,
+                },
+              ]}
+            >
+              <Text style={{ color: Colors.text, fontWeight: '700' }}>
+                {formatDate(date)}
+              </Text>
+            </Pressable>
+
             {showDatePicker && (
               <DateTimePicker
                 value={date}
                 mode="date"
                 display={Platform.OS === 'ios' ? 'spinner' : 'default'}
-                onChange={(_, selectedDate) => {
+                onChange={(_, d) => {
                   setShowDatePicker(false);
-                  if (selectedDate) setDate(selectedDate);
+                  if (d) setDate(d);
                 }}
               />
             )}
           </>
-        ) : (
-          <Modal
-            visible={showDatePicker}
-            transparent
-            animationType="fade"
-            onRequestClose={() => setShowDatePicker(false)}
-          >
-            <View style={styles.webPickerBackdrop}>
-              <View style={[styles.webPickerCard, { backgroundColor: Colors.card, borderColor: Colors.primary }]}>
-                <View style={styles.webPickerHeader}>
-                  <Text style={[styles.webPickerTitle, { color: Colors.text }]}>Zgjidh Datën</Text>
-                  <Pressable
-                    onPress={() => setShowDatePicker(false)}
-                    style={[styles.webPickerClose, { backgroundColor: Colors.background }]}
-                    hitSlop={12}
-                  >
-                    <Text style={{ color: Colors.text, fontWeight: '900' }}>✕</Text>
-                  </Pressable>
-                </View>
-
-                <FlatList
-                  data={webDateOptions}
-                  keyExtractor={(item) => item.key}
-                  style={styles.webPickerList}
-                  contentContainerStyle={{ paddingBottom: 10 }}
-                  renderItem={({ item }) => {
-                    const selected = formatDate(date) === item.label;
-                    return (
-                      <Pressable
-                        onPress={() => {
-                          setDate(item.d);
-                          setShowDatePicker(false);
-                        }}
-                        style={[
-                          styles.webPickerRow,
-                          {
-                            backgroundColor: selected ? Colors.primary : Colors.background,
-                            borderColor: Colors.primary,
-                          },
-                        ]}
-                      >
-                        <Text style={{ color: selected ? '#fff' : Colors.text, fontWeight: '800' }}>
-                          {item.label}
-                        </Text>
-                      </Pressable>
-                    );
-                  }}
-                />
-              </View>
-            </View>
-          </Modal>
         )}
 
         <Text style={[styles.label, { color: Colors.text }]}>Ora</Text>
@@ -488,47 +430,5 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontSize: 16,
     fontWeight: '900',
-  },
-
-  webPickerBackdrop: {
-    flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.55)',
-    alignItems: 'center',
-    justifyContent: 'center',
-    padding: 18,
-  },
-  webPickerCard: {
-    width: '100%',
-    maxWidth: 420,
-    borderRadius: 16,
-    borderWidth: 1,
-    padding: 14,
-  },
-  webPickerHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: 10,
-  },
-  webPickerTitle: {
-    fontSize: 16,
-    fontWeight: '900',
-  },
-  webPickerClose: {
-    width: 34,
-    height: 34,
-    borderRadius: 17,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  webPickerList: {
-    maxHeight: 420,
-  },
-  webPickerRow: {
-    borderWidth: 1,
-    borderRadius: 12,
-    paddingVertical: 12,
-    paddingHorizontal: 14,
-    marginBottom: 10,
   },
 });
