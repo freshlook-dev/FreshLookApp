@@ -14,6 +14,8 @@ import {
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { router } from 'expo-router';
 
+import AppointmentCardModal, { AppointmentReceiptData } from '../../components/AppointmentCardModal';
+
 import { supabase } from '../../context/supabase';
 import { useAuth } from '../../context/AuthContext';
 
@@ -41,21 +43,17 @@ const generateTimeSlots = () => {
   for (let h = 9; h <= 21; h++) {
     for (let m of [0, 30]) {
       if (h === 21 && m === 30) continue;
-      slots.push(
-        `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`
-      );
+      const hh = String(h).padStart(2, '0');
+      const mm = String(m).padStart(2, '0');
+      slots.push(`${hh}:${mm}`);
     }
   }
   return slots;
 };
 
-const TIME_SLOTS = generateTimeSlots();
+const TIMES = generateTimeSlots();
 
-/* -------------------- SCREEN -------------------- */
-
-export default function CreateAppointment() {
-  const { user } = useAuth();
-
+export default function CreateAppointmentScreen() {
   const { theme } = useTheme();
   const Colors = theme === 'dark' ? DarkColors : LightColors;
 
@@ -63,13 +61,19 @@ export default function CreateAppointment() {
   const [phone, setPhone] = useState('');
   const [treatment, setTreatment] = useState<string | null>(null);
   const [location, setLocation] = useState<string | null>(null);
-  const [comment, setComment] = useState('');
 
   const [date, setDate] = useState(new Date());
-  const [time, setTime] = useState<string | null>(null);
-
   const [showDatePicker, setShowDatePicker] = useState(false);
+
+  const [time, setTime] = useState<string | null>(null);
+  const [comment, setComment] = useState('');
+
   const [loading, setLoading] = useState(false);
+
+  const [receiptVisible, setReceiptVisible] = useState(false);
+  const [receiptData, setReceiptData] = useState<AppointmentReceiptData | null>(null);
+
+  const { user } = useAuth();
 
   const formatDate = (d: Date) => d.toISOString().split('T')[0];
 
@@ -103,13 +107,26 @@ export default function CreateAppointment() {
         action: 'CREATE_APPOINTMENT',
       });
 
-      Alert.alert('Sukses', 'Termini u krijua me sukses');
-      router.replace('/(tabs)/upcoming');
+      setReceiptData({
+        client_name: fullName.trim(),
+        service: treatment as string,
+        appointment_date: formatDate(date),
+        appointment_time: time as string,
+        location: location as string,
+        phone: phone.trim(),
+      });
+      setReceiptVisible(true);
     } catch {
       Alert.alert('Gabim', 'Diçka shkoi keq');
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleCloseReceipt = () => {
+    setReceiptVisible(false);
+    setReceiptData(null);
+    router.replace('/(tabs)/upcoming');
   };
 
   return (
@@ -121,20 +138,30 @@ export default function CreateAppointment() {
       keyboardShouldPersistTaps="handled"
       showsVerticalScrollIndicator={false}
     >
-      <Text style={[styles.title, { color: Colors.text }]}>
-        Termin i Ri
-      </Text>
+      <Text style={[styles.title, { color: Colors.text }]}>Krijo Termin</Text>
 
-      {/* Full name */}
+      {/* CLIENT INFO */}
       <View style={[styles.card, { backgroundColor: Colors.card }]}>
-        <Text style={[styles.label, { color: Colors.muted }]}>
-          Emri dhe Mbiemri
+        <Text style={[styles.sectionTitle, { color: Colors.primary }]}>
+          Informacioni i Klientit
         </Text>
+
         <TextInput
+          style={[
+            styles.input,
+            {
+              backgroundColor: Colors.background,
+              borderColor: Colors.primary,
+              color: Colors.text,
+            },
+          ]}
+          placeholder="Emri dhe Mbiemri"
+          placeholderTextColor={Colors.muted}
           value={fullName}
           onChangeText={setFullName}
-          placeholder="Emri i klientit"
-          placeholderTextColor={Colors.muted}
+        />
+
+        <TextInput
           style={[
             styles.input,
             {
@@ -143,196 +170,143 @@ export default function CreateAppointment() {
               color: Colors.text,
             },
           ]}
-        />
-      </View>
-
-      {/* Phone */}
-      <View style={[styles.card, { backgroundColor: Colors.card }]}>
-        <Text style={[styles.label, { color: Colors.muted }]}>
-          Numri kontaktues
-        </Text>
-        <TextInput
+          placeholder="Numri i Telefonit"
+          placeholderTextColor={Colors.muted}
           value={phone}
           onChangeText={setPhone}
-          placeholder="04x - xxx - xxx"
-          placeholderTextColor={Colors.muted}
           keyboardType="phone-pad"
-          style={[
-            styles.input,
-            {
-              backgroundColor: Colors.background,
-              borderColor: Colors.primary,
-              color: Colors.text,
-            },
-          ]}
         />
       </View>
 
-      {/* Treatment */}
+      {/* APPOINTMENT DETAILS */}
       <View style={[styles.card, { backgroundColor: Colors.card }]}>
-        <Text style={[styles.label, { color: Colors.muted }]}>
-          Tretmani
-        </Text>
-        {TREATMENTS.map((item) => (
-          <Pressable
-            key={item}
-            style={[
-              styles.option,
-              { borderColor: Colors.primary },
-              treatment === item && {
-                backgroundColor: Colors.primary,
-              },
-            ]}
-            onPress={() => setTreatment(item)}
-          >
-            <Text
-              style={[
-                styles.optionText,
-                { color: treatment === item ? '#fff' : Colors.text },
-              ]}
-            >
-              {item}
-            </Text>
-          </Pressable>
-        ))}
-      </View>
-
-      {/* DATE */}
-      <View style={[styles.card, { backgroundColor: Colors.card }]}>
-        <Text style={[styles.label, { color: Colors.muted }]}>
-          Data
+        <Text style={[styles.sectionTitle, { color: Colors.primary }]}>
+          Detajet e Terminit
         </Text>
 
-        {Platform.OS === 'web' ? (
-          <input
-            type="date"
-            value={formatDate(date)}
-            onChange={(e) => setDate(new Date(e.target.value))}
-            style={{
-              width: '100%',
-              padding: 14,
-              fontSize: 15,
-              borderRadius: 12,
-              border: `1px solid ${Colors.primary}`,
-              backgroundColor: Colors.background,
-              color: Colors.text,
-            }}
-          />
-        ) : (
-          <>
+        <Text style={[styles.label, { color: Colors.text }]}>Shërbimi</Text>
+        <View style={styles.optionsWrap}>
+          {TREATMENTS.map((t) => (
             <Pressable
-              onPress={() => setShowDatePicker(true)}
+              key={t}
               style={[
-                styles.input,
+                styles.optionPill,
                 {
-                  backgroundColor: Colors.background,
                   borderColor: Colors.primary,
+                  backgroundColor: treatment === t ? Colors.primary : Colors.background,
                 },
               ]}
-            >
-              <Text style={{ color: Colors.text }}>
-                {formatDate(date)}
-              </Text>
-            </Pressable>
-
-            {showDatePicker && (
-              <DateTimePicker
-                value={date}
-                mode="date"
-                display={
-                  Platform.OS === 'ios' ? 'spinner' : 'default'
-                }
-                onChange={(_, d) => {
-                  setShowDatePicker(false);
-                  if (d) setDate(d);
-                }}
-              />
-            )}
-          </>
-        )}
-      </View>
-
-      {/* Time */}
-      <View style={[styles.card, { backgroundColor: Colors.card }]}>
-        <Text style={[styles.label, { color: Colors.muted }]}>
-          Ora
-        </Text>
-        <View style={styles.timeGrid}>
-          {TIME_SLOTS.map((slot) => (
-            <Pressable
-              key={slot}
-              onPress={() => setTime(slot)}
-              style={[
-                styles.timeSlot,
-                { borderColor: Colors.primary },
-                time === slot && {
-                  backgroundColor: Colors.primary,
-                },
-              ]}
+              onPress={() => setTreatment(t)}
             >
               <Text
-                style={{
-                  color: time === slot ? '#fff' : Colors.text,
-                  fontWeight: '700',
-                }}
+                style={[
+                  styles.optionText,
+                  { color: treatment === t ? '#fff' : Colors.text },
+                ]}
               >
-                {slot}
+                {t}
               </Text>
             </Pressable>
           ))}
         </View>
-      </View>
 
-      {/* Location */}
-      <View style={[styles.card, { backgroundColor: Colors.card }]}>
-        <Text style={[styles.label, { color: Colors.muted }]}>
-          Lokacioni
-        </Text>
-        {LOCATIONS.map((loc) => (
-          <Pressable
-            key={loc}
-            style={[
-              styles.option,
-              { borderColor: Colors.primary },
-              location === loc && {
-                backgroundColor: Colors.primary,
-              },
-            ]}
-            onPress={() => setLocation(loc)}
-          >
-            <Text
+        <Text style={[styles.label, { color: Colors.text }]}>Lokacioni</Text>
+        <View style={styles.optionsWrap}>
+          {LOCATIONS.map((l) => (
+            <Pressable
+              key={l}
               style={[
-                styles.optionText,
-                { color: location === loc ? '#fff' : Colors.text },
+                styles.optionPill,
+                {
+                  borderColor: Colors.primary,
+                  backgroundColor: location === l ? Colors.primary : Colors.background,
+                },
               ]}
+              onPress={() => setLocation(l)}
             >
-              {loc}
-            </Text>
-          </Pressable>
-        ))}
-      </View>
+              <Text
+                style={[
+                  styles.optionText,
+                  { color: location === l ? '#fff' : Colors.text },
+                ]}
+              >
+                {l}
+              </Text>
+            </Pressable>
+          ))}
+        </View>
 
-      {/* Comment */}
-      <View style={[styles.card, { backgroundColor: Colors.card }]}>
-        <Text style={[styles.label, { color: Colors.muted }]}>
-          Koment për klientin (opsionale)
-        </Text>
-        <TextInput
-          value={comment}
-          onChangeText={setComment}
-          placeholder="Shënime shtesë, kërkesa speciale, etj."
-          placeholderTextColor={Colors.muted}
-          multiline
+        <Text style={[styles.label, { color: Colors.text }]}>Data</Text>
+        <Pressable
           style={[
             styles.input,
+            styles.dateInput,
             {
-              height: 100,
-              textAlignVertical: 'top',
+              backgroundColor: Colors.background,
+              borderColor: Colors.primary,
+            },
+          ]}
+          onPress={() => setShowDatePicker(true)}
+        >
+          <Text style={{ color: Colors.text, fontWeight: '700' }}>
+            {formatDate(date)}
+          </Text>
+        </Pressable>
+
+        {showDatePicker && (
+          <DateTimePicker
+            value={date}
+            mode="date"
+            display={Platform.OS === 'ios' ? 'spinner' : 'default'}
+            onChange={(_, selectedDate) => {
+              setShowDatePicker(false);
+              if (selectedDate) setDate(selectedDate);
+            }}
+          />
+        )}
+
+        <Text style={[styles.label, { color: Colors.text }]}>Ora</Text>
+        <View style={styles.optionsWrap}>
+          {TIMES.map((t) => (
+            <Pressable
+              key={t}
+              style={[
+                styles.timePill,
+                {
+                  borderColor: Colors.primary,
+                  backgroundColor: time === t ? Colors.primary : Colors.background,
+                },
+              ]}
+              onPress={() => setTime(t)}
+            >
+              <Text
+                style={[
+                  styles.optionText,
+                  { color: time === t ? '#fff' : Colors.text },
+                ]}
+              >
+                {t}
+              </Text>
+            </Pressable>
+          ))}
+        </View>
+
+        <Text style={[styles.label, { color: Colors.text }]}>Koment (opsional)</Text>
+        <TextInput
+          style={[
+            styles.input,
+            styles.textArea,
+            {
               backgroundColor: Colors.background,
               borderColor: Colors.primary,
               color: Colors.text,
             },
           ]}
+          placeholder="Shkruaj ndonjë koment…"
+          placeholderTextColor={Colors.muted}
+          value={comment}
+          onChangeText={setComment}
+          multiline
         />
       </View>
 
@@ -349,6 +323,12 @@ export default function CreateAppointment() {
           {loading ? 'Duke ruajtur…' : 'Krijo Termin'}
         </Text>
       </Pressable>
+
+      <AppointmentCardModal
+        visible={receiptVisible}
+        onClose={handleCloseReceipt}
+        data={receiptData}
+      />
     </ScrollView>
   );
 }
@@ -371,48 +351,64 @@ const styles = StyleSheet.create({
     padding: 16,
     marginBottom: 16,
   },
+  sectionTitle: {
+    fontSize: 16,
+    fontWeight: '800',
+    marginBottom: 12,
+  },
   label: {
-    fontSize: 13,
-    marginBottom: 6,
-    fontWeight: '600',
+    fontSize: 14,
+    fontWeight: '800',
+    marginTop: 10,
+    marginBottom: 8,
   },
   input: {
     borderWidth: 1,
     borderRadius: 12,
-    padding: 14,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    marginBottom: 12,
     fontSize: 15,
+    fontWeight: '700',
   },
-  option: {
-    padding: 12,
-    borderRadius: 10,
-    borderWidth: 1,
-    marginBottom: 8,
+  textArea: {
+    minHeight: 90,
+    textAlignVertical: 'top',
   },
-  optionText: {
-    fontSize: 14,
-    fontWeight: '600',
+  dateInput: {
+    justifyContent: 'center',
   },
-  timeGrid: {
+  optionsWrap: {
     flexDirection: 'row',
     flexWrap: 'wrap',
+    gap: 10,
   },
-  timeSlot: {
-    width: '30%',
-    paddingVertical: 10,
-    margin: '1.5%',
-    borderRadius: 10,
+  optionPill: {
     borderWidth: 1,
-    alignItems: 'center',
+    borderRadius: 999,
+    paddingVertical: 10,
+    paddingHorizontal: 14,
+  },
+  timePill: {
+    borderWidth: 1,
+    borderRadius: 999,
+    paddingVertical: 10,
+    paddingHorizontal: 14,
+  },
+  optionText: {
+    fontSize: 13,
+    fontWeight: '800',
   },
   button: {
-    paddingVertical: 18,
-    borderRadius: 16,
+    borderRadius: 14,
+    paddingVertical: 14,
     alignItems: 'center',
-    marginTop: 8,
+    justifyContent: 'center',
+    marginTop: 6,
   },
   buttonText: {
-    color: '#FFFFFF',
+    color: '#fff',
     fontSize: 16,
-    fontWeight: '800',
+    fontWeight: '900',
   },
 });
