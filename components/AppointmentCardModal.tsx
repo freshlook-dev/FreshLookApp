@@ -102,17 +102,9 @@ export default function AppointmentCardModal({ visible, onClose, data }: Props) 
           <View style={[styles.footer, { borderTopColor: 'rgba(201,162,77,0.35)' }]}>
             <Text style={[styles.footerBrand, { color: Colors.primary }]}>Fresh Look Aesthetics</Text>
             <Text style={[styles.footerNote, { color: Colors.muted }]}>
-              Ju mirëpresim në termin tuaj.
+              Ju mirëpresim në terminin tuaj.
             </Text>
           </View>
-
-          <Pressable
-            accessibilityRole="button"
-            onPress={onClose}
-            style={[styles.doneButton, { backgroundColor: Colors.primary }]}
-          >
-            <Text style={styles.doneText}>Mbyll</Text>
-          </Pressable>
         </View>
       </View>
     </Modal>
