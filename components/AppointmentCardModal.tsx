@@ -51,7 +51,7 @@ export default function AppointmentCardModal({ visible, onClose, data }: Props) 
 
           <View style={styles.logoWrap}>
             <Image
-              source={require('../assets/images/logo.png')}
+              source={require('../assets/images/LOGO_HORIZONTAL.png')}
               style={styles.logo}
               resizeMode="contain"
             />
