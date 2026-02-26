@@ -11,6 +11,7 @@ import {
   Pressable,
   Alert,
   Platform,
+  TextInput,
 } from 'react-native';
 import { router } from 'expo-router';
 
@@ -58,6 +59,8 @@ export default function HistoryScreen() {
   const [canManage, setCanManage] = useState(false);
   const [role, setRole] = useState<Role>('staff');
   const [filter, setFilter] = useState<Filter>('arrived');
+
+  const [search, setSearch] = useState('');
 
   useEffect(() => {
     if (user?.id) {
@@ -284,9 +287,39 @@ export default function HistoryScreen() {
             Krijuar nga: {item.creator_name}
           </Text>
         )}
+
+        {item.location && (
+          <Text style={[styles.location, { color: Colors.muted }]}>
+            📍 {item.location}
+          </Text>
+        )}
       </Pressable>
     );
   };
+
+  const q = search.trim().toLowerCase();
+
+  const matchesSearch = (a: Appointment) => {
+    if (!q) return true;
+    const hay = [
+      a.client_name,
+      a.phone ?? '',
+      a.service,
+      a.location ?? '',
+      a.comment ?? '',
+      a.creator_name ?? '',
+      a.appointment_date,
+      a.appointment_time,
+      a.status,
+      a.payment_method ?? '',
+    ]
+      .join(' ')
+      .toLowerCase();
+    return hay.includes(q);
+  };
+
+  const arrivedFiltered = arrived.filter(matchesSearch);
+  const canceledFiltered = canceled.filter(matchesSearch);
 
   if (loading) {
     return (
@@ -298,6 +331,21 @@ export default function HistoryScreen() {
 
   return (
     <View style={[styles.container, { backgroundColor: Colors.background }]}>
+      <TextInput
+        value={search}
+        onChangeText={setSearch}
+        placeholder="Kërko (emër, nr, shërbim, koment...)"
+        placeholderTextColor={Colors.muted}
+        style={[
+          styles.searchInput,
+          {
+            backgroundColor: Colors.card,
+            borderColor: Colors.primary,
+            color: Colors.text,
+          },
+        ]}
+      />
+
       <View style={styles.filterRow}>
         <Pressable
           onPress={() => setFilter('arrived')}
@@ -354,7 +402,7 @@ export default function HistoryScreen() {
 
       {filter === 'arrived' && (
         <FlatList
-          data={arrived}
+          data={arrivedFiltered}
           keyExtractor={(item) => item.id}
           renderItem={({ item }) => renderItem(item)}
         />
@@ -362,7 +410,7 @@ export default function HistoryScreen() {
 
       {filter === 'canceled' && (
         <FlatList
-          data={canceled}
+          data={canceledFiltered}
           keyExtractor={(item) => item.id}
           renderItem={({ item }) => renderItem(item)}
         />
@@ -492,6 +540,14 @@ export default function HistoryScreen() {
 const styles = StyleSheet.create({
   container: { flex: 1, padding: 20 },
   center: { flex: 1, justifyContent: 'center', alignItems: 'center' },
+  searchInput: {
+    borderWidth: 1,
+    borderRadius: 12,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    fontSize: 15,
+    marginBottom: 12,
+  },
   filterRow: { flexDirection: 'row', marginBottom: 16 },
   filterBtn: {
     flex: 1,
@@ -516,6 +572,7 @@ const styles = StyleSheet.create({
   },
   client: { fontSize: 15, fontWeight: '700' },
   creator: { fontSize: 12, marginTop: 4 },
+  location: { fontSize: 12, marginTop: 4 },
   badge: {
     paddingHorizontal: 8,
     paddingVertical: 4,
