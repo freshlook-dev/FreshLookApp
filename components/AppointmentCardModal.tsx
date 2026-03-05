@@ -34,7 +34,16 @@ export default function AppointmentCardModal({ visible, onClose, data }: Props) 
   const { theme } = useTheme();
   const Colors = theme === 'dark' ? DarkColors : LightColors;
 
-  if (!data) return null;
+  if (!visible) return null;
+
+  const safeData: AppointmentReceiptData = data ?? {
+    client_name: '',
+    service: '',
+    appointment_date: '',
+    appointment_time: '',
+    location: '',
+    phone: '',
+  };
 
   return (
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
@@ -62,7 +71,7 @@ export default function AppointmentCardModal({ visible, onClose, data }: Props) 
           <View style={styles.section}>
             <Text style={[styles.label, { color: Colors.muted }]}>Klienti</Text>
             <Text style={[styles.value, { color: Colors.text }]} numberOfLines={2}>
-              {data.client_name}
+              {safeData.client_name}
             </Text>
           </View>
 
@@ -70,7 +79,7 @@ export default function AppointmentCardModal({ visible, onClose, data }: Props) 
             <View style={styles.col}>
               <Text style={[styles.label, { color: Colors.muted }]}>Shërbimi</Text>
               <Text style={[styles.value, { color: Colors.text }]} numberOfLines={2}>
-                {data.service}
+                {safeData.service}
               </Text>
             </View>
           </View>
@@ -78,24 +87,24 @@ export default function AppointmentCardModal({ visible, onClose, data }: Props) 
           <View style={styles.row}>
             <View style={styles.col}>
               <Text style={[styles.label, { color: Colors.muted }]}>Data</Text>
-              <Text style={[styles.value, { color: Colors.text }]}>{data.appointment_date}</Text>
+              <Text style={[styles.value, { color: Colors.text }]}>{safeData.appointment_date}</Text>
             </View>
 
             <View style={styles.col}>
               <Text style={[styles.label, { color: Colors.muted }]}>Ora</Text>
-              <Text style={[styles.value, { color: Colors.text }]}>{data.appointment_time}</Text>
+              <Text style={[styles.value, { color: Colors.text }]}>{safeData.appointment_time}</Text>
             </View>
           </View>
 
           <View style={styles.row}>
             <View style={styles.col}>
               <Text style={[styles.label, { color: Colors.muted }]}>Lokacioni</Text>
-              <Text style={[styles.value, { color: Colors.text }]}>{data.location}</Text>
+              <Text style={[styles.value, { color: Colors.text }]}>{safeData.location}</Text>
             </View>
 
             <View style={styles.col}>
               <Text style={[styles.label, { color: Colors.muted }]}>Telefoni</Text>
-              <Text style={[styles.value, { color: Colors.text }]}>{data.phone}</Text>
+              <Text style={[styles.value, { color: Colors.text }]}>{safeData.phone}</Text>
             </View>
           </View>
 
