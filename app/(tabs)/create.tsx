@@ -24,8 +24,6 @@ import { useAuth } from '../../context/AuthContext';
 import { useTheme } from '../../context/ThemeContext';
 import { LightColors, DarkColors } from '../../constants/colors';
 
-/* -------------------- OPTIONS -------------------- */
-
 const TREATMENTS = [
   'Pastrimi i fytyrës',
   'Carbon Peeling',
@@ -53,6 +51,17 @@ const generateTimeSlots = () => {
 };
 
 const TIMES = generateTimeSlots();
+
+/** ✅ Always normalize DB time -> "HH:MM" */
+const normalizeTime = (value: any): string | null => {
+  if (!value) return null;
+  const s = String(value).trim();
+
+  // common cases: "09:00:00", "09:00:00.000000", "09:00:00+00", "09:00"
+  const m = s.match(/^(\d{2}):(\d{2})/);
+  if (!m) return null;
+  return `${m[1]}:${m[2]}`;
+};
 
 export default function CreateAppointmentScreen() {
   const { theme } = useTheme();
@@ -103,7 +112,7 @@ export default function CreateAppointmentScreen() {
 
     const set = new Set<string>();
     (data ?? []).forEach((row: any) => {
-      const t = String(row.appointment_time ?? '').slice(0, 5);
+      const t = normalizeTime(row.appointment_time);
       if (t) set.add(t);
     });
 
@@ -393,7 +402,6 @@ export default function CreateAppointmentScreen() {
 
         <Text style={[styles.label, { color: Colors.text }]}>Ora</Text>
 
-        {/* ✅ WEB (PHONE WEB INCLUDED): INLINE TIME BUTTONS (NO OPENING REQUIRED) */}
         {Platform.OS === 'web' ? (
           <View style={styles.optionsWrap}>
             {TIMES.map((t) => {
@@ -432,7 +440,6 @@ export default function CreateAppointmentScreen() {
           </View>
         ) : (
           <>
-            {/* ✅ NATIVE: PRESS TO OPEN LIST */}
             <Pressable
               onPress={onToggleNativeTimeDropdown}
               style={[
@@ -497,11 +504,6 @@ export default function CreateAppointmentScreen() {
                       >
                         {t}
                       </Text>
-                      {isBlocked && (
-                        <Text style={{ color: Colors.muted, fontSize: 12 }}>
-                          Unavailable
-                        </Text>
-                      )}
                     </Pressable>
                   );
                 })}
@@ -555,32 +557,11 @@ export default function CreateAppointmentScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flexGrow: 1,
-    padding: 20,
-    paddingBottom: 40,
-  },
-  title: {
-    fontSize: 26,
-    fontWeight: '800',
-    marginBottom: 20,
-  },
-  card: {
-    borderRadius: 16,
-    padding: 16,
-    marginBottom: 16,
-  },
-  sectionTitle: {
-    fontSize: 16,
-    fontWeight: '800',
-    marginBottom: 12,
-  },
-  label: {
-    fontSize: 14,
-    fontWeight: '800',
-    marginTop: 10,
-    marginBottom: 8,
-  },
+  container: { flexGrow: 1, padding: 20, paddingBottom: 40 },
+  title: { fontSize: 26, fontWeight: '800', marginBottom: 20 },
+  card: { borderRadius: 16, padding: 16, marginBottom: 16 },
+  sectionTitle: { fontSize: 16, fontWeight: '800', marginBottom: 12 },
+  label: { fontSize: 14, fontWeight: '800', marginTop: 10, marginBottom: 8 },
   input: {
     borderWidth: 1,
     borderRadius: 12,
@@ -590,18 +571,9 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontWeight: '700',
   },
-  textArea: {
-    minHeight: 90,
-    textAlignVertical: 'top',
-  },
-  dateInput: {
-    justifyContent: 'center',
-  },
-  optionsWrap: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 10,
-  },
+  textArea: { minHeight: 90, textAlignVertical: 'top' },
+  dateInput: { justifyContent: 'center' },
+  optionsWrap: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
   optionPill: {
     borderWidth: 1,
     borderRadius: 999,
@@ -614,10 +586,7 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
     paddingHorizontal: 14,
   },
-  optionText: {
-    fontSize: 13,
-    fontWeight: '800',
-  },
+  optionText: { fontSize: 13, fontWeight: '800' },
   dropdown: {
     borderWidth: 1,
     borderRadius: 12,
@@ -625,13 +594,7 @@ const styles = StyleSheet.create({
     marginBottom: 12,
     overflow: 'hidden',
   },
-  dropdownRow: {
-    paddingVertical: 12,
-    paddingHorizontal: 14,
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
+  dropdownRow: { paddingVertical: 12, paddingHorizontal: 14 },
   button: {
     borderRadius: 14,
     paddingVertical: 14,
@@ -639,9 +602,5 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     marginTop: 6,
   },
-  buttonText: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: '900',
-  },
+  buttonText: { color: '#fff', fontSize: 16, fontWeight: '900' },
 });
