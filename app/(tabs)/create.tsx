@@ -10,6 +10,7 @@ import {
   Alert,
   Platform,
   ScrollView,
+  Modal,
 } from 'react-native';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { router } from 'expo-router';
@@ -79,7 +80,43 @@ export default function CreateAppointmentScreen() {
 
   const { user } = useAuth();
 
+  const [blockedTimes, setBlockedTimes] = useState<Set<string>>(new Set());
+
+  const [timeModalOpen, setTimeModalOpen] = useState(false);
+
   const formatDate = (d: Date) => d.toISOString().split('T')[0];
+
+  const fetchBlockedTimes = async (
+    selectedDate: Date,
+    selectedLocation: string | null
+  ) => {
+    const day = formatDate(selectedDate);
+
+    const q = supabase
+      .from('appointments')
+      .select('appointment_time')
+      .eq('appointment_date', day)
+      .eq('archived', false);
+
+    if (selectedLocation) {
+      q.eq('location', selectedLocation);
+    }
+
+    const { data, error } = await q;
+    if (error) return;
+
+    const set = new Set<string>();
+    (data ?? []).forEach((row: any) => {
+      const t = String(row.appointment_time ?? '').slice(0, 5);
+      if (t) set.add(t);
+    });
+
+    setBlockedTimes(set);
+
+    if (time && set.has(time)) {
+      setTime(null);
+    }
+  };
 
   const handleCreate = async () => {
     const clientName = fullName.trim();
@@ -103,33 +140,43 @@ export default function CreateAppointmentScreen() {
     setLoading(true);
 
     try {
-      const { data: appt, error } = await supabase
-        .from('appointments')
-        .insert({
-          client_name: clientName,
-          service: selectedService,
-          appointment_date: formatDate(date),
-          appointment_time: selectedTime,
-          location: selectedLocation,
-          phone: clientPhone,
-          comment: comment.trim() || null,
-          created_by: user.id,
-        })
-        .select('id')
-        .single();
+      const insertPayload = {
+        client_name: clientName,
+        service: selectedService,
+        appointment_date: formatDate(date),
+        appointment_time: selectedTime,
+        location: selectedLocation,
+        phone: clientPhone,
+        comment: comment.trim() || null,
+        created_by: user.id,
+      };
 
-      if (error) {
-        Alert.alert('Gabim', error.message);
+      const { data: apptRows, error: apptErr } = await supabase
+        .from('appointments')
+        .insert(insertPayload)
+        .select('id')
+        .limit(1);
+
+      if (apptErr) {
+        Alert.alert('Gabim', apptErr.message);
         return;
       }
 
-      await supabase.from('audit_logs').insert({
+      const apptId =
+        Array.isArray(apptRows) && apptRows[0]?.id ? apptRows[0].id : null;
+
+      if (!apptId) {
+        Alert.alert('Gabim', 'Appointment created but ID was not returned.');
+        return;
+      }
+
+      const { error: logErr } = await supabase.from('audit_logs').insert({
         actor_id: user.id,
         action: 'CREATE_APPOINTMENT',
-        target_id: appt.id,
+        target_id: apptId,
         metadata: {
           appointment: {
-            id: appt.id,
+            id: apptId,
             client_name: clientName,
             appointment_date: formatDate(date),
             appointment_time: selectedTime,
@@ -138,6 +185,11 @@ export default function CreateAppointmentScreen() {
           },
         },
       });
+
+      if (logErr) {
+        Alert.alert('Gabim', logErr.message);
+        return;
+      }
 
       setReceiptData({
         client_name: clientName,
@@ -160,6 +212,8 @@ export default function CreateAppointmentScreen() {
     setReceiptData(null);
     router.replace('/(tabs)/upcoming');
   };
+
+  const availableTimes = TIMES.filter((t) => !blockedTimes.has(t));
 
   return (
     <ScrollView
@@ -256,7 +310,10 @@ export default function CreateAppointmentScreen() {
                     location === l ? Colors.primary : Colors.background,
                 },
               ]}
-              onPress={() => setLocation(l)}
+              onPress={async () => {
+                setLocation(l);
+                await fetchBlockedTimes(date, l);
+              }}
             >
               <Text
                 style={[
@@ -276,7 +333,11 @@ export default function CreateAppointmentScreen() {
           <input
             type="date"
             value={formatDate(date)}
-            onChange={(e) => setDate(new Date(e.target.value))}
+            onChange={async (e) => {
+              const d = new Date(e.target.value);
+              setDate(d);
+              await fetchBlockedTimes(d, location);
+            }}
             style={{
               width: '100%',
               padding: 14,
@@ -310,9 +371,12 @@ export default function CreateAppointmentScreen() {
                 value={date}
                 mode="date"
                 display={Platform.OS === 'ios' ? 'spinner' : 'default'}
-                onChange={(_, d) => {
+                onChange={async (_, d) => {
                   setShowDatePicker(false);
-                  if (d) setDate(d);
+                  if (d) {
+                    setDate(d);
+                    await fetchBlockedTimes(d, location);
+                  }
                 }}
               />
             )}
@@ -320,31 +384,102 @@ export default function CreateAppointmentScreen() {
         )}
 
         <Text style={[styles.label, { color: Colors.text }]}>Ora</Text>
-        <View style={styles.optionsWrap}>
-          {TIMES.map((t) => (
+
+        {/* ✅ DROPDOWN BUTTON */}
+        <Pressable
+          style={[
+            styles.input,
+            {
+              backgroundColor: Colors.background,
+              borderColor: Colors.primary,
+              opacity: !location ? 0.7 : 1,
+            },
+          ]}
+          onPress={() => {
+            if (!location) {
+              Alert.alert('Gabim', 'Zgjedh lokacionin së pari');
+              return;
+            }
+            setTimeModalOpen(true);
+          }}
+        >
+          <Text style={{ color: time ? Colors.text : Colors.muted, fontWeight: '800' }}>
+            {time ? time : 'Zgjedh Orën'}
+          </Text>
+        </Pressable>
+
+        {/* ✅ TIME MODAL */}
+        <Modal
+          visible={timeModalOpen}
+          transparent
+          animationType="fade"
+          onRequestClose={() => setTimeModalOpen(false)}
+        >
+          <Pressable
+            style={styles.modalOverlay}
+            onPress={() => setTimeModalOpen(false)}
+          >
             <Pressable
-              key={t}
-              style={[
-                styles.timePill,
-                {
-                  borderColor: Colors.primary,
-                  backgroundColor:
-                    time === t ? Colors.primary : Colors.background,
-                },
-              ]}
-              onPress={() => setTime(t)}
+              style={[styles.modalCard, { backgroundColor: Colors.card }]}
+              onPress={() => {}}
             >
-              <Text
-                style={[
-                  styles.optionText,
-                  { color: time === t ? '#fff' : Colors.text },
-                ]}
-              >
-                {t}
+              <Text style={[styles.modalTitle, { color: Colors.text }]}>
+                Zgjedh Orën
               </Text>
+
+              <View style={styles.modalList}>
+                {TIMES.map((t) => {
+                  const isBlocked = blockedTimes.has(t);
+                  const isSelected = time === t;
+
+                  return (
+                    <Pressable
+                      key={t}
+                      disabled={isBlocked}
+                      onPress={() => {
+                        setTime(t);
+                        setTimeModalOpen(false);
+                      }}
+                      style={[
+                        styles.timeRow,
+                        {
+                          backgroundColor: isSelected
+                            ? Colors.primary
+                            : Colors.background,
+                          opacity: isBlocked ? 0.35 : 1,
+                          borderColor: Colors.primary,
+                        },
+                      ]}
+                    >
+                      <Text
+                        style={{
+                          color: isSelected ? '#fff' : Colors.text,
+                          fontWeight: '900',
+                        }}
+                      >
+                        {t}
+                      </Text>
+                      {isBlocked && (
+                        <Text style={{ color: Colors.muted, fontSize: 12 }}>
+                          Unavailable
+                        </Text>
+                      )}
+                    </Pressable>
+                  );
+                })}
+              </View>
+
+              <Pressable
+                onPress={() => setTimeModalOpen(false)}
+                style={{ paddingVertical: 10 }}
+              >
+                <Text style={{ color: Colors.muted, fontWeight: '800', textAlign: 'center' }}>
+                  Close
+                </Text>
+              </Pressable>
             </Pressable>
-          ))}
-        </View>
+          </Pressable>
+        </Modal>
 
         <Text style={[styles.label, { color: Colors.text }]}>
           Koment (opsional)
@@ -446,11 +581,33 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
     paddingHorizontal: 14,
   },
-  timePill: {
+  modalOverlay: {
+    flex: 1,
+    justifyContent: 'center',
+    padding: 20,
+    backgroundColor: 'rgba(0,0,0,0.65)',
+  },
+  modalCard: {
+    borderRadius: 16,
+    padding: 16,
+  },
+  modalTitle: {
+    fontSize: 16,
+    fontWeight: '900',
+    marginBottom: 10,
+  },
+  modalList: {
+    maxHeight: 320,
+    gap: 10,
+  },
+  timeRow: {
     borderWidth: 1,
-    borderRadius: 999,
-    paddingVertical: 10,
+    borderRadius: 12,
+    paddingVertical: 12,
     paddingHorizontal: 14,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
   },
   optionText: {
     fontSize: 13,
