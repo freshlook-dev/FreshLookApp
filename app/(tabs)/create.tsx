@@ -10,7 +10,6 @@ import {
   Alert,
   Platform,
   ScrollView,
-  Modal,
 } from 'react-native';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { router } from 'expo-router';
@@ -82,7 +81,7 @@ export default function CreateAppointmentScreen() {
 
   const [blockedTimes, setBlockedTimes] = useState<Set<string>>(new Set());
 
-  const [timeModalOpen, setTimeModalOpen] = useState(false);
+  const [timeDropdownOpen, setTimeDropdownOpen] = useState(false);
 
   const formatDate = (d: Date) => d.toISOString().split('T')[0];
 
@@ -213,6 +212,20 @@ export default function CreateAppointmentScreen() {
     router.replace('/(tabs)/upcoming');
   };
 
+  const onOpenTimeDropdown = () => {
+    if (!location) {
+      Alert.alert('Gabim', 'Zgjedh lokacionin së pari');
+      return;
+    }
+    setTimeDropdownOpen((v) => !v);
+  };
+
+  const selectTime = (t: string) => {
+    if (blockedTimes.has(t)) return;
+    setTime(t);
+    setTimeDropdownOpen(false);
+  };
+
   return (
     <ScrollView
       contentContainerStyle={[
@@ -310,6 +323,7 @@ export default function CreateAppointmentScreen() {
               ]}
               onPress={async () => {
                 setLocation(l);
+                setTimeDropdownOpen(false);
                 await fetchBlockedTimes(date, l);
               }}
             >
@@ -334,6 +348,7 @@ export default function CreateAppointmentScreen() {
             onChange={async (e) => {
               const d = new Date(e.target.value);
               setDate(d);
+              setTimeDropdownOpen(false);
               await fetchBlockedTimes(d, location);
             }}
             style={{
@@ -344,6 +359,7 @@ export default function CreateAppointmentScreen() {
               border: `1px solid ${Colors.primary}`,
               backgroundColor: Colors.background,
               color: Colors.text,
+              boxSizing: 'border-box',
             }}
           />
         ) : (
@@ -373,6 +389,7 @@ export default function CreateAppointmentScreen() {
                   setShowDatePicker(false);
                   if (d) {
                     setDate(d);
+                    setTimeDropdownOpen(false);
                     await fetchBlockedTimes(d, location);
                   }
                 }}
@@ -383,141 +400,70 @@ export default function CreateAppointmentScreen() {
 
         <Text style={[styles.label, { color: Colors.text }]}>Ora</Text>
 
-        {/* ✅ WEB (PHONE + DESKTOP): REAL DROPDOWN */}
-        {Platform.OS === 'web' ? (
-          <select
-            value={time ?? ''}
-            onChange={(e) => {
-              const v = e.target.value;
-              setTime(v ? v : null);
-            }}
-            disabled={!location}
-            style={{
-              width: '100%',
-              padding: 14,
-              fontSize: 15,
-              borderRadius: 12,
-              border: `1px solid ${Colors.primary}`,
+        {/* ✅ CUSTOM DROPDOWN (WORKS ON PHONE WEB) */}
+        <Pressable
+          onPress={onOpenTimeDropdown}
+          style={[
+            styles.input,
+            {
               backgroundColor: Colors.background,
-              color: Colors.text,
-              opacity: !location ? 0.7 : 1,
-            }}
+              borderColor: Colors.primary,
+              opacity: !location ? 0.6 : 1,
+              flexDirection: 'row',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+            },
+          ]}
+        >
+          <Text style={{ color: time ? Colors.text : Colors.muted, fontWeight: '800' }}>
+            {time ? time : 'Zgjedh Orën'}
+          </Text>
+          <Text style={{ color: Colors.muted, fontWeight: '900' }}>
+            {timeDropdownOpen ? '▲' : '▼'}
+          </Text>
+        </Pressable>
+
+        {timeDropdownOpen && (
+          <View
+            style={[
+              styles.dropdown,
+              { borderColor: Colors.primary, backgroundColor: Colors.background },
+            ]}
           >
-            <option value="" disabled>
-              Zgjedh Orën
-            </option>
+            {TIMES.map((t) => {
+              const isBlocked = blockedTimes.has(t);
+              const isSelected = time === t;
 
-            {TIMES.map((t) => (
-              <option key={t} value={t} disabled={blockedTimes.has(t)}>
-                {blockedTimes.has(t) ? `${t} (Unavailable)` : t}
-              </option>
-            ))}
-          </select>
-        ) : (
-          <>
-            {/* ✅ NATIVE: MODAL DROPDOWN */}
-            <Pressable
-              style={[
-                styles.input,
-                {
-                  backgroundColor: Colors.background,
-                  borderColor: Colors.primary,
-                  opacity: !location ? 0.7 : 1,
-                },
-              ]}
-              onPress={() => {
-                if (!location) {
-                  Alert.alert('Gabim', 'Zgjedh lokacionin së pari');
-                  return;
-                }
-                setTimeModalOpen(true);
-              }}
-            >
-              <Text
-                style={{
-                  color: time ? Colors.text : Colors.muted,
-                  fontWeight: '800',
-                }}
-              >
-                {time ? time : 'Zgjedh Orën'}
-              </Text>
-            </Pressable>
-
-            <Modal
-              visible={timeModalOpen}
-              transparent
-              animationType="fade"
-              onRequestClose={() => setTimeModalOpen(false)}
-            >
-              <Pressable
-                style={styles.modalOverlay}
-                onPress={() => setTimeModalOpen(false)}
-              >
-                <View style={[styles.modalCard, { backgroundColor: Colors.card }]}>
-                  <Text style={[styles.modalTitle, { color: Colors.text }]}>
-                    Zgjedh Orën
-                  </Text>
-
-                  <ScrollView style={{ maxHeight: 320 }}>
-                    {TIMES.map((t) => {
-                      const isBlocked = blockedTimes.has(t);
-                      const isSelected = time === t;
-
-                      return (
-                        <Pressable
-                          key={t}
-                          disabled={isBlocked}
-                          onPress={() => {
-                            setTime(t);
-                            setTimeModalOpen(false);
-                          }}
-                          style={[
-                            styles.timeRow,
-                            {
-                              backgroundColor: isSelected
-                                ? Colors.primary
-                                : Colors.background,
-                              opacity: isBlocked ? 0.35 : 1,
-                              borderColor: Colors.primary,
-                            },
-                          ]}
-                        >
-                          <Text
-                            style={{
-                              color: isSelected ? '#fff' : Colors.text,
-                              fontWeight: '900',
-                            }}
-                          >
-                            {t}
-                          </Text>
-                          {isBlocked && (
-                            <Text style={{ color: Colors.muted, fontSize: 12 }}>
-                              Unavailable
-                            </Text>
-                          )}
-                        </Pressable>
-                      );
-                    })}
-                  </ScrollView>
-
-                  <Pressable
-                    onPress={() => setTimeModalOpen(false)}
-                    style={{ paddingTop: 12 }}
+              return (
+                <Pressable
+                  key={t}
+                  disabled={isBlocked}
+                  onPress={() => selectTime(t)}
+                  style={[
+                    styles.dropdownRow,
+                    {
+                      opacity: isBlocked ? 0.35 : 1,
+                      backgroundColor: isSelected ? Colors.primary : 'transparent',
+                    },
+                  ]}
+                >
+                  <Text
+                    style={{
+                      color: isSelected ? '#fff' : Colors.text,
+                      fontWeight: '900',
+                    }}
                   >
-                    <Text
-                      style={{
-                        color: Colors.muted,
-                        fontWeight: '800',
-                        textAlign: 'center',
-                      }}
-                    >
-                      Close
+                    {t}
+                  </Text>
+                  {isBlocked && (
+                    <Text style={{ color: Colors.muted, fontSize: 12 }}>
+                      Unavailable
                     </Text>
-                  </Pressable>
-                </View>
-              </Pressable>
-            </Modal>
-          </>
+                  )}
+                </Pressable>
+              );
+            })}
+          </View>
         )}
 
         <Text style={[styles.label, { color: Colors.text }]}>
@@ -624,30 +570,19 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: '800',
   },
-  modalOverlay: {
-    flex: 1,
-    justifyContent: 'center',
-    padding: 20,
-    backgroundColor: 'rgba(0,0,0,0.65)',
-  },
-  modalCard: {
-    borderRadius: 16,
-    padding: 16,
-  },
-  modalTitle: {
-    fontSize: 16,
-    fontWeight: '900',
-    marginBottom: 10,
-  },
-  timeRow: {
+  dropdown: {
     borderWidth: 1,
     borderRadius: 12,
+    marginTop: -6,
+    marginBottom: 12,
+    overflow: 'hidden',
+  },
+  dropdownRow: {
     paddingVertical: 12,
     paddingHorizontal: 14,
-    marginBottom: 10,
     flexDirection: 'row',
-    alignItems: 'center',
     justifyContent: 'space-between',
+    alignItems: 'center',
   },
   button: {
     borderRadius: 14,
