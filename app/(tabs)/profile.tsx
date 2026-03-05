@@ -20,12 +20,11 @@ import { useAuth } from '../../context/AuthContext';
 import { supabase } from '../../context/supabase';
 import { useTheme } from '../../context/ThemeContext';
 import { LightColors, DarkColors } from '../../constants/colors';
-let Cropper: any = null;
 
+let Cropper: any = null;
 if (Platform.OS === 'web') {
   Cropper = require('react-easy-crop').default;
 }
-
 
 type Role = 'owner' | 'manager' | 'staff';
 
@@ -37,26 +36,82 @@ type Profile = {
   avatar_url?: string | null;
 };
 
-/* ================= WEB IMAGE PICKER ================= */
-const pickImageWeb = async (): Promise<string | null> => {
+/* ================= WEB HELPERS ================= */
+const pickImageWebFile = async (): Promise<File | null> => {
   return new Promise((resolve) => {
     const input = document.createElement('input');
     input.type = 'file';
     input.accept = 'image/*';
 
     input.onchange = () => {
-      const file = input.files?.[0];
-      if (!file) return resolve(null);
-
-      const reader = new FileReader();
-      reader.onload = () => resolve(reader.result as string);
-      reader.readAsDataURL(file);
+      const file = input.files?.[0] || null;
+      resolve(file);
     };
 
     input.click();
   });
 };
-/* ==================================================== */
+
+const webLoadImage = (src: string) =>
+  new Promise<HTMLImageElement>((resolve, reject) => {
+    const img = new window.Image();
+    img.crossOrigin = 'anonymous';
+    img.onload = () => resolve(img);
+    img.onerror = (e) => reject(e);
+    img.src = src;
+  });
+
+const webCropToBlob512 = async (
+  imageSrc: string,
+  cropPixels: { x: number; y: number; width: number; height: number }
+): Promise<Blob> => {
+  const img = await webLoadImage(imageSrc);
+
+  const canvas = document.createElement('canvas');
+  canvas.width = 512;
+  canvas.height = 512;
+
+  const ctx = canvas.getContext('2d');
+  if (!ctx) throw new Error('Canvas not supported');
+
+  ctx.imageSmoothingEnabled = true;
+
+  ctx.drawImage(
+    img,
+    cropPixels.x,
+    cropPixels.y,
+    cropPixels.width,
+    cropPixels.height,
+    0,
+    0,
+    512,
+    512
+  );
+
+  const blob: Blob = await new Promise((resolve, reject) => {
+    canvas.toBlob(
+      (b) => {
+        if (!b) return reject(new Error('Failed to export image'));
+        resolve(b);
+      },
+      'image/jpeg',
+      0.85
+    );
+  });
+
+  return blob;
+};
+
+const webCenterSquareToBlob512 = async (imageSrc: string): Promise<Blob> => {
+  const img = await webLoadImage(imageSrc);
+
+  const side = Math.min(img.naturalWidth, img.naturalHeight);
+  const x = Math.floor((img.naturalWidth - side) / 2);
+  const y = Math.floor((img.naturalHeight - side) / 2);
+
+  return webCropToBlob512(imageSrc, { x, y, width: side, height: side });
+};
+/* ================================================= */
 
 export default function ProfileTab() {
   const { user, loading: authLoading, logout } = useAuth();
@@ -71,8 +126,9 @@ export default function ProfileTab() {
     role: Role;
   } | null>(null);
 
-  /* 🟢 CROP STATES (DESKTOP WEB ONLY) */
-  const [imageToCrop, setImageToCrop] = useState<string | null>(null);
+  /* 🟢 CROP STATES (WEB) */
+  const [webFile, setWebFile] = useState<File | null>(null);
+  const [webPreviewUrl, setWebPreviewUrl] = useState<string | null>(null);
   const [crop, setCrop] = useState({ x: 0, y: 0 });
   const [zoom, setZoom] = useState(1);
   const [croppedAreaPixels, setCroppedAreaPixels] = useState<any>(null);
@@ -91,6 +147,12 @@ export default function ProfileTab() {
 
     if (user) loadProfile();
   }, [user, authLoading]);
+
+  useEffect(() => {
+    return () => {
+      if (webPreviewUrl) URL.revokeObjectURL(webPreviewUrl);
+    };
+  }, [webPreviewUrl]);
 
   const loadProfile = async () => {
     setLoading(true);
@@ -136,19 +198,36 @@ export default function ProfileTab() {
 
   /* ================= PICK IMAGE ================= */
   const pickAndUploadAvatar = async () => {
-    // 🖥️ DESKTOP WEB → custom cropper
-    if (Platform.OS === 'web' && !isIOSWeb) {
-      const dataUrl = await pickImageWeb();
-      if (!dataUrl) return;
+    if (!user) return;
 
-      setImageToCrop(dataUrl);
+    // 🌐 WEB (ALL) → input picker (reliable on desktop + mobile web)
+    if (Platform.OS === 'web') {
+      const file = await pickImageWebFile();
+      if (!file) return;
+
+      const url = URL.createObjectURL(file);
+
+      if (webPreviewUrl) URL.revokeObjectURL(webPreviewUrl);
+
+      setWebFile(file);
+      setWebPreviewUrl(url);
       setCrop({ x: 0, y: 0 });
       setZoom(1);
+
+      // iOS web: skip cropper (safer), do center-square crop
+      if (isIOSWeb) {
+        setShowCropper(false);
+        const blob = await webCenterSquareToBlob512(url);
+        await uploadFinalBlob(blob);
+        return;
+      }
+
+      // Desktop web: show cropper
       setShowCropper(true);
       return;
     }
 
-    // 📱 iOS Web (PWA) + Native Apps → native editor
+    // 📱 Native Apps → native editor
     const result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ImagePicker.MediaTypeOptions.Images,
       allowsEditing: true,
@@ -158,22 +237,36 @@ export default function ProfileTab() {
 
     if (result.canceled) return;
 
-    uploadFinalImage(result.assets[0].uri);
+    await uploadFinalUri(result.assets[0].uri);
   };
 
-  /* ================= FINAL UPLOAD ================= */
-  const uploadFinalImage = async (uri: string) => {
+  /* ================= UPLOAD (NATIVE URI) ================= */
+  const uploadFinalUri = async (uri: string) => {
     try {
       setUploading(true);
 
       const manipulated = await ImageManipulator.manipulateAsync(
         uri,
         [{ resize: { width: 512, height: 512 } }],
-        { compress: 0.8, format: ImageManipulator.SaveFormat.JPEG }
+        { compress: 0.85, format: ImageManipulator.SaveFormat.JPEG }
       );
 
       const response = await fetch(manipulated.uri);
       const blob = await response.blob();
+
+      await uploadFinalBlob(blob);
+    } catch (err) {
+      console.error(err);
+      Alert.alert('Error', 'Failed to upload photo');
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  /* ================= UPLOAD (BLOB) ================= */
+  const uploadFinalBlob = async (blob: Blob) => {
+    try {
+      setUploading(true);
 
       const filePath = `${user!.id}.jpg`;
 
@@ -186,16 +279,16 @@ export default function ProfileTab() {
 
       if (error) throw error;
 
-      const { data } = supabase.storage
-        .from('avatars')
-        .getPublicUrl(filePath);
+      const { data } = supabase.storage.from('avatars').getPublicUrl(filePath);
 
       const avatarUrl = `${data.publicUrl}?t=${Date.now()}`;
 
-      await supabase
+      const { error: updErr } = await supabase
         .from('profiles')
         .update({ avatar_url: avatarUrl })
         .eq('id', user!.id);
+
+      if (updErr) throw updErr;
 
       setProfile((p) => (p ? { ...p, avatar_url: avatarUrl } : p));
     } catch (err) {
@@ -206,28 +299,31 @@ export default function ProfileTab() {
     }
   };
 
-  /* ================= SAVE CROPPED IMAGE ================= */
+  /* ================= SAVE CROPPED IMAGE (WEB) ================= */
   const saveCroppedImage = async () => {
-    if (!imageToCrop || !croppedAreaPixels) return;
+    if (!webPreviewUrl) return;
 
-    const cropped = await ImageManipulator.manipulateAsync(
-      imageToCrop,
-      [
-        {
-          crop: {
-            originX: croppedAreaPixels.x,
-            originY: croppedAreaPixels.y,
-            width: croppedAreaPixels.width,
-            height: croppedAreaPixels.height,
-          },
-        },
-        { resize: { width: 512, height: 512 } },
-      ],
-      { compress: 0.8, format: ImageManipulator.SaveFormat.JPEG }
-    );
+    try {
+      setShowCropper(false);
 
-    setShowCropper(false);
-    uploadFinalImage(cropped.uri);
+      const cropPixels = croppedAreaPixels
+        ? {
+            x: Math.round(croppedAreaPixels.x),
+            y: Math.round(croppedAreaPixels.y),
+            width: Math.round(croppedAreaPixels.width),
+            height: Math.round(croppedAreaPixels.height),
+          }
+        : null;
+
+      const blob = cropPixels
+        ? await webCropToBlob512(webPreviewUrl, cropPixels)
+        : await webCenterSquareToBlob512(webPreviewUrl);
+
+      await uploadFinalBlob(blob);
+    } catch (err) {
+      console.error(err);
+      Alert.alert('Error', 'Failed to crop/upload photo');
+    }
   };
 
   /* ================= LOGOUT ================= */
@@ -364,9 +460,7 @@ export default function ProfileTab() {
               onPress={() => generateAccessCode('staff')}
               style={[styles.primaryButton, { marginTop: 12 }]}
             >
-              <Text style={styles.primaryButtonText}>
-                Generate Staff Code
-              </Text>
+              <Text style={styles.primaryButtonText}>Generate Staff Code</Text>
             </Pressable>
 
             {generatedCode && (
@@ -407,13 +501,11 @@ export default function ProfileTab() {
         )}
       </View>
 
-
-
       <Pressable onPress={handleLogout} style={styles.logoutButton}>
         <Text style={styles.logoutText}>Logout</Text>
       </Pressable>
 
-      {Platform.OS === 'web' && !isIOSWeb && showCropper && imageToCrop && (
+      {Platform.OS === 'web' && !isIOSWeb && showCropper && webPreviewUrl && (
         <View
           style={{
             position: 'fixed' as any,
@@ -426,7 +518,7 @@ export default function ProfileTab() {
         >
           <View style={{ width: 300, height: 300, backgroundColor: '#000' }}>
             <Cropper
-              image={imageToCrop}
+              image={webPreviewUrl}
               crop={crop}
               zoom={zoom}
               aspect={1}
@@ -444,9 +536,7 @@ export default function ProfileTab() {
               <Text style={{ color: '#fff' }}>Cancel</Text>
             </Pressable>
             <Pressable onPress={saveCroppedImage} style={{ padding: 12 }}>
-              <Text style={{ color: '#C9A24D', fontWeight: '800' }}>
-                Save
-              </Text>
+              <Text style={{ color: '#C9A24D', fontWeight: '800' }}>Save</Text>
             </Pressable>
           </View>
         </View>
