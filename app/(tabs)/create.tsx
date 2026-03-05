@@ -213,8 +213,6 @@ export default function CreateAppointmentScreen() {
     router.replace('/(tabs)/upcoming');
   };
 
-  const availableTimes = TIMES.filter((t) => !blockedTimes.has(t));
-
   return (
     <ScrollView
       contentContainerStyle={[
@@ -385,101 +383,142 @@ export default function CreateAppointmentScreen() {
 
         <Text style={[styles.label, { color: Colors.text }]}>Ora</Text>
 
-        {/* ✅ DROPDOWN BUTTON */}
-        <Pressable
-          style={[
-            styles.input,
-            {
+        {/* ✅ WEB (PHONE + DESKTOP): REAL DROPDOWN */}
+        {Platform.OS === 'web' ? (
+          <select
+            value={time ?? ''}
+            onChange={(e) => {
+              const v = e.target.value;
+              setTime(v ? v : null);
+            }}
+            disabled={!location}
+            style={{
+              width: '100%',
+              padding: 14,
+              fontSize: 15,
+              borderRadius: 12,
+              border: `1px solid ${Colors.primary}`,
               backgroundColor: Colors.background,
-              borderColor: Colors.primary,
+              color: Colors.text,
               opacity: !location ? 0.7 : 1,
-            },
-          ]}
-          onPress={() => {
-            if (!location) {
-              Alert.alert('Gabim', 'Zgjedh lokacionin së pari');
-              return;
-            }
-            setTimeModalOpen(true);
-          }}
-        >
-          <Text style={{ color: time ? Colors.text : Colors.muted, fontWeight: '800' }}>
-            {time ? time : 'Zgjedh Orën'}
-          </Text>
-        </Pressable>
-
-        {/* ✅ TIME MODAL */}
-        <Modal
-          visible={timeModalOpen}
-          transparent
-          animationType="fade"
-          onRequestClose={() => setTimeModalOpen(false)}
-        >
-          <Pressable
-            style={styles.modalOverlay}
-            onPress={() => setTimeModalOpen(false)}
+            }}
           >
+            <option value="" disabled>
+              Zgjedh Orën
+            </option>
+
+            {TIMES.map((t) => (
+              <option key={t} value={t} disabled={blockedTimes.has(t)}>
+                {blockedTimes.has(t) ? `${t} (Unavailable)` : t}
+              </option>
+            ))}
+          </select>
+        ) : (
+          <>
+            {/* ✅ NATIVE: MODAL DROPDOWN */}
             <Pressable
-              style={[styles.modalCard, { backgroundColor: Colors.card }]}
-              onPress={() => {}}
+              style={[
+                styles.input,
+                {
+                  backgroundColor: Colors.background,
+                  borderColor: Colors.primary,
+                  opacity: !location ? 0.7 : 1,
+                },
+              ]}
+              onPress={() => {
+                if (!location) {
+                  Alert.alert('Gabim', 'Zgjedh lokacionin së pari');
+                  return;
+                }
+                setTimeModalOpen(true);
+              }}
             >
-              <Text style={[styles.modalTitle, { color: Colors.text }]}>
-                Zgjedh Orën
-              </Text>
-
-              <View style={styles.modalList}>
-                {TIMES.map((t) => {
-                  const isBlocked = blockedTimes.has(t);
-                  const isSelected = time === t;
-
-                  return (
-                    <Pressable
-                      key={t}
-                      disabled={isBlocked}
-                      onPress={() => {
-                        setTime(t);
-                        setTimeModalOpen(false);
-                      }}
-                      style={[
-                        styles.timeRow,
-                        {
-                          backgroundColor: isSelected
-                            ? Colors.primary
-                            : Colors.background,
-                          opacity: isBlocked ? 0.35 : 1,
-                          borderColor: Colors.primary,
-                        },
-                      ]}
-                    >
-                      <Text
-                        style={{
-                          color: isSelected ? '#fff' : Colors.text,
-                          fontWeight: '900',
-                        }}
-                      >
-                        {t}
-                      </Text>
-                      {isBlocked && (
-                        <Text style={{ color: Colors.muted, fontSize: 12 }}>
-                          Unavailable
-                        </Text>
-                      )}
-                    </Pressable>
-                  );
-                })}
-              </View>
-
-              <Pressable
-                onPress={() => setTimeModalOpen(false)}
-                style={{ paddingVertical: 10 }}
+              <Text
+                style={{
+                  color: time ? Colors.text : Colors.muted,
+                  fontWeight: '800',
+                }}
               >
-                <Text style={{ color: Colors.muted, fontWeight: '800', textAlign: 'center' }}>
-                  Close
-                </Text>
-              </Pressable>
+                {time ? time : 'Zgjedh Orën'}
+              </Text>
             </Pressable>
-          </Pressable>
-        </Modal>
+
+            <Modal
+              visible={timeModalOpen}
+              transparent
+              animationType="fade"
+              onRequestClose={() => setTimeModalOpen(false)}
+            >
+              <Pressable
+                style={styles.modalOverlay}
+                onPress={() => setTimeModalOpen(false)}
+              >
+                <View style={[styles.modalCard, { backgroundColor: Colors.card }]}>
+                  <Text style={[styles.modalTitle, { color: Colors.text }]}>
+                    Zgjedh Orën
+                  </Text>
+
+                  <ScrollView style={{ maxHeight: 320 }}>
+                    {TIMES.map((t) => {
+                      const isBlocked = blockedTimes.has(t);
+                      const isSelected = time === t;
+
+                      return (
+                        <Pressable
+                          key={t}
+                          disabled={isBlocked}
+                          onPress={() => {
+                            setTime(t);
+                            setTimeModalOpen(false);
+                          }}
+                          style={[
+                            styles.timeRow,
+                            {
+                              backgroundColor: isSelected
+                                ? Colors.primary
+                                : Colors.background,
+                              opacity: isBlocked ? 0.35 : 1,
+                              borderColor: Colors.primary,
+                            },
+                          ]}
+                        >
+                          <Text
+                            style={{
+                              color: isSelected ? '#fff' : Colors.text,
+                              fontWeight: '900',
+                            }}
+                          >
+                            {t}
+                          </Text>
+                          {isBlocked && (
+                            <Text style={{ color: Colors.muted, fontSize: 12 }}>
+                              Unavailable
+                            </Text>
+                          )}
+                        </Pressable>
+                      );
+                    })}
+                  </ScrollView>
+
+                  <Pressable
+                    onPress={() => setTimeModalOpen(false)}
+                    style={{ paddingTop: 12 }}
+                  >
+                    <Text
+                      style={{
+                        color: Colors.muted,
+                        fontWeight: '800',
+                        textAlign: 'center',
+                      }}
+                    >
+                      Close
+                    </Text>
+                  </Pressable>
+                </View>
+              </Pressable>
+            </Modal>
+          </>
+        )}
 
         <Text style={[styles.label, { color: Colors.text }]}>
           Koment (opsional)
@@ -581,6 +620,10 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
     paddingHorizontal: 14,
   },
+  optionText: {
+    fontSize: 13,
+    fontWeight: '800',
+  },
   modalOverlay: {
     flex: 1,
     justifyContent: 'center',
@@ -596,22 +639,15 @@ const styles = StyleSheet.create({
     fontWeight: '900',
     marginBottom: 10,
   },
-  modalList: {
-    maxHeight: 320,
-    gap: 10,
-  },
   timeRow: {
     borderWidth: 1,
     borderRadius: 12,
     paddingVertical: 12,
     paddingHorizontal: 14,
+    marginBottom: 10,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-  },
-  optionText: {
-    fontSize: 13,
-    fontWeight: '800',
   },
   button: {
     borderRadius: 14,
