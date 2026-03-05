@@ -82,7 +82,20 @@ export default function CreateAppointmentScreen() {
   const formatDate = (d: Date) => d.toISOString().split('T')[0];
 
   const handleCreate = async () => {
-    if (!fullName || !phone || !treatment || !location || !time || !user) {
+    const clientName = fullName.trim();
+    const clientPhone = phone.trim();
+    const selectedService = treatment;
+    const selectedLocation = location;
+    const selectedTime = time;
+
+    if (
+      !clientName ||
+      !clientPhone ||
+      !selectedService ||
+      !selectedLocation ||
+      !selectedTime ||
+      !user
+    ) {
       Alert.alert('Gabim', 'Ju lutem plotësoni të gjitha fushat');
       return;
     }
@@ -93,12 +106,12 @@ export default function CreateAppointmentScreen() {
       const { data: appt, error } = await supabase
         .from('appointments')
         .insert({
-          client_name: fullName.trim(),
-          service: treatment,
+          client_name: clientName,
+          service: selectedService,
           appointment_date: formatDate(date),
-          appointment_time: time,
-          location,
-          phone: phone.trim(),
+          appointment_time: selectedTime,
+          location: selectedLocation,
+          phone: clientPhone,
           comment: comment.trim() || null,
           created_by: user.id,
         })
@@ -114,15 +127,25 @@ export default function CreateAppointmentScreen() {
         actor_id: user.id,
         action: 'CREATE_APPOINTMENT',
         target_id: appt.id,
+        metadata: {
+          appointment: {
+            id: appt.id,
+            client_name: clientName,
+            appointment_date: formatDate(date),
+            appointment_time: selectedTime,
+            location: selectedLocation,
+            service: selectedService,
+          },
+        },
       });
 
       setReceiptData({
-        client_name: fullName.trim(),
-        service: treatment as string,
+        client_name: clientName,
+        service: selectedService,
         appointment_date: formatDate(date),
-        appointment_time: time as string,
-        location: location as string,
-        phone: phone.trim(),
+        appointment_time: selectedTime,
+        location: selectedLocation,
+        phone: clientPhone,
       });
       setReceiptVisible(true);
     } catch {
@@ -305,7 +328,8 @@ export default function CreateAppointmentScreen() {
                 styles.timePill,
                 {
                   borderColor: Colors.primary,
-                  backgroundColor: time === t ? Colors.primary : Colors.background,
+                  backgroundColor:
+                    time === t ? Colors.primary : Colors.background,
                 },
               ]}
               onPress={() => setTime(t)}
