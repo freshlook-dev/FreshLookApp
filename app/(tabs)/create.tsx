@@ -14,7 +14,9 @@ import {
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { router } from 'expo-router';
 
-import AppointmentCardModal, { AppointmentReceiptData } from '../../components/AppointmentCardModal';
+import AppointmentCardModal, {
+  AppointmentReceiptData,
+} from '../../components/AppointmentCardModal';
 
 import { supabase } from '../../context/supabase';
 import { useAuth } from '../../context/AuthContext';
@@ -71,7 +73,9 @@ export default function CreateAppointmentScreen() {
   const [loading, setLoading] = useState(false);
 
   const [receiptVisible, setReceiptVisible] = useState(false);
-  const [receiptData, setReceiptData] = useState<AppointmentReceiptData | null>(null);
+  const [receiptData, setReceiptData] = useState<AppointmentReceiptData | null>(
+    null
+  );
 
   const { user } = useAuth();
 
@@ -86,16 +90,20 @@ export default function CreateAppointmentScreen() {
     setLoading(true);
 
     try {
-      const { error } = await supabase.from('appointments').insert({
-        client_name: fullName,
-        service: treatment,
-        appointment_date: formatDate(date),
-        appointment_time: time,
-        location,
-        phone,
-        comment: comment.trim() || null,
-        created_by: user.id,
-      });
+      const { data: appt, error } = await supabase
+        .from('appointments')
+        .insert({
+          client_name: fullName.trim(),
+          service: treatment,
+          appointment_date: formatDate(date),
+          appointment_time: time,
+          location,
+          phone: phone.trim(),
+          comment: comment.trim() || null,
+          created_by: user.id,
+        })
+        .select('id')
+        .single();
 
       if (error) {
         Alert.alert('Gabim', error.message);
@@ -105,6 +113,7 @@ export default function CreateAppointmentScreen() {
       await supabase.from('audit_logs').insert({
         actor_id: user.id,
         action: 'CREATE_APPOINTMENT',
+        target_id: appt.id,
       });
 
       setReceiptData({
@@ -193,7 +202,8 @@ export default function CreateAppointmentScreen() {
                 styles.optionPill,
                 {
                   borderColor: Colors.primary,
-                  backgroundColor: treatment === t ? Colors.primary : Colors.background,
+                  backgroundColor:
+                    treatment === t ? Colors.primary : Colors.background,
                 },
               ]}
               onPress={() => setTreatment(t)}
@@ -219,7 +229,8 @@ export default function CreateAppointmentScreen() {
                 styles.optionPill,
                 {
                   borderColor: Colors.primary,
-                  backgroundColor: location === l ? Colors.primary : Colors.background,
+                  backgroundColor:
+                    location === l ? Colors.primary : Colors.background,
                 },
               ]}
               onPress={() => setLocation(l)}
@@ -311,7 +322,9 @@ export default function CreateAppointmentScreen() {
           ))}
         </View>
 
-        <Text style={[styles.label, { color: Colors.text }]}>Koment (opsional)</Text>
+        <Text style={[styles.label, { color: Colors.text }]}>
+          Koment (opsional)
+        </Text>
         <TextInput
           style={[
             styles.input,
