@@ -52,17 +52,6 @@ const generateTimeSlots = () => {
 
 const TIMES = generateTimeSlots();
 
-/** ✅ Always normalize DB time -> "HH:MM" */
-const normalizeTime = (value: any): string | null => {
-  if (!value) return null;
-  const s = String(value).trim();
-
-  // common cases: "09:00:00", "09:00:00.000000", "09:00:00+00", "09:00"
-  const m = s.match(/^(\d{2}):(\d{2})/);
-  if (!m) return null;
-  return `${m[1]}:${m[2]}`;
-};
-
 export default function CreateAppointmentScreen() {
   const { theme } = useTheme();
   const Colors = theme === 'dark' ? DarkColors : LightColors;
@@ -87,39 +76,9 @@ export default function CreateAppointmentScreen() {
 
   const { user } = useAuth();
 
-  const [blockedTimes, setBlockedTimes] = useState<Set<string>>(new Set());
-
   const [timeDropdownOpen, setTimeDropdownOpen] = useState(false);
 
   const formatDate = (d: Date) => d.toISOString().split('T')[0];
-
-  const fetchBlockedTimes = async (
-    selectedDate: Date,
-    selectedLocation: string | null
-  ) => {
-    const day = formatDate(selectedDate);
-
-    const q = supabase
-      .from('appointments')
-      .select('appointment_time')
-      .eq('appointment_date', day)
-      .eq('archived', false);
-
-    if (selectedLocation) q.eq('location', selectedLocation);
-
-    const { data, error } = await q;
-    if (error) return;
-
-    const set = new Set<string>();
-    (data ?? []).forEach((row: any) => {
-      const t = normalizeTime(row.appointment_time);
-      if (t) set.add(t);
-    });
-
-    setBlockedTimes(set);
-
-    if (time && set.has(time)) setTime(null);
-  };
 
   const handleCreate = async () => {
     const clientName = fullName.trim();
@@ -143,20 +102,19 @@ export default function CreateAppointmentScreen() {
     setLoading(true);
 
     try {
-      const insertPayload = {
-        client_name: clientName,
-        service: selectedService,
-        appointment_date: formatDate(date),
-        appointment_time: selectedTime,
-        location: selectedLocation,
-        phone: clientPhone,
-        comment: comment.trim() || null,
-        created_by: user.id,
-      };
-
+      // 1) Create appointment
       const { data: apptRows, error: apptErr } = await supabase
         .from('appointments')
-        .insert(insertPayload)
+        .insert({
+          client_name: clientName,
+          service: selectedService,
+          appointment_date: formatDate(date),
+          appointment_time: selectedTime,
+          location: selectedLocation,
+          phone: clientPhone,
+          comment: comment.trim() || null,
+          created_by: user.id,
+        })
         .select('id')
         .limit(1);
 
@@ -168,41 +126,40 @@ export default function CreateAppointmentScreen() {
       const apptId =
         Array.isArray(apptRows) && apptRows[0]?.id ? apptRows[0].id : null;
 
-      if (!apptId) {
-        Alert.alert('Gabim', 'Appointment created but ID was not returned.');
-        return;
-      }
-
-      const { error: logErr } = await supabase.from('audit_logs').insert({
-        actor_id: user.id,
-        action: 'CREATE_APPOINTMENT',
-        target_id: apptId,
-        metadata: {
-          appointment: {
-            id: apptId,
-            client_name: clientName,
-            appointment_date: formatDate(date),
-            appointment_time: selectedTime,
-            location: selectedLocation,
-            service: selectedService,
-          },
-        },
-      });
-
-      if (logErr) {
-        Alert.alert('Gabim', logErr.message);
-        return;
-      }
-
+      // 2) Always show receipt (like old version)
       setReceiptData({
         client_name: clientName,
-        service: selectedService,
+        service: selectedService as string,
         appointment_date: formatDate(date),
         appointment_time: selectedTime,
         location: selectedLocation,
         phone: clientPhone,
       });
       setReceiptVisible(true);
+
+      // 3) Audit log should NOT block receipt
+      try {
+        await supabase.from('audit_logs').insert({
+          actor_id: user.id,
+          action: 'CREATE_APPOINTMENT',
+          target_id: apptId,
+          metadata: apptId
+            ? {
+                appointment: {
+                  id: apptId,
+                  client_name: clientName,
+                  appointment_date: formatDate(date),
+                  appointment_time: selectedTime,
+                  location: selectedLocation,
+                  service: selectedService,
+                },
+              }
+            : null,
+        });
+      } catch (e) {
+        // silent: receipt already shown
+        console.log('Audit log insert failed (non-blocking):', e);
+      }
     } catch {
       Alert.alert('Gabim', 'Diçka shkoi keq');
     } finally {
@@ -216,18 +173,12 @@ export default function CreateAppointmentScreen() {
     router.replace('/(tabs)/upcoming');
   };
 
-  const onToggleNativeTimeDropdown = () => {
+  const toggleTimeDropdown = () => {
     if (!location) {
       Alert.alert('Gabim', 'Zgjedh lokacionin së pari');
       return;
     }
     setTimeDropdownOpen((v) => !v);
-  };
-
-  const pickTime = (t: string) => {
-    if (blockedTimes.has(t)) return;
-    setTime(t);
-    setTimeDropdownOpen(false);
   };
 
   return (
@@ -323,10 +274,9 @@ export default function CreateAppointmentScreen() {
                     location === l ? Colors.primary : Colors.background,
                 },
               ]}
-              onPress={async () => {
+              onPress={() => {
                 setLocation(l);
                 setTimeDropdownOpen(false);
-                await fetchBlockedTimes(date, l);
               }}
             >
               <Text
@@ -347,11 +297,9 @@ export default function CreateAppointmentScreen() {
           <input
             type="date"
             value={formatDate(date)}
-            onChange={async (e) => {
-              const d = new Date(e.target.value);
-              setDate(d);
+            onChange={(e) => {
+              setDate(new Date(e.target.value));
               setTimeDropdownOpen(false);
-              await fetchBlockedTimes(d, location);
             }}
             style={{
               width: '100%',
@@ -387,12 +335,11 @@ export default function CreateAppointmentScreen() {
                 value={date}
                 mode="date"
                 display={Platform.OS === 'ios' ? 'spinner' : 'default'}
-                onChange={async (_, d) => {
+                onChange={(_, d) => {
                   setShowDatePicker(false);
                   if (d) {
                     setDate(d);
                     setTimeDropdownOpen(false);
-                    await fetchBlockedTimes(d, location);
                   }
                 }}
               />
@@ -405,13 +352,11 @@ export default function CreateAppointmentScreen() {
         {Platform.OS === 'web' ? (
           <View style={styles.optionsWrap}>
             {TIMES.map((t) => {
-              const isBlocked = blockedTimes.has(t);
               const isSelected = time === t;
-
               return (
                 <Pressable
                   key={t}
-                  disabled={!location || isBlocked}
+                  disabled={!location}
                   onPress={() => setTime(t)}
                   style={[
                     styles.timePill,
@@ -420,16 +365,14 @@ export default function CreateAppointmentScreen() {
                       backgroundColor: isSelected
                         ? Colors.primary
                         : Colors.background,
-                      opacity: !location ? 0.5 : isBlocked ? 0.25 : 1,
+                      opacity: !location ? 0.5 : 1,
                     },
                   ]}
                 >
                   <Text
                     style={[
                       styles.optionText,
-                      {
-                        color: isSelected ? '#fff' : Colors.text,
-                      },
+                      { color: isSelected ? '#fff' : Colors.text },
                     ]}
                   >
                     {t}
@@ -441,7 +384,7 @@ export default function CreateAppointmentScreen() {
         ) : (
           <>
             <Pressable
-              onPress={onToggleNativeTimeDropdown}
+              onPress={toggleTimeDropdown}
               style={[
                 styles.input,
                 {
@@ -471,25 +414,21 @@ export default function CreateAppointmentScreen() {
               <View
                 style={[
                   styles.dropdown,
-                  {
-                    borderColor: Colors.primary,
-                    backgroundColor: Colors.background,
-                  },
+                  { borderColor: Colors.primary, backgroundColor: Colors.background },
                 ]}
               >
                 {TIMES.map((t) => {
-                  const isBlocked = blockedTimes.has(t);
                   const isSelected = time === t;
-
                   return (
                     <Pressable
                       key={t}
-                      disabled={isBlocked}
-                      onPress={() => pickTime(t)}
+                      onPress={() => {
+                        setTime(t);
+                        setTimeDropdownOpen(false);
+                      }}
                       style={[
                         styles.dropdownRow,
                         {
-                          opacity: isBlocked ? 0.35 : 1,
                           backgroundColor: isSelected
                             ? Colors.primary
                             : 'transparent',
