@@ -39,7 +39,6 @@ const TREATMENTS = [
 
 const LOCATIONS = ['Prishtinë', 'Fushë Kosovë'];
 
-/* Generate time slots from 09:00 to 21:00 every 30 min */
 const generateTimeSlots = () => {
   const slots: string[] = [];
   for (let h = 9; h <= 21; h++) {
@@ -97,9 +96,7 @@ export default function CreateAppointmentScreen() {
       .eq('appointment_date', day)
       .eq('archived', false);
 
-    if (selectedLocation) {
-      q.eq('location', selectedLocation);
-    }
+    if (selectedLocation) q.eq('location', selectedLocation);
 
     const { data, error } = await q;
     if (error) return;
@@ -112,9 +109,7 @@ export default function CreateAppointmentScreen() {
 
     setBlockedTimes(set);
 
-    if (time && set.has(time)) {
-      setTime(null);
-    }
+    if (time && set.has(time)) setTime(null);
   };
 
   const handleCreate = async () => {
@@ -212,7 +207,7 @@ export default function CreateAppointmentScreen() {
     router.replace('/(tabs)/upcoming');
   };
 
-  const onOpenTimeDropdown = () => {
+  const onToggleNativeTimeDropdown = () => {
     if (!location) {
       Alert.alert('Gabim', 'Zgjedh lokacionin së pari');
       return;
@@ -220,7 +215,7 @@ export default function CreateAppointmentScreen() {
     setTimeDropdownOpen((v) => !v);
   };
 
-  const selectTime = (t: string) => {
+  const pickTime = (t: string) => {
     if (blockedTimes.has(t)) return;
     setTime(t);
     setTimeDropdownOpen(false);
@@ -237,7 +232,6 @@ export default function CreateAppointmentScreen() {
     >
       <Text style={[styles.title, { color: Colors.text }]}>Krijo Termin</Text>
 
-      {/* CLIENT INFO */}
       <View style={[styles.card, { backgroundColor: Colors.card }]}>
         <Text style={[styles.sectionTitle, { color: Colors.primary }]}>
           Informacioni i Klientit
@@ -275,7 +269,6 @@ export default function CreateAppointmentScreen() {
         />
       </View>
 
-      {/* APPOINTMENT DETAILS */}
       <View style={[styles.card, { backgroundColor: Colors.card }]}>
         <Text style={[styles.sectionTitle, { color: Colors.primary }]}>
           Detajet e Terminit
@@ -400,36 +393,9 @@ export default function CreateAppointmentScreen() {
 
         <Text style={[styles.label, { color: Colors.text }]}>Ora</Text>
 
-        {/* ✅ CUSTOM DROPDOWN (WORKS ON PHONE WEB) */}
-        <Pressable
-          onPress={onOpenTimeDropdown}
-          style={[
-            styles.input,
-            {
-              backgroundColor: Colors.background,
-              borderColor: Colors.primary,
-              opacity: !location ? 0.6 : 1,
-              flexDirection: 'row',
-              alignItems: 'center',
-              justifyContent: 'space-between',
-            },
-          ]}
-        >
-          <Text style={{ color: time ? Colors.text : Colors.muted, fontWeight: '800' }}>
-            {time ? time : 'Zgjedh Orën'}
-          </Text>
-          <Text style={{ color: Colors.muted, fontWeight: '900' }}>
-            {timeDropdownOpen ? '▲' : '▼'}
-          </Text>
-        </Pressable>
-
-        {timeDropdownOpen && (
-          <View
-            style={[
-              styles.dropdown,
-              { borderColor: Colors.primary, backgroundColor: Colors.background },
-            ]}
-          >
+        {/* ✅ WEB (PHONE WEB INCLUDED): INLINE TIME BUTTONS (NO OPENING REQUIRED) */}
+        {Platform.OS === 'web' ? (
+          <View style={styles.optionsWrap}>
             {TIMES.map((t) => {
               const isBlocked = blockedTimes.has(t);
               const isSelected = time === t;
@@ -437,33 +403,111 @@ export default function CreateAppointmentScreen() {
               return (
                 <Pressable
                   key={t}
-                  disabled={isBlocked}
-                  onPress={() => selectTime(t)}
+                  disabled={!location || isBlocked}
+                  onPress={() => setTime(t)}
                   style={[
-                    styles.dropdownRow,
+                    styles.timePill,
                     {
-                      opacity: isBlocked ? 0.35 : 1,
-                      backgroundColor: isSelected ? Colors.primary : 'transparent',
+                      borderColor: Colors.primary,
+                      backgroundColor: isSelected
+                        ? Colors.primary
+                        : Colors.background,
+                      opacity: !location ? 0.5 : isBlocked ? 0.25 : 1,
                     },
                   ]}
                 >
                   <Text
-                    style={{
-                      color: isSelected ? '#fff' : Colors.text,
-                      fontWeight: '900',
-                    }}
+                    style={[
+                      styles.optionText,
+                      {
+                        color: isSelected ? '#fff' : Colors.text,
+                      },
+                    ]}
                   >
                     {t}
                   </Text>
-                  {isBlocked && (
-                    <Text style={{ color: Colors.muted, fontSize: 12 }}>
-                      Unavailable
-                    </Text>
-                  )}
                 </Pressable>
               );
             })}
           </View>
+        ) : (
+          <>
+            {/* ✅ NATIVE: PRESS TO OPEN LIST */}
+            <Pressable
+              onPress={onToggleNativeTimeDropdown}
+              style={[
+                styles.input,
+                {
+                  backgroundColor: Colors.background,
+                  borderColor: Colors.primary,
+                  opacity: !location ? 0.6 : 1,
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                },
+              ]}
+            >
+              <Text
+                style={{
+                  color: time ? Colors.text : Colors.muted,
+                  fontWeight: '800',
+                }}
+              >
+                {time ? time : 'Zgjedh Orën'}
+              </Text>
+              <Text style={{ color: Colors.muted, fontWeight: '900' }}>
+                {timeDropdownOpen ? '▲' : '▼'}
+              </Text>
+            </Pressable>
+
+            {timeDropdownOpen && (
+              <View
+                style={[
+                  styles.dropdown,
+                  {
+                    borderColor: Colors.primary,
+                    backgroundColor: Colors.background,
+                  },
+                ]}
+              >
+                {TIMES.map((t) => {
+                  const isBlocked = blockedTimes.has(t);
+                  const isSelected = time === t;
+
+                  return (
+                    <Pressable
+                      key={t}
+                      disabled={isBlocked}
+                      onPress={() => pickTime(t)}
+                      style={[
+                        styles.dropdownRow,
+                        {
+                          opacity: isBlocked ? 0.35 : 1,
+                          backgroundColor: isSelected
+                            ? Colors.primary
+                            : 'transparent',
+                        },
+                      ]}
+                    >
+                      <Text
+                        style={{
+                          color: isSelected ? '#fff' : Colors.text,
+                          fontWeight: '900',
+                        }}
+                      >
+                        {t}
+                      </Text>
+                      {isBlocked && (
+                        <Text style={{ color: Colors.muted, fontSize: 12 }}>
+                          Unavailable
+                        </Text>
+                      )}
+                    </Pressable>
+                  );
+                })}
+              </View>
+            )}
+          </>
         )}
 
         <Text style={[styles.label, { color: Colors.text }]}>
@@ -509,8 +553,6 @@ export default function CreateAppointmentScreen() {
     </ScrollView>
   );
 }
-
-/* -------------------- STYLES -------------------- */
 
 const styles = StyleSheet.create({
   container: {
@@ -561,6 +603,12 @@ const styles = StyleSheet.create({
     gap: 10,
   },
   optionPill: {
+    borderWidth: 1,
+    borderRadius: 999,
+    paddingVertical: 10,
+    paddingHorizontal: 14,
+  },
+  timePill: {
     borderWidth: 1,
     borderRadius: 999,
     paddingVertical: 10,
