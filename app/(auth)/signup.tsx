@@ -31,7 +31,11 @@ export default function SignUpScreen() {
   const Colors = theme === 'dark' ? DarkColors : LightColors;
 
   const handleSignUp = async () => {
-    if (!email || !password || !fullName || !accessCode) {
+    const cleanEmail = email.toLowerCase().trim();
+    const cleanName = fullName.trim();
+    const cleanCode = accessCode.trim();
+
+    if (!cleanEmail || !password || !cleanName || !cleanCode) {
       Alert.alert('Error', 'All fields are required');
       return;
     }
@@ -42,8 +46,8 @@ export default function SignUpScreen() {
       /* 1️⃣ VALIDATE ACCESS CODE */
       const { data: codeData, error: codeError } = await supabase
         .from('access_codes')
-        .select('*')
-        .eq('code', accessCode.trim())
+        .select('id, role, used')
+        .eq('code', cleanCode)
         .eq('used', false)
         .maybeSingle();
 
@@ -53,11 +57,19 @@ export default function SignUpScreen() {
         return;
       }
 
-      /* 2️⃣ CREATE AUTH USER */
+      const nextRole = codeData.role;
+
+      /* 2️⃣ CREATE AUTH USER (✅ SEND METADATA FOR TRIGGER) */
       const { data: signUpData, error: signUpError } =
         await supabase.auth.signUp({
-          email,
+          email: cleanEmail,
           password,
+          options: {
+            data: {
+              full_name: cleanName,
+              role: nextRole,
+            },
+          },
         });
 
       if (signUpError || !signUpData.user) {
@@ -68,23 +80,7 @@ export default function SignUpScreen() {
 
       const userId = signUpData.user.id;
 
-      /* 3️⃣ UPSERT PROFILE */
-      const { error: profileError } = await supabase
-        .from('profiles')
-        .upsert({
-          id: userId,
-          email: email.toLowerCase().trim(),
-          full_name: fullName.trim(),
-          role: codeData.role,
-        });
-
-      if (profileError) {
-        setLoading(false);
-        Alert.alert('Profile error', profileError.message);
-        return;
-      }
-
-      /* 4️⃣ MARK ACCESS CODE AS USED */
+      /* 3️⃣ MARK ACCESS CODE AS USED */
       const { error: codeUpdateError } = await supabase
         .from('access_codes')
         .update({ used: true })
@@ -96,7 +92,7 @@ export default function SignUpScreen() {
         return;
       }
 
-      /* 5️⃣ AUDIT LOG */
+      /* 4️⃣ AUDIT LOG */
       await supabase.from('audit_logs').insert({
         actor_id: userId,
         action: 'USE_ACCESS_CODE',
