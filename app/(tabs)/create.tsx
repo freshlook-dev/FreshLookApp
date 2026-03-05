@@ -102,7 +102,6 @@ export default function CreateAppointmentScreen() {
     setLoading(true);
 
     try {
-      // 1) Create appointment
       const { data: apptRows, error: apptErr } = await supabase
         .from('appointments')
         .insert({
@@ -126,7 +125,6 @@ export default function CreateAppointmentScreen() {
       const apptId =
         Array.isArray(apptRows) && apptRows[0]?.id ? apptRows[0].id : null;
 
-      // 2) Always show receipt (like old version)
       setReceiptData({
         client_name: clientName,
         service: selectedService as string,
@@ -135,31 +133,16 @@ export default function CreateAppointmentScreen() {
         location: selectedLocation,
         phone: clientPhone,
       });
+
       setReceiptVisible(true);
 
-      // 3) Audit log should NOT block receipt
       try {
         await supabase.from('audit_logs').insert({
           actor_id: user.id,
           action: 'CREATE_APPOINTMENT',
           target_id: apptId,
-          metadata: apptId
-            ? {
-                appointment: {
-                  id: apptId,
-                  client_name: clientName,
-                  appointment_date: formatDate(date),
-                  appointment_time: selectedTime,
-                  location: selectedLocation,
-                  service: selectedService,
-                },
-              }
-            : null,
         });
-      } catch (e) {
-        // silent: receipt already shown
-        console.log('Audit log insert failed (non-blocking):', e);
-      }
+      } catch {}
     } catch {
       Alert.alert('Gabim', 'Diçka shkoi keq');
     } finally {
@@ -183,6 +166,7 @@ export default function CreateAppointmentScreen() {
 
   return (
     <ScrollView
+      style={{ flex: 1 }}
       contentContainerStyle={[
         styles.container,
         { backgroundColor: Colors.background },
@@ -190,166 +174,177 @@ export default function CreateAppointmentScreen() {
       keyboardShouldPersistTaps="handled"
       showsVerticalScrollIndicator={false}
     >
-      <Text style={[styles.title, { color: Colors.text }]}>Krijo Termin</Text>
+      <View style={styles.page}>
 
-      <View style={[styles.card, { backgroundColor: Colors.card }]}>
-        <Text style={[styles.sectionTitle, { color: Colors.primary }]}>
-          Informacioni i Klientit
+        <Text style={[styles.title, { color: Colors.text }]}>
+          Krijo Termin
         </Text>
 
-        <TextInput
-          style={[
-            styles.input,
-            {
-              backgroundColor: Colors.background,
-              borderColor: Colors.primary,
-              color: Colors.text,
-            },
-          ]}
-          placeholder="Emri dhe Mbiemri"
-          placeholderTextColor={Colors.muted}
-          value={fullName}
-          onChangeText={setFullName}
-        />
+        <View style={[styles.card, { backgroundColor: Colors.card }]}>
+          <Text style={[styles.sectionTitle, { color: Colors.primary }]}>
+            Informacioni i Klientit
+          </Text>
 
-        <TextInput
-          style={[
-            styles.input,
-            {
-              backgroundColor: Colors.background,
-              borderColor: Colors.primary,
-              color: Colors.text,
-            },
-          ]}
-          placeholder="Numri i Telefonit"
-          placeholderTextColor={Colors.muted}
-          value={phone}
-          onChangeText={setPhone}
-          keyboardType="phone-pad"
-        />
-      </View>
-
-      <View style={[styles.card, { backgroundColor: Colors.card }]}>
-        <Text style={[styles.sectionTitle, { color: Colors.primary }]}>
-          Detajet e Terminit
-        </Text>
-
-        <Text style={[styles.label, { color: Colors.text }]}>Shërbimi</Text>
-        <View style={styles.optionsWrap}>
-          {TREATMENTS.map((t) => (
-            <Pressable
-              key={t}
-              style={[
-                styles.optionPill,
-                {
-                  borderColor: Colors.primary,
-                  backgroundColor:
-                    treatment === t ? Colors.primary : Colors.background,
-                },
-              ]}
-              onPress={() => setTreatment(t)}
-            >
-              <Text
-                style={[
-                  styles.optionText,
-                  { color: treatment === t ? '#fff' : Colors.text },
-                ]}
-              >
-                {t}
-              </Text>
-            </Pressable>
-          ))}
-        </View>
-
-        <Text style={[styles.label, { color: Colors.text }]}>Lokacioni</Text>
-        <View style={styles.optionsWrap}>
-          {LOCATIONS.map((l) => (
-            <Pressable
-              key={l}
-              style={[
-                styles.optionPill,
-                {
-                  borderColor: Colors.primary,
-                  backgroundColor:
-                    location === l ? Colors.primary : Colors.background,
-                },
-              ]}
-              onPress={() => {
-                setLocation(l);
-                setTimeDropdownOpen(false);
-              }}
-            >
-              <Text
-                style={[
-                  styles.optionText,
-                  { color: location === l ? '#fff' : Colors.text },
-                ]}
-              >
-                {l}
-              </Text>
-            </Pressable>
-          ))}
-        </View>
-
-        <Text style={[styles.label, { color: Colors.text }]}>Data</Text>
-
-        {Platform.OS === 'web' ? (
-          <input
-            type="date"
-            value={formatDate(date)}
-            onChange={(e) => {
-              setDate(new Date(e.target.value));
-              setTimeDropdownOpen(false);
-            }}
-            style={{
-              width: '100%',
-              padding: 14,
-              fontSize: 15,
-              borderRadius: 12,
-              border: `1px solid ${Colors.primary}`,
-              backgroundColor: Colors.background,
-              color: Colors.text,
-              boxSizing: 'border-box',
-            }}
+          <TextInput
+            style={[
+              styles.input,
+              {
+                backgroundColor: Colors.background,
+                borderColor: Colors.primary,
+                color: Colors.text,
+              },
+            ]}
+            placeholder="Emri dhe Mbiemri"
+            placeholderTextColor={Colors.muted}
+            value={fullName}
+            onChangeText={setFullName}
           />
-        ) : (
-          <>
-            <Pressable
-              onPress={() => setShowDatePicker(true)}
-              style={[
-                styles.input,
-                styles.dateInput,
-                {
-                  backgroundColor: Colors.background,
-                  borderColor: Colors.primary,
-                },
-              ]}
-            >
-              <Text style={{ color: Colors.text, fontWeight: '700' }}>
-                {formatDate(date)}
-              </Text>
-            </Pressable>
 
-            {showDatePicker && (
-              <DateTimePicker
-                value={date}
-                mode="date"
-                display={Platform.OS === 'ios' ? 'spinner' : 'default'}
-                onChange={(_, d) => {
-                  setShowDatePicker(false);
-                  if (d) {
-                    setDate(d);
-                    setTimeDropdownOpen(false);
-                  }
+          <TextInput
+            style={[
+              styles.input,
+              {
+                backgroundColor: Colors.background,
+                borderColor: Colors.primary,
+                color: Colors.text,
+              },
+            ]}
+            placeholder="Numri i Telefonit"
+            placeholderTextColor={Colors.muted}
+            value={phone}
+            onChangeText={setPhone}
+            keyboardType="phone-pad"
+          />
+        </View>
+
+        <View style={[styles.card, { backgroundColor: Colors.card }]}>
+          <Text style={[styles.sectionTitle, { color: Colors.primary }]}>
+            Detajet e Terminit
+          </Text>
+
+          <Text style={[styles.label, { color: Colors.text }]}>
+            Shërbimi
+          </Text>
+
+          <View style={styles.optionsWrap}>
+            {TREATMENTS.map((t) => (
+              <Pressable
+                key={t}
+                style={[
+                  styles.optionPill,
+                  {
+                    borderColor: Colors.primary,
+                    backgroundColor:
+                      treatment === t
+                        ? Colors.primary
+                        : Colors.background,
+                  },
+                ]}
+                onPress={() => setTreatment(t)}
+              >
+                <Text
+                  style={[
+                    styles.optionText,
+                    { color: treatment === t ? '#fff' : Colors.text },
+                  ]}
+                >
+                  {t}
+                </Text>
+              </Pressable>
+            ))}
+          </View>
+
+          <Text style={[styles.label, { color: Colors.text }]}>
+            Lokacioni
+          </Text>
+
+          <View style={styles.optionsWrap}>
+            {LOCATIONS.map((l) => (
+              <Pressable
+                key={l}
+                style={[
+                  styles.optionPill,
+                  {
+                    borderColor: Colors.primary,
+                    backgroundColor:
+                      location === l
+                        ? Colors.primary
+                        : Colors.background,
+                  },
+                ]}
+                onPress={() => {
+                  setLocation(l);
+                  setTimeDropdownOpen(false);
                 }}
-              />
-            )}
-          </>
-        )}
+              >
+                <Text
+                  style={[
+                    styles.optionText,
+                    { color: location === l ? '#fff' : Colors.text },
+                  ]}
+                >
+                  {l}
+                </Text>
+              </Pressable>
+            ))}
+          </View>
 
-        <Text style={[styles.label, { color: Colors.text }]}>Ora</Text>
+          <Text style={[styles.label, { color: Colors.text }]}>
+            Data
+          </Text>
 
-        {Platform.OS === 'web' ? (
+          {Platform.OS === 'web' ? (
+            <input
+              type="date"
+              value={formatDate(date)}
+              onChange={(e) => setDate(new Date(e.target.value))}
+              style={{
+                width: '100%',
+                padding: 14,
+                fontSize: 15,
+                borderRadius: 12,
+                border: `1px solid ${Colors.primary}`,
+                backgroundColor: Colors.background,
+                color: Colors.text,
+                boxSizing: 'border-box',
+              }}
+            />
+          ) : (
+            <>
+              <Pressable
+                onPress={() => setShowDatePicker(true)}
+                style={[
+                  styles.input,
+                  {
+                    backgroundColor: Colors.background,
+                    borderColor: Colors.primary,
+                    width: '100%',
+                  },
+                ]}
+              >
+                <Text style={{ color: Colors.text, fontWeight: '700' }}>
+                  {formatDate(date)}
+                </Text>
+              </Pressable>
+
+              {showDatePicker && (
+                <DateTimePicker
+                  value={date}
+                  mode="date"
+                  display="default"
+                  onChange={(_, d) => {
+                    setShowDatePicker(false);
+                    if (d) setDate(d);
+                  }}
+                />
+              )}
+            </>
+          )}
+
+          <Text style={[styles.label, { color: Colors.text }]}>
+            Ora
+          </Text>
+
           <View style={styles.optionsWrap}>
             {TIMES.map((t) => {
               const isSelected = time === t;
@@ -362,9 +357,10 @@ export default function CreateAppointmentScreen() {
                     styles.timePill,
                     {
                       borderColor: Colors.primary,
-                      backgroundColor: isSelected
-                        ? Colors.primary
-                        : Colors.background,
+                      backgroundColor:
+                        isSelected
+                          ? Colors.primary
+                          : Colors.background,
                       opacity: !location ? 0.5 : 1,
                     },
                   ]}
@@ -381,110 +377,43 @@ export default function CreateAppointmentScreen() {
               );
             })}
           </View>
-        ) : (
-          <>
-            <Pressable
-              onPress={toggleTimeDropdown}
-              style={[
-                styles.input,
-                {
-                  backgroundColor: Colors.background,
-                  borderColor: Colors.primary,
-                  opacity: !location ? 0.6 : 1,
-                  flexDirection: 'row',
-                  alignItems: 'center',
-                  justifyContent: 'space-between',
-                },
-              ]}
-            >
-              <Text
-                style={{
-                  color: time ? Colors.text : Colors.muted,
-                  fontWeight: '800',
-                }}
-              >
-                {time ? time : 'Zgjedh Orën'}
-              </Text>
-              <Text style={{ color: Colors.muted, fontWeight: '900' }}>
-                {timeDropdownOpen ? '▲' : '▼'}
-              </Text>
-            </Pressable>
 
-            {timeDropdownOpen && (
-              <View
-                style={[
-                  styles.dropdown,
-                  { borderColor: Colors.primary, backgroundColor: Colors.background },
-                ]}
-              >
-                {TIMES.map((t) => {
-                  const isSelected = time === t;
-                  return (
-                    <Pressable
-                      key={t}
-                      onPress={() => {
-                        setTime(t);
-                        setTimeDropdownOpen(false);
-                      }}
-                      style={[
-                        styles.dropdownRow,
-                        {
-                          backgroundColor: isSelected
-                            ? Colors.primary
-                            : 'transparent',
-                        },
-                      ]}
-                    >
-                      <Text
-                        style={{
-                          color: isSelected ? '#fff' : Colors.text,
-                          fontWeight: '900',
-                        }}
-                      >
-                        {t}
-                      </Text>
-                    </Pressable>
-                  );
-                })}
-              </View>
-            )}
-          </>
-        )}
+          <Text style={[styles.label, { color: Colors.text }]}>
+            Koment (opsional)
+          </Text>
 
-        <Text style={[styles.label, { color: Colors.text }]}>
-          Koment (opsional)
-        </Text>
-        <TextInput
+          <TextInput
+            style={[
+              styles.input,
+              styles.textArea,
+              {
+                backgroundColor: Colors.background,
+                borderColor: Colors.primary,
+                color: Colors.text,
+              },
+            ]}
+            placeholder="Shkruaj ndonjë koment…"
+            placeholderTextColor={Colors.muted}
+            value={comment}
+            onChangeText={setComment}
+            multiline
+          />
+        </View>
+
+        <Pressable
           style={[
-            styles.input,
-            styles.textArea,
-            {
-              backgroundColor: Colors.background,
-              borderColor: Colors.primary,
-              color: Colors.text,
-            },
+            styles.button,
+            { backgroundColor: Colors.primary },
+            loading && { opacity: 0.7 },
           ]}
-          placeholder="Shkruaj ndonjë koment…"
-          placeholderTextColor={Colors.muted}
-          value={comment}
-          onChangeText={setComment}
-          multiline
-        />
+          onPress={handleCreate}
+          disabled={loading}
+        >
+          <Text style={styles.buttonText}>
+            {loading ? 'Duke ruajtur…' : 'Krijo Termin'}
+          </Text>
+        </Pressable>
       </View>
-
-      <Pressable
-        style={[
-          styles.button,
-          { backgroundColor: Colors.primary },
-          loading && { opacity: 0.7 },
-        ]}
-        onPress={handleCreate}
-        disabled={loading}
-      >
-        <Text style={styles.buttonText}>
-          {loading ? 'Duke ruajtur…' : 'Krijo Termin'}
-        </Text>
-      </Pressable>
 
       <AppointmentCardModal
         visible={receiptVisible}
@@ -496,11 +425,44 @@ export default function CreateAppointmentScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flexGrow: 1, padding: 20, paddingBottom: 40 },
-  title: { fontSize: 26, fontWeight: '800', marginBottom: 20 },
-  card: { borderRadius: 16, padding: 16, marginBottom: 16 },
-  sectionTitle: { fontSize: 16, fontWeight: '800', marginBottom: 12 },
-  label: { fontSize: 14, fontWeight: '800', marginTop: 10, marginBottom: 8 },
+
+  container: {
+    padding: 20,
+    paddingBottom: 40,
+  },
+
+  page: {
+    width: '100%',
+    maxWidth: 720,
+    alignSelf: 'center',
+  },
+
+  title: {
+    fontSize: 26,
+    fontWeight: '800',
+    marginBottom: 20,
+  },
+
+  card: {
+    borderRadius: 18,
+    padding: 18,
+    marginBottom: 18,
+    width: '100%',
+  },
+
+  sectionTitle: {
+    fontSize: 16,
+    fontWeight: '800',
+    marginBottom: 14,
+  },
+
+  label: {
+    fontSize: 14,
+    fontWeight: '800',
+    marginTop: 12,
+    marginBottom: 8,
+  },
+
   input: {
     borderWidth: 1,
     borderRadius: 12,
@@ -509,37 +471,50 @@ const styles = StyleSheet.create({
     marginBottom: 12,
     fontSize: 15,
     fontWeight: '700',
+    width: '100%',
   },
-  textArea: { minHeight: 90, textAlignVertical: 'top' },
-  dateInput: { justifyContent: 'center' },
-  optionsWrap: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
+
+  textArea: {
+    minHeight: 90,
+    textAlignVertical: 'top',
+  },
+
+  optionsWrap: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 10,
+  },
+
   optionPill: {
     borderWidth: 1,
     borderRadius: 999,
     paddingVertical: 10,
     paddingHorizontal: 14,
   },
+
   timePill: {
     borderWidth: 1,
     borderRadius: 999,
     paddingVertical: 10,
     paddingHorizontal: 14,
   },
-  optionText: { fontSize: 13, fontWeight: '800' },
-  dropdown: {
-    borderWidth: 1,
-    borderRadius: 12,
-    marginTop: -6,
-    marginBottom: 12,
-    overflow: 'hidden',
+
+  optionText: {
+    fontSize: 13,
+    fontWeight: '800',
   },
-  dropdownRow: { paddingVertical: 12, paddingHorizontal: 14 },
+
   button: {
-    borderRadius: 14,
-    paddingVertical: 14,
+    borderRadius: 16,
+    paddingVertical: 16,
     alignItems: 'center',
     justifyContent: 'center',
-    marginTop: 6,
+    marginTop: 10,
   },
-  buttonText: { color: '#fff', fontSize: 16, fontWeight: '900' },
+
+  buttonText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '900',
+  },
 });
