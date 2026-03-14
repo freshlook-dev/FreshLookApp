@@ -62,6 +62,7 @@ export default function UpcomingAppointments() {
 
   const [appointments, setAppointments] = useState<Appointment[]>([]);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [role, setRole] = useState<Role>('staff');
 
   const [locationFilter, setLocationFilter] = useState<
@@ -144,6 +145,12 @@ export default function UpcomingAppointments() {
     setLoading(false);
   };
 
+  const onRefresh = async () => {
+    setRefreshing(true);
+    await Promise.all([loadRole(), loadData()]);
+    setRefreshing(false);
+  };
+
   const askConfirm = (status: Status) => {
     const message =
       status === 'arrived'
@@ -170,7 +177,6 @@ export default function UpcomingAppointments() {
 
     setProcessingId(id);
 
-    // 🔹 FIND APPOINTMENT SNAPSHOT FOR AUDIT LOG
     const appointment = appointments.find((a) => a.id === id);
 
     const prev = appointments;
@@ -194,7 +200,6 @@ export default function UpcomingAppointments() {
       return;
     }
 
-    // 🔹 AUDIT LOG (ONLY ADDITION)
     if (appointment) {
       await supabase.from('audit_logs').insert({
         action: 'UPDATE_APPOINTMENT',
@@ -241,7 +246,7 @@ export default function UpcomingAppointments() {
 
   return (
     <View style={[styles.container, { backgroundColor: Colors.background }]}>
-      <SectionTitle>Upcoming Appointments</SectionTitle>
+      <SectionTitle>Terminet në ardhje</SectionTitle>
 
       <View style={styles.filters}>
         {['all', 'Prishtinë', 'Fushë Kosovë'].map((loc) => (
@@ -278,6 +283,8 @@ export default function UpcomingAppointments() {
         data={appointments}
         keyExtractor={(item) => item.id}
         contentContainerStyle={{ paddingBottom: 40 }}
+        refreshing={refreshing}
+        onRefresh={onRefresh}
         renderItem={({ item }) => (
           <Card>
             <View style={styles.row}>

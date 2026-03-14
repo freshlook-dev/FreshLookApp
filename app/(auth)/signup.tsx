@@ -14,6 +14,7 @@ import {
   Platform,
   Image,
 } from 'react-native';
+import { router } from 'expo-router';
 import { supabase } from '../../context/supabase';
 
 /* ✅ THEME */
@@ -43,7 +44,6 @@ export default function SignUpScreen() {
     setLoading(true);
 
     try {
-      /* 1️⃣ VALIDATE ACCESS CODE */
       const { data: codeData, error: codeError } = await supabase
         .from('access_codes')
         .select('id, role, used')
@@ -59,7 +59,6 @@ export default function SignUpScreen() {
 
       const nextRole = codeData.role;
 
-      /* 2️⃣ CREATE AUTH USER (✅ SEND METADATA FOR TRIGGER) */
       const { data: signUpData, error: signUpError } =
         await supabase.auth.signUp({
           email: cleanEmail,
@@ -80,7 +79,6 @@ export default function SignUpScreen() {
 
       const userId = signUpData.user.id;
 
-      /* 3️⃣ MARK ACCESS CODE AS USED */
       const { error: codeUpdateError } = await supabase
         .from('access_codes')
         .update({ used: true })
@@ -92,7 +90,6 @@ export default function SignUpScreen() {
         return;
       }
 
-      /* 4️⃣ AUDIT LOG */
       await supabase.from('audit_logs').insert({
         actor_id: userId,
         action: 'USE_ACCESS_CODE',
@@ -110,108 +107,122 @@ export default function SignUpScreen() {
 
   return (
     <KeyboardAvoidingView
-      style={{ flex: 1 }}
-      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      style={[styles.flex, { backgroundColor: Colors.background }]}
+      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      keyboardVerticalOffset={Platform.OS === 'ios' ? 30 : 0}
     >
       <ScrollView
-        contentContainerStyle={[
-          styles.container,
-          { backgroundColor: Colors.background },
-        ]}
+        contentContainerStyle={styles.scrollContent}
         keyboardShouldPersistTaps="handled"
+        keyboardDismissMode="on-drag"
         showsVerticalScrollIndicator={false}
       >
-        <View style={styles.header}>
-          <Image
-            source={require('../../assets/images/logo.png')}
-            style={styles.logo}
-            resizeMode="contain"
-          />
-          <Text style={[styles.title, { color: Colors.text }]}>
-            Create Account
-          </Text>
-          <Text style={[styles.subtitle, { color: Colors.muted }]}>
-            Join Fresh Look internal platform
-          </Text>
-        </View>
+        <View style={styles.inner}>
+          <View style={styles.header}>
+            <Image
+              source={require('../../assets/images/logo.png')}
+              style={styles.logo}
+              resizeMode="contain"
+            />
+            <Text style={[styles.title, { color: Colors.text }]}>
+              Create Account
+            </Text>
+            <Text style={[styles.subtitle, { color: Colors.muted }]}>
+              Join Fresh Look internal platform
+            </Text>
+          </View>
 
-        <View style={[styles.card, { backgroundColor: Colors.card }]}>
-          <TextInput
-            placeholder="Full Name"
-            placeholderTextColor={Colors.muted}
-            value={fullName}
-            onChangeText={setFullName}
-            style={[
-              styles.input,
-              {
-                backgroundColor: Colors.background,
-                color: Colors.text,
-                borderColor: Colors.primary,
-              },
-            ]}
-          />
+          <View style={[styles.card, { backgroundColor: Colors.card }]}>
+            <TextInput
+              placeholder="Full Name"
+              placeholderTextColor={Colors.muted}
+              value={fullName}
+              onChangeText={setFullName}
+              returnKeyType="next"
+              style={[
+                styles.input,
+                {
+                  backgroundColor: Colors.background,
+                  color: Colors.text,
+                  borderColor: Colors.primary,
+                },
+              ]}
+            />
 
-          <TextInput
-            placeholder="Email address"
-            placeholderTextColor={Colors.muted}
-            autoCapitalize="none"
-            keyboardType="email-address"
-            value={email}
-            onChangeText={setEmail}
-            style={[
-              styles.input,
-              {
-                backgroundColor: Colors.background,
-                color: Colors.text,
-                borderColor: Colors.primary,
-              },
-            ]}
-          />
+            <TextInput
+              placeholder="Email address"
+              placeholderTextColor={Colors.muted}
+              autoCapitalize="none"
+              autoCorrect={false}
+              keyboardType="email-address"
+              value={email}
+              onChangeText={setEmail}
+              returnKeyType="next"
+              style={[
+                styles.input,
+                {
+                  backgroundColor: Colors.background,
+                  color: Colors.text,
+                  borderColor: Colors.primary,
+                },
+              ]}
+            />
 
-          <TextInput
-            placeholder="Password"
-            placeholderTextColor={Colors.muted}
-            secureTextEntry
-            value={password}
-            onChangeText={setPassword}
-            style={[
-              styles.input,
-              {
-                backgroundColor: Colors.background,
-                color: Colors.text,
-                borderColor: Colors.primary,
-              },
-            ]}
-          />
+            <TextInput
+              placeholder="Password"
+              placeholderTextColor={Colors.muted}
+              secureTextEntry
+              autoCorrect={false}
+              value={password}
+              onChangeText={setPassword}
+              returnKeyType="next"
+              style={[
+                styles.input,
+                {
+                  backgroundColor: Colors.background,
+                  color: Colors.text,
+                  borderColor: Colors.primary,
+                },
+              ]}
+            />
 
-          <TextInput
-            placeholder="5-digit Access Code"
-            placeholderTextColor={Colors.muted}
-            keyboardType="number-pad"
-            maxLength={5}
-            value={accessCode}
-            onChangeText={setAccessCode}
-            style={[
-              styles.input,
-              {
-                backgroundColor: Colors.background,
-                color: Colors.text,
-                borderColor: Colors.primary,
-              },
-            ]}
-          />
+            <TextInput
+              placeholder="5-digit Access Code"
+              placeholderTextColor={Colors.muted}
+              keyboardType="number-pad"
+              maxLength={5}
+              value={accessCode}
+              onChangeText={setAccessCode}
+              returnKeyType="done"
+              style={[
+                styles.input,
+                {
+                  backgroundColor: Colors.background,
+                  color: Colors.text,
+                  borderColor: Colors.primary,
+                },
+              ]}
+            />
 
-          <Pressable
-            onPress={handleSignUp}
-            disabled={loading}
-            style={[styles.button, loading && { opacity: 0.7 }]}
-          >
-            {loading ? (
-              <ActivityIndicator color="#fff" />
-            ) : (
-              <Text style={styles.buttonText}>Sign Up</Text>
-            )}
-          </Pressable>
+            <Pressable
+              onPress={handleSignUp}
+              disabled={loading}
+              style={[styles.button, loading && { opacity: 0.7 }]}
+            >
+              {loading ? (
+                <ActivityIndicator color="#fff" />
+              ) : (
+                <Text style={styles.buttonText}>Sign Up</Text>
+              )}
+            </Pressable>
+
+            <Pressable
+              onPress={() => router.replace('/(auth)/login')}
+              style={styles.secondaryButton}
+            >
+              <Text style={styles.secondaryButtonText}>Back to Login</Text>
+            </Pressable>
+          </View>
         </View>
       </ScrollView>
     </KeyboardAvoidingView>
@@ -219,9 +230,16 @@ export default function SignUpScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: {
+  flex: {
+    flex: 1,
+  },
+  scrollContent: {
     flexGrow: 1,
+    justifyContent: 'center',
     padding: 24,
+  },
+  inner: {
+    width: '100%',
     justifyContent: 'center',
   },
   header: {
@@ -260,6 +278,19 @@ const styles = StyleSheet.create({
   buttonText: {
     color: '#FFFFFF',
     fontSize: 16,
+    fontWeight: '700',
+    textAlign: 'center',
+  },
+  secondaryButton: {
+    marginTop: 12,
+    borderWidth: 1,
+    borderColor: '#C9A24D',
+    paddingVertical: 16,
+    borderRadius: 14,
+  },
+  secondaryButtonText: {
+    color: '#C9A24D',
+    fontSize: 15,
     fontWeight: '700',
     textAlign: 'center',
   },

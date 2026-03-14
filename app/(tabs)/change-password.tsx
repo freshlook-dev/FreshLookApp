@@ -33,15 +33,15 @@ export default function ChangePasswordScreen() {
   const handleChangePassword = async () => {
     if (!oldPassword || !newPassword || !confirmPassword) {
       Platform.OS === 'web'
-        ? window.alert('All fields are required')
-        : Alert.alert('Error', 'All fields are required');
+        ? window.alert('Të gjitha fushat duhet të plotësohen')
+        : Alert.alert('Error', 'Të gjitha fushat duhet të plotësohen');
       return;
     }
 
     if (newPassword.length < 6) {
       Platform.OS === 'web'
-        ? window.alert('Password must be at least 6 characters')
-        : Alert.alert('Error', 'Password must be at least 6 characters');
+        ? window.alert('Fjalëkalimi duhet të ketë të paktën 6 shkronja ose numra')
+        : Alert.alert('Error', 'Fjalëkalimi duhet të ketë të paktën 6 shkronja ose numra');
       return;
     }
 
@@ -63,8 +63,8 @@ export default function ChangePasswordScreen() {
 
       if (signInError) {
         Platform.OS === 'web'
-          ? window.alert('Old password is incorrect')
-          : Alert.alert('Error', 'Old password is incorrect');
+          ? window.alert('Fjalëkalimi i vjetër është shkruar gabim')
+          : Alert.alert('Error', 'Fjalëkalimi i vjetër është shkruar gabim');
         return;
       }
 
@@ -80,10 +80,10 @@ export default function ChangePasswordScreen() {
       }
 
       if (Platform.OS === 'web') {
-        window.alert('Password changed successfully');
+        window.alert('Fjalëkalimi u ndryshua me sukses!');
         router.replace('/(tabs)/profile');
       } else {
-        Alert.alert('Success', 'Password changed successfully', [
+        Alert.alert('Sukses', 'Fjalëkalimi u ndryshua me sukses!', [
           {
             text: 'OK',
             onPress: () => router.replace('/(tabs)/profile'),
@@ -103,11 +103,11 @@ export default function ChangePasswordScreen() {
       ]}
     >
       <Text style={[styles.title, { color: Colors.text }]}>
-        Change Password
+        Ndrysho Fjalëkalimin
       </Text>
 
       <TextInput
-        placeholder="Old password"
+        placeholder="Fjalëkalimi i vjetër"
         placeholderTextColor={Colors.muted}
         secureTextEntry
         value={oldPassword}
@@ -123,7 +123,7 @@ export default function ChangePasswordScreen() {
       />
 
       <TextInput
-        placeholder="New password"
+        placeholder="Fjalëkalimi i ri"
         placeholderTextColor={Colors.muted}
         secureTextEntry
         value={newPassword}
@@ -139,7 +139,7 @@ export default function ChangePasswordScreen() {
       />
 
       <TextInput
-        placeholder="Confirm new password"
+        placeholder="Konfirmo Fjalëkalimin e ri"
         placeholderTextColor={Colors.muted}
         secureTextEntry
         value={confirmPassword}
@@ -166,7 +166,7 @@ export default function ChangePasswordScreen() {
         {loading ? (
           <ActivityIndicator color="#FFF" />
         ) : (
-          <Text style={styles.buttonText}>Update Password</Text>
+          <Text style={styles.buttonText}>Përditëso Fjalëkalimin</Text>
         )}
       </Pressable>
     </View>

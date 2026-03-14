@@ -7,7 +7,7 @@ import {
 } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useRef } from 'react';
+import { useRef, useState } from 'react';
 
 import { useAuth } from '../../context/AuthContext';
 
@@ -38,29 +38,28 @@ export default function TabsLayout() {
   const router = useRouter();
   const pathname = usePathname();
 
+  const [refreshing, setRefreshing] = useState(false);
+
   /* 🔄 ANIMATION */
   const rotateAnim = useRef(new Animated.Value(0)).current;
 
-  /* 🔄 TRUE HARD REFRESH */
+  /* 🔄 SAFE REFRESH */
   const hardRefresh = () => {
-  if (loading) return;
+    if (loading || refreshing) return;
 
-  rotateAnim.setValue(0);
+    setRefreshing(true);
+    rotateAnim.setValue(0);
 
-  Animated.timing(rotateAnim, {
-    toValue: 1,
-    duration: 600,
-    easing: Easing.out(Easing.ease),
-    useNativeDriver: true,
-  }).start();
-
-  // 👇 FORCE FULL REMOUNT (tabs-safe)
-  router.replace('/_sitemap');
-  setTimeout(() => {
-    router.replace('/(tabs)');
-  }, 1);
-};
-
+    Animated.timing(rotateAnim, {
+      toValue: 1,
+      duration: 600,
+      easing: Easing.out(Easing.ease),
+      useNativeDriver: true,
+    }).start(() => {
+      router.replace(pathname as any);
+      setRefreshing(false);
+    });
+  };
 
   // ✅ Redirects AFTER hooks
   if (loading) return null;
@@ -214,53 +213,52 @@ export default function TabsLayout() {
 
       {/* 🔒 HIDDEN SCREENS */}
       <Tabs.Screen
-  name="edit"
-  options={{
-    href: null,
-    title: 'Edit Appointment',
-  }}
-/>
+        name="edit"
+        options={{
+          href: null,
+          title: 'Edit Appointment',
+        }}
+      />
 
-<Tabs.Screen
-  name="change-password"
-  options={{
-    href: null,
-    title: 'Change Password',
-  }}
-/>
+      <Tabs.Screen
+        name="change-password"
+        options={{
+          href: null,
+          title: 'Change Password',
+        }}
+      />
 
-<Tabs.Screen
-  name="manage-users"
-  options={{
-    href: null,
-    title: 'Manage Users',
-  }}
-/>
+      <Tabs.Screen
+        name="manage-users"
+        options={{
+          href: null,
+          title: 'Manage Users',
+        }}
+      />
 
-<Tabs.Screen
-  name="audit-log"
-  options={{
-    href: null,
-    title: 'Audit Logs',
-  }}
-/>
+      <Tabs.Screen
+        name="audit-log"
+        options={{
+          href: null,
+          title: 'Audit Logs',
+        }}
+      />
 
-<Tabs.Screen
-  name="archived"
-  options={{
-    href: null,
-    title: 'Archived Appointments',
-  }}
-/>
+      <Tabs.Screen
+        name="archived"
+        options={{
+          href: null,
+          title: 'Archived Appointments',
+        }}
+      />
 
-<Tabs.Screen
-  name="stats"
-  options={{
-    href: null,
-    title: 'Staff Statistics',
-  }}
-/>
-
+      <Tabs.Screen
+        name="stats"
+        options={{
+          href: null,
+          title: 'Staff Statistics',
+        }}
+      />
     </Tabs>
   );
 }

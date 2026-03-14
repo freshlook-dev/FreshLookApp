@@ -198,9 +198,8 @@ export default function ProfileTab() {
 
   /* ================= PICK IMAGE ================= */
   const pickAndUploadAvatar = async () => {
-    if (!user) return;
+    if (!user || uploading) return;
 
-    // 🌐 WEB (ALL) → input picker (reliable on desktop + mobile web)
     if (Platform.OS === 'web') {
       const file = await pickImageWebFile();
       if (!file) return;
@@ -214,34 +213,37 @@ export default function ProfileTab() {
       setCrop({ x: 0, y: 0 });
       setZoom(1);
 
-      // iOS web: skip cropper (safer), do center-square crop
       if (isIOSWeb) {
         setShowCropper(false);
         const blob = await webCenterSquareToBlob512(url);
-        await uploadFinalBlob(blob);
+        await uploadWebBlob(blob);
         return;
       }
 
-      // Desktop web: show cropper
       setShowCropper(true);
       return;
     }
 
-    // 📱 Native Apps → native editor
+    const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (!permission.granted) {
+      Alert.alert('Permission required', 'Please allow photo library access.');
+      return;
+    }
+
     const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      mediaTypes: ['images'],
       allowsEditing: true,
       aspect: [1, 1],
       quality: 1,
     });
 
-    if (result.canceled) return;
+    if (result.canceled || !result.assets?.length) return;
 
-    await uploadFinalUri(result.assets[0].uri);
+    await uploadNativeUri(result.assets[0].uri);
   };
 
-  /* ================= UPLOAD (NATIVE URI) ================= */
-  const uploadFinalUri = async (uri: string) => {
+  /* ================= NATIVE UPLOAD ================= */
+  const uploadNativeUri = async (uri: string) => {
     try {
       setUploading(true);
 
@@ -251,20 +253,43 @@ export default function ProfileTab() {
         { compress: 0.85, format: ImageManipulator.SaveFormat.JPEG }
       );
 
-      const response = await fetch(manipulated.uri);
-      const blob = await response.blob();
+      const arrayBuffer = await fetch(manipulated.uri).then((res) =>
+        res.arrayBuffer()
+      );
 
-      await uploadFinalBlob(blob);
-    } catch (err) {
-      console.error(err);
-      Alert.alert('Error', 'Failed to upload photo');
+      const filePath = `${user!.id}.jpg`;
+
+      const { error } = await supabase.storage
+        .from('avatars')
+        .upload(filePath, arrayBuffer, {
+          upsert: true,
+          contentType: 'image/jpeg',
+        });
+
+      if (error) throw error;
+
+      const { data } = supabase.storage.from('avatars').getPublicUrl(filePath);
+
+      const avatarUrl = `${data.publicUrl}?t=${Date.now()}`;
+
+      const { error: updErr } = await supabase
+        .from('profiles')
+        .update({ avatar_url: avatarUrl })
+        .eq('id', user!.id);
+
+      if (updErr) throw updErr;
+
+      setProfile((p) => (p ? { ...p, avatar_url: avatarUrl } : p));
+    } catch (err: any) {
+      console.error('Native avatar upload error:', err);
+      Alert.alert('Error', err?.message || 'Failed to upload photo');
     } finally {
       setUploading(false);
     }
   };
 
-  /* ================= UPLOAD (BLOB) ================= */
-  const uploadFinalBlob = async (blob: Blob) => {
+  /* ================= WEB UPLOAD ================= */
+  const uploadWebBlob = async (blob: Blob) => {
     try {
       setUploading(true);
 
@@ -291,9 +316,9 @@ export default function ProfileTab() {
       if (updErr) throw updErr;
 
       setProfile((p) => (p ? { ...p, avatar_url: avatarUrl } : p));
-    } catch (err) {
-      console.error(err);
-      Alert.alert('Error', 'Failed to upload photo');
+    } catch (err: any) {
+      console.error('Web avatar upload error:', err);
+      Alert.alert('Error', err?.message || 'Failed to upload photo');
     } finally {
       setUploading(false);
     }
@@ -319,21 +344,21 @@ export default function ProfileTab() {
         ? await webCropToBlob512(webPreviewUrl, cropPixels)
         : await webCenterSquareToBlob512(webPreviewUrl);
 
-      await uploadFinalBlob(blob);
-    } catch (err) {
-      console.error(err);
-      Alert.alert('Error', 'Failed to crop/upload photo');
+      await uploadWebBlob(blob);
+    } catch (err: any) {
+      console.error('Crop/upload error:', err);
+      Alert.alert('Error', err?.message || 'Failed to crop/upload photo');
     }
   };
 
   /* ================= LOGOUT ================= */
   const handleLogout = () => {
     if (Platform.OS === 'web') {
-      if (window.confirm('Are you sure you want to logout?')) logout();
+      if (window.confirm('A jeni të sigurt që doni të dilni?')) logout();
     } else {
-      Alert.alert('Logout', 'Are you sure?', [
-        { text: 'Cancel', style: 'cancel' },
-        { text: 'Logout', style: 'destructive', onPress: logout },
+      Alert.alert('Logout', 'A jeni të sigurt që doni të dilni?', [
+        { text: 'Kthehu mbrapa', style: 'cancel' },
+        { text: 'Dil', style: 'destructive', onPress: logout },
       ]);
     }
   };
@@ -367,7 +392,7 @@ export default function ProfileTab() {
         { backgroundColor: Colors.background },
       ]}
     >
-      <Text style={[styles.pageTitle, { color: Colors.text }]}>My Profile</Text>
+      <Text style={[styles.pageTitle, { color: Colors.text }]}>Profili im </Text>
 
       <Pressable
         onPress={pickAndUploadAvatar}
@@ -383,7 +408,7 @@ export default function ProfileTab() {
           style={styles.avatar}
         />
         <Text style={{ fontSize: 12, color: Colors.muted }}>
-          {uploading ? 'Uploading…' : 'Tap to change photo'}
+          {uploading ? 'Uploading…' : 'Kliko për të ndërruar fotografinë'}
         </Text>
       </Pressable>
 
@@ -394,14 +419,14 @@ export default function ProfileTab() {
         </Text>
 
         <Text style={[styles.label, { marginTop: 12, color: Colors.muted }]}>
-          Full name
+          Emri i përdoruesit
         </Text>
         <Text style={[styles.value, { color: Colors.text }]}>
           {profile.full_name || 'Not set'}
         </Text>
 
         <Text style={[styles.label, { marginTop: 12, color: Colors.muted }]}>
-          Role
+          Roli
         </Text>
         <Text
           style={[
@@ -426,20 +451,31 @@ export default function ProfileTab() {
       </View>
 
       <View style={[styles.card, { backgroundColor: Colors.card }]}>
-        <Pressable
-          onPress={() => router.push('../(tabs)/change-password')}
-          style={styles.primaryButton}
-        >
-          <Text style={styles.primaryButtonText}>Change Password</Text>
-        </Pressable>
 
+        {canViewStats && (
+          <Pressable
+            onPress={() => router.push('../(tabs)/stats')}
+            style={[styles.primaryButton, { marginTop: 12 }]}
+          >
+            <Text style={styles.primaryButtonText}>📊Statistika mujore e stafit</Text>
+          </Pressable>
+        )}
+        
         {isOwner && (
           <>
+
+          <Pressable
+              onPress={() => router.push('../owner-stats')}
+              style={[styles.primaryButton, { marginTop: 12 }]}
+            >
+              <Text style={styles.primaryButtonText}>📊Statistikat financiare</Text>
+            </Pressable>
+            
             <Pressable
               onPress={() => router.push('../(tabs)/manage-users')}
               style={[styles.primaryButton, { marginTop: 12 }]}
             >
-              <Text style={styles.primaryButtonText}>Manage Users</Text>
+              <Text style={styles.primaryButtonText}>Menaxho Përdoruesit</Text>
             </Pressable>
 
             <Pressable
@@ -449,18 +485,13 @@ export default function ProfileTab() {
               <Text style={styles.primaryButtonText}>Audit Logs</Text>
             </Pressable>
 
-            <Pressable
-              onPress={() => router.push('../owner-stats')}
-              style={[styles.primaryButton, { marginTop: 12 }]}
-            >
-              <Text style={styles.primaryButtonText}>📊 Owner Stats</Text>
-            </Pressable>
+            
 
             <Pressable
               onPress={() => generateAccessCode('staff')}
               style={[styles.primaryButton, { marginTop: 12 }]}
             >
-              <Text style={styles.primaryButtonText}>Generate Staff Code</Text>
+              <Text style={styles.primaryButtonText}>Gjenero Staff Code</Text>
             </Pressable>
 
             {generatedCode && (
@@ -491,18 +522,18 @@ export default function ProfileTab() {
           </>
         )}
 
-        {canViewStats && (
-          <Pressable
-            onPress={() => router.push('../(tabs)/stats')}
-            style={[styles.primaryButton, { marginTop: 12 }]}
-          >
-            <Text style={styles.primaryButtonText}>📊 Staff Stats</Text>
-          </Pressable>
-        )}
-      </View>
+        
+      </View> 
+
+      <Pressable
+          onPress={() => router.push('../(tabs)/change-password')}
+          style={styles.primaryButton}
+        >
+          <Text style={styles.primaryButtonText}>Ndrysho Fjalëkalimin</Text>
+        </Pressable>
 
       <Pressable onPress={handleLogout} style={styles.logoutButton}>
-        <Text style={styles.logoutText}>Logout</Text>
+        <Text style={styles.logoutText}>Dil</Text>
       </Pressable>
 
       {Platform.OS === 'web' && !isIOSWeb && showCropper && webPreviewUrl && (

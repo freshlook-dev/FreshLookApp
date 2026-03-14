@@ -112,9 +112,6 @@ export default function StatsScreen() {
     <ScrollView
       style={[styles.container, { backgroundColor: Colors.background }]}
     >
-      <Text style={[styles.title, { color: Colors.text }]}>
-        📊 Staff Statistics
-      </Text>
 
       {users.map((name) => (
         <View

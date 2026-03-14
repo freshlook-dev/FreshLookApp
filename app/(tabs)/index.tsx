@@ -43,6 +43,7 @@ export default function HomeTab() {
   const [fusheToday, setFusheToday] = useState(0);
   const [staffStats, setStaffStats] = useState<StaffStat[]>([]);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
 
   useEffect(() => {
     if (user) loadStats();
@@ -129,6 +130,12 @@ export default function HomeTab() {
     setLoading(false);
   };
 
+  const onRefresh = async () => {
+    setRefreshing(true);
+    await loadStats();
+    setRefreshing(false);
+  };
+
   const renderBadge = (index: number) => {
     if (index === 0) return '🥇';
     if (index === 1) return '🥈';
@@ -206,6 +213,8 @@ export default function HomeTab() {
         data={staffStats}
         keyExtractor={(item) => item.user_id}
         showsVerticalScrollIndicator={false}
+        refreshing={refreshing}
+        onRefresh={onRefresh}
         renderItem={({ item, index }) => (
           <Card>
             <View style={styles.staffRow}>

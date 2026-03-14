@@ -1,8 +1,8 @@
 {
   "expo": {
-    "name": "Fresh Look",
+    "name": "FreshLookApp Staff",
     "slug": "freshlook-app",
-    "version": "1.0.0",
+    "version": "1.0.4",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
     "scheme": "freshlookapp",
@@ -17,6 +17,7 @@
       "supportsTablet": true
     },
     "android": {
+      "package": "com.freshlook.staff",
       "adaptiveIcon": {
         "foregroundImage": "./assets/images/adaptive-icon.png",
         "backgroundColor": "#C9A24D"
@@ -29,7 +30,7 @@
       "output": "static",
       "favicon": "./assets/images/icon.png",
       "manifest": {
-        "name": "Fresh Look",
+        "name": "FreshLookApp Staff",
         "short_name": "FreshLook",
         "start_url": "/",
         "display": "standalone",
@@ -43,6 +44,12 @@
     ],
     "experiments": {
       "typedRoutes": true
+    },
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "fc17aa50-593c-4740-8bf4-6c62354c1290"
+      }
     }
   }
 }

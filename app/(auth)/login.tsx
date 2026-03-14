@@ -48,91 +48,95 @@ export default function Login() {
 
   return (
     <KeyboardAvoidingView
-      style={{ flex: 1 }}
-      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      style={[styles.flex, { backgroundColor: Colors.background }]}
+      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      keyboardVerticalOffset={Platform.OS === 'ios' ? 30 : 0}
     >
       <ScrollView
-        contentContainerStyle={[
-          styles.container,
-          { backgroundColor: Colors.background },
-        ]}
+        contentContainerStyle={styles.scrollContent}
         keyboardShouldPersistTaps="handled"
+        keyboardDismissMode="on-drag"
         showsVerticalScrollIndicator={false}
       >
-        {/* Header */}
-        <View style={styles.header}>
-          <Image
-            source={require('../../assets/images/logo.png')}
-            style={styles.logo}
-            resizeMode="contain"
-          />
+        <View style={styles.inner}>
+          {/* Header */}
+          <View style={styles.header}>
+            <Image
+              source={require('../../assets/images/logo.png')}
+              style={styles.logo}
+              resizeMode="contain"
+            />
 
-          <Text style={[styles.title, { color: Colors.text }]}>
-            Welcome Back
-          </Text>
-          <Text style={[styles.subtitle, { color: Colors.muted }]}>
-            Sign in to continue to Fresh Look
-          </Text>
-        </View>
-
-        {/* Form */}
-        <View style={[styles.card, { backgroundColor: Colors.card }]}>
-          <TextInput
-            placeholder="Email address"
-            placeholderTextColor={Colors.muted}
-            autoCapitalize="none"
-            keyboardType="email-address"
-            value={email}
-            onChangeText={setEmail}
-            style={[
-              styles.input,
-              {
-                backgroundColor: Colors.background,
-                color: Colors.text,
-                borderColor: Colors.primary,
-              },
-            ]}
-          />
-
-          <TextInput
-            placeholder="Password"
-            placeholderTextColor={Colors.muted}
-            secureTextEntry
-            value={password}
-            onChangeText={setPassword}
-            style={[
-              styles.input,
-              {
-                backgroundColor: Colors.background,
-                color: Colors.text,
-                borderColor: Colors.primary,
-              },
-            ]}
-          />
-
-          {/* 🔐 FORGOT PASSWORD */}
-          <Pressable
-            onPress={() => router.push('../(auth)/forgot-password')}
-            style={{ marginBottom: 10 }}
-          >
-            <Text style={styles.forgot}>Forgot password?</Text>
-          </Pressable>
-
-          <Pressable
-            style={[styles.button, loading && { opacity: 0.7 }]}
-            onPress={handleLogin}
-            disabled={loading}
-          >
-            <Text style={styles.buttonText}>
-              {loading ? 'Signing in…' : 'Log In'}
+            <Text style={[styles.title, { color: Colors.text }]}>
+              Welcome Back
             </Text>
+            <Text style={[styles.subtitle, { color: Colors.muted }]}>
+              Sign in to continue to Fresh Look
+            </Text>
+          </View>
+
+          {/* Form */}
+          <View style={[styles.card, { backgroundColor: Colors.card }]}>
+            <TextInput
+              placeholder="Email address"
+              placeholderTextColor={Colors.muted}
+              autoCapitalize="none"
+              keyboardType="email-address"
+              autoCorrect={false}
+              returnKeyType="next"
+              value={email}
+              onChangeText={setEmail}
+              style={[
+                styles.input,
+                {
+                  backgroundColor: Colors.background,
+                  color: Colors.text,
+                  borderColor: Colors.primary,
+                },
+              ]}
+            />
+
+            <TextInput
+              placeholder="Password"
+              placeholderTextColor={Colors.muted}
+              secureTextEntry
+              autoCorrect={false}
+              returnKeyType="done"
+              value={password}
+              onChangeText={setPassword}
+              style={[
+                styles.input,
+                {
+                  backgroundColor: Colors.background,
+                  color: Colors.text,
+                  borderColor: Colors.primary,
+                },
+              ]}
+            />
+
+            <Pressable
+              onPress={() => router.push('../(auth)/forgot-password')}
+              style={{ marginBottom: 10 }}
+            >
+              <Text style={styles.forgot}>Forgot password?</Text>
+            </Pressable>
+
+            <Pressable
+              style={[styles.button, loading && { opacity: 0.7 }]}
+              onPress={handleLogin}
+              disabled={loading}
+            >
+              <Text style={styles.buttonText}>
+                {loading ? 'Signing in…' : 'Log In'}
+              </Text>
+            </Pressable>
+          </View>
+
+          {/* Footer */}
+          <Pressable onPress={() => router.replace('/(auth)/signup')}>
+            <Text style={styles.link}>Create new account</Text>
           </Pressable>
         </View>
-
-        {/* Footer */}
-        <Pressable onPress={() => router.replace('/(auth)/signup')}>
-          <Text style={styles.link}>Create new account</Text>
-        </Pressable>
       </ScrollView>
     </KeyboardAvoidingView>
   );
@@ -141,9 +145,18 @@ export default function Login() {
 /* ================= STYLES ================= */
 
 const styles = StyleSheet.create({
-  container: {
+  flex: {
+    flex: 1,
+  },
+
+  scrollContent: {
     flexGrow: 1,
+    justifyContent: 'center',
     padding: 24,
+  },
+
+  inner: {
+    width: '100%',
     justifyContent: 'center',
   },
 
