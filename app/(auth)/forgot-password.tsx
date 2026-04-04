@@ -9,8 +9,10 @@ import {
   Pressable,
   Alert,
   ActivityIndicator,
+  Platform,
 } from 'react-native';
 import { router } from 'expo-router';
+import * as Linking from 'expo-linking';
 
 import { supabase } from '../../context/supabase';
 
@@ -26,16 +28,22 @@ export default function ForgotPasswordScreen() {
   const Colors = theme === 'dark' ? DarkColors : LightColors;
 
   const handleReset = async () => {
-    if (!email) {
+    if (!email.trim()) {
       Alert.alert('Error', 'Please enter your email');
       return;
     }
 
     setLoading(true);
 
-    const { error } = await supabase.auth.resetPasswordForEmail(email, {
-      redirectTo: `${window.location.origin}/reset-password`,
-    });
+    const redirectTo =
+      Platform.OS === 'web'
+        ? `${window.location.origin}/reset-password`
+        : Linking.createURL('/reset-password');
+
+    const { error } = await supabase.auth.resetPasswordForEmail(
+      email.trim(),
+      { redirectTo }
+    );
 
     setLoading(false);
 
@@ -78,12 +86,14 @@ export default function ForgotPasswordScreen() {
         onChangeText={setEmail}
         autoCapitalize="none"
         keyboardType="email-address"
+        autoCorrect={false}
       />
 
       <Pressable
         style={[
           styles.button,
           { backgroundColor: Colors.primary },
+          loading && { opacity: 0.7 },
         ]}
         onPress={handleReset}
         disabled={loading}
