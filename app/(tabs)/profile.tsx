@@ -48,7 +48,9 @@ const pickImageWebFile = async (): Promise<File | null> => {
       resolve(file);
     };
 
+    document.body.appendChild(input);
     input.click();
+    document.body.removeChild(input);
   });
 };
 
@@ -201,26 +203,31 @@ export default function ProfileTab() {
     if (!user || uploading) return;
 
     if (Platform.OS === 'web') {
-      const file = await pickImageWebFile();
-      if (!file) return;
+      try {
+        const file = await pickImageWebFile();
+        if (!file) return;
 
-      const url = URL.createObjectURL(file);
+        const url = URL.createObjectURL(file);
 
-      if (webPreviewUrl) URL.revokeObjectURL(webPreviewUrl);
+        if (webPreviewUrl) URL.revokeObjectURL(webPreviewUrl);
 
-      setWebFile(file);
-      setWebPreviewUrl(url);
-      setCrop({ x: 0, y: 0 });
-      setZoom(1);
+        setWebFile(file);
+        setWebPreviewUrl(url);
+        setCrop({ x: 0, y: 0 });
+        setZoom(1);
 
-      if (isIOSWeb) {
-        setShowCropper(false);
-        const blob = await webCenterSquareToBlob512(url);
-        await uploadWebBlob(blob);
-        return;
+        if (isIOSWeb) {
+          setShowCropper(false);
+          const blob = await webCenterSquareToBlob512(url);
+          await uploadWebBlob(blob);
+          return;
+        }
+
+        setShowCropper(true);
+      } catch (err: any) {
+        console.error('Web image picker error:', err);
+        Alert.alert('Error', err?.message || 'Failed to select photo');
       }
-
-      setShowCropper(true);
       return;
     }
 
@@ -295,9 +302,13 @@ export default function ProfileTab() {
 
       const filePath = `${user!.id}.jpg`;
 
+      const file = new File([blob], 'avatar.jpg', {
+        type: 'image/jpeg',
+      });
+
       const { error } = await supabase.storage
         .from('avatars')
-        .upload(filePath, blob, {
+        .upload(filePath, file, {
           upsert: true,
           contentType: 'image/jpeg',
         });
@@ -340,9 +351,15 @@ export default function ProfileTab() {
           }
         : null;
 
-      const blob = cropPixels
-        ? await webCropToBlob512(webPreviewUrl, cropPixels)
-        : await webCenterSquareToBlob512(webPreviewUrl);
+      let blob: Blob;
+
+      try {
+        blob = cropPixels
+          ? await webCropToBlob512(webPreviewUrl, cropPixels)
+          : await webCenterSquareToBlob512(webPreviewUrl);
+      } catch {
+        blob = await webCenterSquareToBlob512(webPreviewUrl);
+      }
 
       await uploadWebBlob(blob);
     } catch (err: any) {
@@ -451,26 +468,28 @@ export default function ProfileTab() {
       </View>
 
       <View style={[styles.card, { backgroundColor: Colors.card }]}>
-
         {canViewStats && (
           <Pressable
             onPress={() => router.push('../(tabs)/stats')}
             style={[styles.primaryButton, { marginTop: 12 }]}
           >
-            <Text style={styles.primaryButtonText}>📊Statistika mujore e stafit</Text>
+            <Text style={styles.primaryButtonText}>
+              📊Statistika mujore e stafit
+            </Text>
           </Pressable>
         )}
-        
+
         {isOwner && (
           <>
-
-          <Pressable
+            <Pressable
               onPress={() => router.push('../owner-stats')}
               style={[styles.primaryButton, { marginTop: 12 }]}
             >
-              <Text style={styles.primaryButtonText}>📊Statistikat financiare</Text>
+              <Text style={styles.primaryButtonText}>
+                📊Statistikat financiare
+              </Text>
             </Pressable>
-            
+
             <Pressable
               onPress={() => router.push('../(tabs)/manage-users')}
               style={[styles.primaryButton, { marginTop: 12 }]}
@@ -484,8 +503,6 @@ export default function ProfileTab() {
             >
               <Text style={styles.primaryButtonText}>Audit Logs</Text>
             </Pressable>
-
-            
 
             <Pressable
               onPress={() => generateAccessCode('staff')}
@@ -521,16 +538,14 @@ export default function ProfileTab() {
             )}
           </>
         )}
-
-        
-      </View> 
+      </View>
 
       <Pressable
-          onPress={() => router.push('../(tabs)/change-password')}
-          style={styles.primaryButton}
-        >
-          <Text style={styles.primaryButtonText}>Ndrysho Fjalëkalimin</Text>
-        </Pressable>
+        onPress={() => router.push('../(tabs)/change-password')}
+        style={styles.primaryButton}
+      >
+        <Text style={styles.primaryButtonText}>Ndrysho Fjalëkalimin</Text>
+      </Pressable>
 
       <Pressable onPress={handleLogout} style={styles.logoutButton}>
         <Text style={styles.logoutText}>Dil</Text>
@@ -545,6 +560,7 @@ export default function ProfileTab() {
             zIndex: 9999,
             justifyContent: 'center',
             alignItems: 'center',
+            pointerEvents: 'auto' as any,
           }}
         >
           <View style={{ width: 300, height: 300, backgroundColor: '#000' }}>
