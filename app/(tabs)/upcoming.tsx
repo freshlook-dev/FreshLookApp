@@ -358,7 +358,12 @@ export default function UpcomingAppointments() {
                     styles.arrived,
                     processingId === item.id && styles.disabledBtn,
                   ]}
-                  onPress={() => markStatus(item.id, 'arrived')}
+                  onPress={() =>
+                    router.push({
+                      pathname: '/register-visit/[appointmentId]',
+                      params: { appointmentId: item.id },
+                    })
+                  }
                 >
                   <Text style={[styles.statusText, { color: Colors.background }]}>
                     {processingId === item.id ? '...' : 'Ka ardhur'}
