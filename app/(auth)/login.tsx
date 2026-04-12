@@ -32,18 +32,50 @@ export default function Login() {
 
     setLoading(true);
 
-    const { error } = await supabase.auth.signInWithPassword({
+    const { data, error } = await supabase.auth.signInWithPassword({
       email,
       password,
     });
 
-    setLoading(false);
-
     if (error) {
+      setLoading(false);
       alert(error.message);
-    } else {
-      router.replace('/');
+      return;
     }
+
+    const user = data.user;
+
+    if (!user) {
+      setLoading(false);
+      alert('User not found');
+      return;
+    }
+
+    // ✅ Fetch role
+    const { data: profile, error: profileError } = await supabase
+      .from('profiles')
+      .select('role')
+      .eq('id', user.id)
+      .single();
+
+    if (profileError || !profile) {
+      await supabase.auth.signOut();
+      setLoading(false);
+      alert('Failed to fetch user role');
+      return;
+    }
+
+    // 🚫 BLOCK CLIENT ROLE
+    if (profile.role === 'client') {
+      await supabase.auth.signOut();
+      setLoading(false);
+      alert('This app is only for staff.');
+      return;
+    }
+
+    // ✅ Allow staff/admin
+    setLoading(false);
+    router.replace('/');
   };
 
   return (
