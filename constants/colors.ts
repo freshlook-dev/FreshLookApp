@@ -13,3 +13,22 @@ export const DarkColors = {
   muted: '#A1A1AA',
   primary: '#C9A24D',
 };
+
+const Colors = {
+  light: {
+    text: LightColors.text,
+    background: LightColors.background,
+    tint: LightColors.primary,
+    tabIconDefault: LightColors.muted,
+    tabIconSelected: LightColors.primary,
+  },
+  dark: {
+    text: DarkColors.text,
+    background: DarkColors.background,
+    tint: DarkColors.primary,
+    tabIconDefault: DarkColors.muted,
+    tabIconSelected: DarkColors.primary,
+  },
+};
+
+export default Colors;

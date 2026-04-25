@@ -20,6 +20,7 @@ import { LightColors, DarkColors } from '../../constants/colors';
 import { Spacing } from '../../constants/theme';
 import { Card } from '../../components/Card';
 import { SectionTitle } from '../../components/SectionTitle';
+import { useAutoRefresh } from '../../hooks/useAutoRefresh';
 
 type Appointment = {
   id: string;
@@ -88,6 +89,12 @@ export default function CalendarTab() {
 
     setLoading(false);
   };
+
+  useAutoRefresh(loadAppointments, {
+    enabled: !!user,
+    tables: ['appointments'],
+    channelName: 'calendar',
+  });
 
   /* 🔴 MARKED DATES */
   const markedDates = appointments.reduce((acc: any, a) => {

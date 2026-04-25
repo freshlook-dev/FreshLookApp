@@ -19,6 +19,7 @@ import { supabase } from '../../context/supabase';
 import { useAuth } from '../../context/AuthContext';
 import { useTheme } from '../../context/ThemeContext';
 import { LightColors, DarkColors } from '../../constants/colors';
+import { useAutoRefresh } from '../../hooks/useAutoRefresh';
 
 type Status = 'arrived' | 'canceled' | 'upcoming';
 type Filter = 'arrived' | 'canceled';
@@ -99,7 +100,7 @@ export default function HistoryScreen() {
       return;
     }
 
-    const mapped = data.map((a: any) => ({
+    const mapped: Appointment[] = data.map((a: any) => ({
       ...a,
       creator_name: a.creator?.full_name ?? null,
     }));
@@ -125,6 +126,17 @@ export default function HistoryScreen() {
     setCanManage(data?.role === 'owner' || data?.role === 'manager');
     setRole((data?.role as Role) ?? 'staff');
   };
+
+  useAutoRefresh(
+    () => {
+      Promise.all([loadData(), checkUserRole()]);
+    },
+    {
+      enabled: !!user?.id,
+      tables: ['appointments', 'profiles'],
+      channelName: 'history',
+    }
+  );
 
   /* ================= AUDIT HELPERS ================= */
 

@@ -16,6 +16,7 @@ import { supabase } from '../../context/supabase';
 import { useAuth } from '../../context/AuthContext';
 import { useTheme } from '../../context/ThemeContext';
 import { LightColors, DarkColors } from '../../constants/colors';
+import { useAutoRefresh } from '../../hooks/useAutoRefresh';
 
 type StatRow = {
   user_id: string;
@@ -88,6 +89,12 @@ export default function StatsScreen() {
     setStats(data ?? []);
     setLoading(false);
   };
+
+  useAutoRefresh(init, {
+    enabled: !!user,
+    tables: ['appointments', 'profiles'],
+    channelName: 'staff-stats',
+  });
 
   const openStats = (name: string) => {
     const filtered = stats.filter((s) => s.full_name === name);

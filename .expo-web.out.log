@@ -1,0 +1,21 @@
+env: load .env
+env: export EXPO_PUBLIC_SUPABASE_URL EXPO_PUBLIC_SUPABASE_ANON_KEY
+Starting project at C:\FreshLookApp\FreshLookApp
+Starting Metro Bundler
+Waiting on http://localhost:8081
+Logs for your project will appear below.
+Web node_modules\expo-router\entry.js ▓▓▓▓░░░░░░░░░░░░ 25.0% ( 8/16)
+λ node_modules\expo-router\node\render.js ▓▓░░░░░░░░░░░░░░ 15.7% ( 74/187)
+Web node_modules\expo-router\entry.js ▓▓▓▓░░░░░░░░░░░░ 25.0% (112/278)
+λ node_modules\expo-router\node\render.js ▓▓▓▓▓▓▓░░░░░░░░░ 49.0% (403/593)
+Web node_modules\expo-router\entry.js ▓▓▓▓▓▓▓░░░░░░░░░ 48.3% (424/610)
+λ node_modules\expo-router\node\render.js ▓▓▓▓▓▓▓▓▓▓░░░░░░ 65.5% (722/909)
+Web node_modules\expo-router\entry.js ▓▓▓▓▓▓▓▓▓▓▓░░░░░ 74.3% (759/881)
+λ node_modules\expo-router\node\render.js ▓▓▓▓▓▓▓▓▓▓▓▓░░░░ 80.6% ( 991/1104)
+λ Bundled 17049ms node_modules\expo-router\node\render.js (1303 modules)
+Web node_modules\expo-router\entry.js ▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓░ 98.3% (1282/1293)
+λ node_modules\expo-router\node\render.js ▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓░ 96.0% (1277/1303)
+Web Bundled 18673ms node_modules\expo-router\entry.js (1304 modules)
+Web node_modules\expo-router\entry.js ▓▓▓▓▓▓▓▓▓▓▓░░░░░ 71.5% (800/946)
+Web Bundled 4142ms node_modules\expo-router\entry.js (1306 modules)
+ LOG  [web] Logs will appear in the browser console

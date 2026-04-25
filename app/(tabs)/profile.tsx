@@ -498,6 +498,13 @@ export default function ProfileTab() {
             </Pressable>
 
             <Pressable
+              onPress={() => router.push('../(tabs)/manage-appointments')}
+              style={[styles.primaryButton, { marginTop: 12 }]}
+            >
+              <Text style={styles.primaryButtonText}>Menaxho terminet</Text>
+            </Pressable>
+
+            <Pressable
               onPress={() => router.push('../(tabs)/audit-log')}
               style={[styles.primaryButton, { marginTop: 12 }]}
             >

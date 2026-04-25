@@ -1,4 +1,4 @@
-import { Image, Pressable, Animated, Easing } from 'react-native';
+import { Image, Pressable, Animated, Easing, Platform } from 'react-native';
 import {
   Tabs,
   Redirect,
@@ -56,6 +56,10 @@ export default function TabsLayout() {
       easing: Easing.out(Easing.ease),
       useNativeDriver: true,
     }).start(() => {
+      if (Platform.OS === 'web' && typeof window !== 'undefined') {
+        window.dispatchEvent(new Event('freshlook-refresh'));
+      }
+
       router.replace(pathname as any);
       setRefreshing(false);
     });
@@ -233,6 +237,14 @@ export default function TabsLayout() {
         options={{
           href: null,
           title: 'Manage Users',
+        }}
+      />
+
+      <Tabs.Screen
+        name="manage-appointments"
+        options={{
+          href: null,
+          title: 'Menaxho terminet',
         }}
       />
 

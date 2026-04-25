@@ -27,6 +27,7 @@ import { LightColors, DarkColors } from '../../constants/colors';
 import AppointmentCardModal, {
   AppointmentReceiptData,
 } from '../../components/AppointmentCardModal';
+import { useAutoRefresh } from '../../hooks/useAutoRefresh';
 
 type Status = 'upcoming' | 'arrived' | 'canceled';
 type Role = 'owner' | 'manager' | 'staff';
@@ -150,6 +151,17 @@ export default function UpcomingAppointments() {
     await Promise.all([loadRole(), loadData()]);
     setRefreshing(false);
   };
+
+  useAutoRefresh(
+    () => {
+      Promise.all([loadRole(), loadData()]);
+    },
+    {
+      enabled: !!user,
+      tables: ['appointments', 'profiles'],
+      channelName: 'upcoming',
+    }
+  );
 
   const askConfirm = (status: Status) => {
     const message =

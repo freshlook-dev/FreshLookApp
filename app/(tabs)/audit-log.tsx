@@ -14,6 +14,7 @@ import { supabase } from '../../context/supabase';
 import { useAuth } from '../../context/AuthContext';
 import { useTheme } from '../../context/ThemeContext';
 import { LightColors, DarkColors } from '../../constants/colors';
+import { useAutoRefresh } from '../../hooks/useAutoRefresh';
 
 /* ================= TYPES ================= */
 
@@ -122,6 +123,12 @@ export default function AuditLogsScreen() {
 
     setLogs(data ?? []);
   };
+
+  useAutoRefresh(init, {
+    enabled: !!user,
+    tables: ['audit_logs', 'profiles'],
+    channelName: 'audit-logs',
+  });
 
   if (loading) {
     return (

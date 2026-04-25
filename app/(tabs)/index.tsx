@@ -18,6 +18,7 @@ import { Spacing } from '../../constants/theme';
 
 import { useTheme } from '../../context/ThemeContext';
 import { LightColors, DarkColors } from '../../constants/colors';
+import { useAutoRefresh } from '../../hooks/useAutoRefresh';
 
 /* ---------- TYPES ---------- */
 
@@ -135,6 +136,12 @@ export default function HomeTab() {
     await loadStats();
     setRefreshing(false);
   };
+
+  useAutoRefresh(loadStats, {
+    enabled: !!user,
+    tables: ['appointments', 'profiles'],
+    channelName: 'home-stats',
+  });
 
   const renderBadge = (index: number) => {
     if (index === 0) return '🥇';

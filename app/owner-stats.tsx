@@ -19,6 +19,7 @@ import { supabase } from '../context/supabase';
 import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
 import { LightColors, DarkColors } from '../constants/colors';
+import { useAutoRefresh } from '../hooks/useAutoRefresh';
 import * as FileSystem from 'expo-file-system/legacy';
 import * as Sharing from 'expo-sharing';
 import * as XLSX from 'xlsx';
@@ -263,6 +264,17 @@ const excelSafePhone = (s?: string | null) =>
   const reloadAll = async (forSearch: string) => {
     await Promise.all([loadPage(forSearch), loadTotals(forSearch)]);
   };
+
+  useAutoRefresh(
+    () => {
+      reloadAll(search);
+    },
+    {
+      enabled: !checkingRole && role === 'owner',
+      tables: ['appointments'],
+      channelName: 'owner-stats',
+    }
+  );
 
   useEffect(() => {
     if (checkingRole) return;

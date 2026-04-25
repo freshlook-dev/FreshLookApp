@@ -18,6 +18,7 @@ import { supabase } from '../../context/supabase';
 import { useAuth } from '../../context/AuthContext';
 import { useTheme } from '../../context/ThemeContext';
 import { LightColors, DarkColors } from '../../constants/colors';
+import { useAutoRefresh } from '../../hooks/useAutoRefresh';
 
 type Appointment = {
   id: string;
@@ -96,7 +97,7 @@ export default function ArchivedScreen() {
       return;
     }
 
-    const ids = appts.map((a) => a.id);
+    const ids = appts.map((a: any) => a.id);
 
     let logs: any[] = [];
     let profilesMap: Record<string, string> = {};
@@ -121,7 +122,7 @@ export default function ArchivedScreen() {
           .select('id, full_name')
           .in('id', actorIds);
 
-        profiles?.forEach((p) => {
+        profiles?.forEach((p: any) => {
           profilesMap[p.id] = p.full_name;
         });
       }
@@ -147,6 +148,12 @@ export default function ArchivedScreen() {
     setAppointments(mapped);
     setLoading(false);
   };
+
+  useAutoRefresh(loadData, {
+    enabled: !!user?.id,
+    tables: ['appointments', 'audit_logs'],
+    channelName: 'archived',
+  });
 
   /* ---------------- SEARCH ---------------- */
 

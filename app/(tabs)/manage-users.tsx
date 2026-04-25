@@ -19,6 +19,7 @@ import { useAuth } from '../../context/AuthContext';
 
 import { useTheme } from '../../context/ThemeContext';
 import { LightColors, DarkColors } from '../../constants/colors';
+import { useAutoRefresh } from '../../hooks/useAutoRefresh';
 
 type Role = 'owner' | 'manager' | 'staff';
 
@@ -27,6 +28,7 @@ type UserRow = {
   email: string;
   full_name: string | null;
   role: Role;
+  is_active: boolean | null;
 };
 
 export default function ManageUsersScreen() {
@@ -47,33 +49,41 @@ export default function ManageUsersScreen() {
   useEffect(() => {
     if (!user) return;
 
-    const init = async () => {
-      setLoading(true);
-
-      const { data: me } = await supabase
-        .from('profiles')
-        .select('role')
-        .eq('id', user.id)
-        .single();
-
-      if (!me || me.role !== 'owner') {
-        router.replace('/(tabs)/profile');
-        return;
-      }
-
-      setMyRole(me.role);
-
-      const { data } = await supabase
-        .from('profiles')
-        .select('id, email, full_name, role')
-        .order('full_name');
-
-      setUsers(data ?? []);
-      setLoading(false);
-    };
-
-    init();
+    loadUsers();
   }, [user]);
+
+  const loadUsers = async () => {
+    if (!user) return;
+
+    setLoading(true);
+
+    const { data: me } = await supabase
+      .from('profiles')
+      .select('role')
+      .eq('id', user.id)
+      .single();
+
+    if (!me || me.role !== 'owner') {
+      router.replace('/(tabs)/profile');
+      return;
+    }
+
+    setMyRole(me.role);
+
+    const { data } = await supabase
+      .from('profiles')
+      .select('id, email, full_name, role, is_active')
+      .order('full_name');
+
+    setUsers(data ?? []);
+    setLoading(false);
+  };
+
+  useAutoRefresh(loadUsers, {
+    enabled: !!user,
+    tables: ['profiles'],
+    channelName: 'manage-users',
+  });
 
   /* ---------------- ROLE CHANGE ---------------- */
 
@@ -121,6 +131,74 @@ export default function ManageUsersScreen() {
     setSelectedUser(null);
   };
 
+  const requestToggleActive = (u: UserRow) => {
+    const isActive = u.is_active !== false;
+    const nextActive = !isActive;
+
+    if (u.id === user?.id && !nextActive) {
+      Alert.alert('Nuk lejohet', 'Nuk mund ta deaktivizosh llogarine tende.');
+      return;
+    }
+
+    const label = u.full_name ?? u.email;
+    const message = nextActive
+      ? `Aktivizo aksesin per ${label}?`
+      : `Deaktivizo aksesin per ${label}? Ky perdorues nuk do te mund te hyje ne app.`;
+
+    if (Platform.OS === 'web') {
+      if (window.confirm(message)) confirmToggleActive(u, nextActive);
+      return;
+    }
+
+    Alert.alert('Konfirmo', message, [
+      { text: 'Anulo', style: 'cancel' },
+      {
+        text: nextActive ? 'Aktivizo' : 'Deaktivizo',
+        style: nextActive ? 'default' : 'destructive',
+        onPress: () => confirmToggleActive(u, nextActive),
+      },
+    ]);
+  };
+
+  const confirmToggleActive = async (u: UserRow, nextActive: boolean) => {
+    const { error } = await supabase
+      .from('profiles')
+      .update({ is_active: nextActive })
+      .eq('id', u.id);
+
+    if (error) {
+      Alert.alert('Error', error.message);
+      return;
+    }
+
+    await supabase.from('audit_logs').insert({
+      actor_id: user!.id,
+      action: nextActive ? 'ACTIVATE_USER' : 'DEACTIVATE_USER',
+      target_id: u.id,
+      metadata: {
+        user: {
+          email: u.email,
+          full_name: u.full_name,
+        },
+        changed: {
+          is_active: {
+            old: u.is_active !== false,
+            new: nextActive,
+          },
+        },
+      },
+    });
+
+    setUsers((prev) =>
+      prev.map((x) =>
+        x.id === u.id ? { ...x, is_active: nextActive } : x
+      )
+    );
+    setSelectedUser((prev) =>
+      prev && prev.id === u.id ? { ...prev, is_active: nextActive } : prev
+    );
+  };
+
   /* ---------------- UI ---------------- */
 
   if (loading) {
@@ -144,9 +222,15 @@ export default function ManageUsersScreen() {
         keyExtractor={(item) => item.id}
         renderItem={({ item }) => (
           <View style={[styles.row, { backgroundColor: Colors.card }]}>
-            <Text style={[styles.name, { color: Colors.text }]}>
-              {item.full_name ?? item.email}
-            </Text>
+            <View style={styles.userInfo}>
+              <Text style={[styles.name, { color: Colors.text }]}>
+                {item.full_name ?? item.email}
+              </Text>
+              <Text style={[styles.meta, { color: Colors.muted }]}>
+                {item.role.toUpperCase()} ·{' '}
+                {item.is_active === false ? 'Jo aktiv' : 'Aktiv'}
+              </Text>
+            </View>
 
             <Pressable
               onPress={() => {
@@ -155,7 +239,7 @@ export default function ManageUsersScreen() {
               }}
               style={styles.changeBtn}
             >
-              <Text style={styles.changeBtnText}>Ndrysho rolin</Text>
+              <Text style={styles.changeBtnText}>Veprime</Text>
             </Pressable>
           </View>
         )}
@@ -173,7 +257,8 @@ export default function ManageUsersScreen() {
                 </Text>
 
                 <Text style={{ color: Colors.muted, marginBottom: 16 }}>
-                  Roli aktual: {selectedUser.role.toUpperCase()}
+                  Roli aktual: {selectedUser.role.toUpperCase()} ·{' '}
+                  {selectedUser.is_active === false ? 'Jo aktiv' : 'Aktiv'}
                 </Text>
 
                 {(['staff', 'manager', 'owner'] as Role[]).map((r) => (
@@ -197,6 +282,23 @@ export default function ManageUsersScreen() {
                     </Text>
                   </Pressable>
                 ))}
+
+                <Pressable
+                  onPress={() => requestToggleActive(selectedUser)}
+                  style={[
+                    styles.dangerOption,
+                    {
+                      backgroundColor:
+                        selectedUser.is_active === false ? '#2ECC71' : '#D64545',
+                    },
+                  ]}
+                >
+                  <Text style={styles.dangerOptionText}>
+                    {selectedUser.is_active === false
+                      ? 'Aktivizo aksesin'
+                      : 'Deaktivizo aksesin'}
+                  </Text>
+                </Pressable>
 
                 <Pressable
                   onPress={() => {
@@ -241,6 +343,15 @@ const styles = StyleSheet.create({
   name: {
     fontSize: 15,
     fontWeight: '600',
+  },
+  userInfo: {
+    flex: 1,
+    paddingRight: 12,
+  },
+  meta: {
+    marginTop: 4,
+    fontSize: 12,
+    fontWeight: '700',
   },
   changeBtn: {
     backgroundColor: '#C9A24D',
@@ -288,6 +399,18 @@ const styles = StyleSheet.create({
   roleText: {
     fontSize: 15,
     fontWeight: '700',
+  },
+  dangerOption: {
+    paddingVertical: 12,
+    borderRadius: 14,
+    marginTop: 4,
+    marginBottom: 10,
+    alignItems: 'center',
+  },
+  dangerOptionText: {
+    color: '#fff',
+    fontSize: 15,
+    fontWeight: '800',
   },
   cancelBtn: {
     marginTop: 10,
