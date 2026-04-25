@@ -57,6 +57,10 @@ export default function RegisterVisitScreen() {
   const [saving, setSaving] = useState(false);
 
   const [clientName, setClientName] = useState('');
+  const [clientUserId, setClientUserId] = useState<string | null>(null);
+  const [previousTotalAmount, setPreviousTotalAmount] = useState<number | null>(
+    null
+  );
   const [serviceName, setServiceName] = useState('');
   const [appointmentDate, setAppointmentDate] = useState('');
   const [appointmentTime, setAppointmentTime] = useState('');
@@ -81,7 +85,7 @@ export default function RegisterVisitScreen() {
     const { data, error } = await supabase
       .from('appointments')
       .select(
-        'client_name, service, appointment_date, appointment_time, visit_notes'
+        'client_name, service, appointment_date, appointment_time, visit_notes, user_id, total_amount'
       )
       .eq('id', appointmentId)
       .single();
@@ -93,6 +97,9 @@ export default function RegisterVisitScreen() {
     }
 
     setClientName(data?.client_name ?? '');
+    setClientUserId(data?.user_id ?? null);
+    const savedTotal = Number(data?.total_amount);
+    setPreviousTotalAmount(Number.isFinite(savedTotal) ? savedTotal : null);
     setServiceName(data?.service ?? '');
     setAppointmentDate(data?.appointment_date ?? '');
     setAppointmentTime(data?.appointment_time ?? '');
@@ -164,6 +171,12 @@ export default function RegisterVisitScreen() {
       : paymentMethod === 'bank'
       ? 0
       : Math.max(0, Number((totalAmount - paidBankValue).toFixed(2)));
+
+  const freshPointsEarned = Math.floor(totalAmount / 2);
+  const previousFreshPoints = Math.floor((previousTotalAmount ?? 0) / 2);
+  const freshPointsDelta = clientUserId
+    ? freshPointsEarned - previousFreshPoints
+    : 0;
 
   const formatDate = (date: string) => {
     if (!date) return '';
@@ -286,6 +299,32 @@ export default function RegisterVisitScreen() {
       return;
     }
 
+    let pointsUpdateError: string | null = null;
+
+    if (clientUserId && freshPointsDelta !== 0) {
+      const { data: clientProfile, error: profileLoadError } = await supabase
+        .from('profiles')
+        .select('points')
+        .eq('id', clientUserId)
+        .single();
+
+      if (profileLoadError) {
+        pointsUpdateError = profileLoadError.message;
+      } else {
+        const currentPoints = Number(clientProfile?.points ?? 0);
+        const nextPoints = Math.max(0, currentPoints + freshPointsDelta);
+
+        const { error: profileUpdateError } = await supabase
+          .from('profiles')
+          .update({ points: nextPoints })
+          .eq('id', clientUserId);
+
+        if (profileUpdateError) {
+          pointsUpdateError = profileUpdateError.message;
+        }
+      }
+    }
+
     await supabase.from('audit_logs').insert({
       actor_id: user.id,
       action: 'VISIT_REGISTERED',
@@ -302,10 +341,25 @@ export default function RegisterVisitScreen() {
           manual_total:
             manualTotalInput.trim() !== '' ? manualTotalValue : null,
         },
+        fresh_points: {
+          client_user_id: clientUserId,
+          earned: freshPointsEarned,
+          previous: previousFreshPoints,
+          delta: freshPointsDelta,
+          error: pointsUpdateError,
+        },
       },
     });
 
     setSaving(false);
+    if (pointsUpdateError) {
+      Alert.alert(
+        'Vizita u ruajt',
+        `Vizita u regjistrua, por Fresh Points nuk u perditesuan: ${pointsUpdateError}`
+      );
+      return;
+    }
+
     finishSuccess();
   };
 
@@ -480,6 +534,23 @@ export default function RegisterVisitScreen() {
           <Text style={[styles.totalAmount, { color: Colors.primary }]}>
             {totalAmount}€
           </Text>
+
+          <Text style={[styles.pointsPreview, { color: Colors.text }]}>
+            Fresh Points: +{freshPointsEarned}
+          </Text>
+
+          {!clientUserId && (
+            <Text style={[styles.overrideText, { color: Colors.muted }]}>
+              Ky termin nuk eshte i lidhur me user te klientit.
+            </Text>
+          )}
+
+          {clientUserId && freshPointsDelta !== freshPointsEarned && (
+            <Text style={[styles.overrideText, { color: Colors.muted }]}>
+              Ndryshimi ne points: {freshPointsDelta >= 0 ? '+' : ''}
+              {freshPointsDelta}
+            </Text>
+          )}
 
           {overridePercent !== null && manualTotalInput.trim() === '' && (
             <Text style={[styles.overrideText, { color: Colors.muted }]}>
@@ -931,6 +1002,11 @@ const styles = StyleSheet.create({
   },
   overrideText: {
     fontSize: 13,
+    marginBottom: 8,
+  },
+  pointsPreview: {
+    fontSize: 15,
+    fontWeight: '800',
     marginBottom: 8,
   },
   clearOverrideBtn: {
