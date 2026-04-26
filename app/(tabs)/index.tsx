@@ -167,7 +167,7 @@ export default function HomeTab() {
       <Text style={[styles.name, { color: Colors.text }]}>{fullName}</Text>
 
       <View style={styles.statsRow}>
-        <Card>
+        <View style={[styles.statBox, { backgroundColor: Colors.card }]}>
           <View style={styles.smallStat}>
             <Text style={[styles.smallNumber, { color: Colors.primary }]}>
               {upcomingCount}
@@ -176,9 +176,9 @@ export default function HomeTab() {
               Sot
             </Text>
           </View>
-        </Card>
+        </View>
 
-        <Card>
+        <View style={[styles.statBox, { backgroundColor: Colors.card }]}>
           <View style={styles.smallStat}>
             <Text style={[styles.smallNumber, { color: Colors.primary }]}>
               {totalCount}
@@ -187,9 +187,9 @@ export default function HomeTab() {
               Krijuar
             </Text>
           </View>
-        </Card>
+        </View>
 
-        <Card>
+        <View style={[styles.statBox, { backgroundColor: Colors.card }]}>
           <View style={styles.smallStat}>
             <Text style={[styles.smallNumber, { color: Colors.primary }]}>
               {prishtinaToday}
@@ -198,9 +198,9 @@ export default function HomeTab() {
               Prishtinë
             </Text>
           </View>
-        </Card>
+        </View>
 
-        <Card>
+        <View style={[styles.statBox, { backgroundColor: Colors.card }]}>
           <View style={styles.smallStat}>
             <Text style={[styles.smallNumber, { color: Colors.primary }]}>
               {fusheToday}
@@ -209,7 +209,7 @@ export default function HomeTab() {
               F. Kosovë
             </Text>
           </View>
-        </Card>
+        </View>
       </View>
 
       <Text style={[styles.sectionTitle, { color: Colors.text }]}>
@@ -278,22 +278,27 @@ const styles = StyleSheet.create({
   },
   statsRow: {
     flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: Spacing.sm,
+    gap: 6,
     marginBottom: Spacing.lg,
+  },
+  statBox: {
+    flex: 1,
+    minWidth: 0,
+    borderRadius: 12,
+    paddingHorizontal: 4,
+    paddingVertical: 10,
   },
   smallStat: {
     alignItems: 'center',
-    paddingVertical: Spacing.sm,
-    width: 58,
+    minWidth: 0,
   },
   smallNumber: {
-    fontSize: 20,
+    fontSize: 18,
     fontWeight: '800',
   },
   smallLabel: {
     marginTop: 2,
-    fontSize: 11,
+    fontSize: 10,
     fontWeight: '600',
     textAlign: 'center',
   },
