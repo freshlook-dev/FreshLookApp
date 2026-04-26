@@ -58,6 +58,8 @@ export default function TabsLayout() {
     }).start(() => {
       if (Platform.OS === 'web' && typeof window !== 'undefined') {
         window.dispatchEvent(new Event('freshlook-refresh'));
+        setRefreshing(false);
+        return;
       }
 
       router.replace(pathname as any);
