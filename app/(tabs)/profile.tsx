@@ -468,6 +468,13 @@ export default function ProfileTab() {
       </View>
 
       <View style={[styles.card, { backgroundColor: Colors.card }]}>
+        <Pressable
+          onPress={() => router.push('../(tabs)/scan-discount')}
+          style={[styles.primaryButton, { marginTop: 12 }]}
+        >
+          <Text style={styles.primaryButtonText}>Skano QR Discount</Text>
+        </Pressable>
+
         {canViewStats && (
           <Pressable
             onPress={() => router.push('../(tabs)/stats')}

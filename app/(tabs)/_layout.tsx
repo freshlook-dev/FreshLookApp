@@ -249,6 +249,14 @@ export default function TabsLayout() {
       />
 
       <Tabs.Screen
+        name="scan-discount"
+        options={{
+          href: null,
+          title: 'Skano QR Discount',
+        }}
+      />
+
+      <Tabs.Screen
         name="audit-log"
         options={{
           href: null,

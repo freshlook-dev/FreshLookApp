@@ -1,0 +1,492 @@
+'use client';
+
+import { useEffect, useRef, useState } from 'react';
+import {
+  View,
+  Text,
+  StyleSheet,
+  Pressable,
+  ActivityIndicator,
+  Alert,
+  Platform,
+  TextInput,
+} from 'react-native';
+import { router } from 'expo-router';
+
+import { supabase } from '../../context/supabase';
+import { useAuth } from '../../context/AuthContext';
+import { useTheme } from '../../context/ThemeContext';
+import { LightColors, DarkColors } from '../../constants/colors';
+
+declare global {
+  interface Window {
+    BarcodeDetector?: new (options?: {
+      formats?: string[];
+    }) => {
+      detect: (
+        image: HTMLVideoElement | HTMLCanvasElement
+      ) => Promise<Array<{ rawValue: string }>>;
+    };
+  }
+}
+
+type Role = 'owner' | 'manager' | 'staff';
+
+type Redemption = {
+  id: string;
+  user_id: string;
+  points: number;
+  status: string;
+  expires_at: string | null;
+  created_at: string;
+};
+
+const UUID_PATTERN =
+  /[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/i;
+
+const extractCode = (value: string) => {
+  const trimmed = value.trim();
+  if (!trimmed) return null;
+
+  try {
+    const parsed = JSON.parse(trimmed);
+    const candidate =
+      parsed.redemption_id ?? parsed.redemptionId ?? parsed.qr_id ?? parsed.id;
+    if (typeof candidate === 'string' && candidate.trim()) {
+      return candidate.trim();
+    }
+  } catch {}
+
+  try {
+    const url = new URL(trimmed);
+    const candidate =
+      url.searchParams.get('redemption_id') ??
+      url.searchParams.get('redemptionId') ??
+      url.searchParams.get('qr_id') ??
+      url.searchParams.get('id') ??
+      url.pathname.match(UUID_PATTERN)?.[0];
+    if (candidate) return candidate;
+  } catch {}
+
+  return trimmed.match(UUID_PATTERN)?.[0] ?? trimmed;
+};
+
+export default function ScanDiscountScreen() {
+  const { user } = useAuth();
+  const { theme } = useTheme();
+  const Colors = theme === 'dark' ? DarkColors : LightColors;
+
+  const videoRef = useRef<HTMLVideoElement | null>(null);
+  const streamRef = useRef<MediaStream | null>(null);
+  const scannerRef = useRef<number | null>(null);
+  const scanningRef = useRef(false);
+
+  const [checkingRole, setCheckingRole] = useState(true);
+  const [allowed, setAllowed] = useState(false);
+  const [cameraActive, setCameraActive] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [message, setMessage] = useState('');
+  const [manualCode, setManualCode] = useState('');
+  const [lastRedemption, setLastRedemption] = useState<Redemption | null>(null);
+
+  useEffect(() => {
+    if (!user?.id) return;
+    checkAccess();
+  }, [user?.id]);
+
+  useEffect(() => {
+    return () => stopCamera();
+  }, []);
+
+  const checkAccess = async () => {
+    setCheckingRole(true);
+
+    const { data } = await supabase
+      .from('profiles')
+      .select('role, is_active')
+      .eq('id', user!.id)
+      .single();
+
+    const role = data?.role as Role | undefined;
+    const canScan =
+      data?.is_active !== false &&
+      (role === 'staff' || role === 'manager' || role === 'owner');
+
+    setAllowed(canScan);
+    setCheckingRole(false);
+
+    if (!canScan) {
+      router.replace('/(tabs)/profile');
+    }
+  };
+
+  const stopCamera = () => {
+    scanningRef.current = false;
+
+    if (scannerRef.current) {
+      window.cancelAnimationFrame(scannerRef.current);
+      scannerRef.current = null;
+    }
+
+    streamRef.current?.getTracks().forEach((track) => track.stop());
+    streamRef.current = null;
+    setCameraActive(false);
+  };
+
+  const startCamera = async () => {
+    if (Platform.OS !== 'web') {
+      Alert.alert(
+        'Kamera',
+        'Skanimi me kamere eshte i aktivizuar per web/PWA.'
+      );
+      return;
+    }
+
+    if (!window.BarcodeDetector) {
+      setMessage(
+        'Ky browser nuk e mbeshtet skanimin automatik. Shkruaj kodin manualisht.'
+      );
+      return;
+    }
+
+    try {
+      setMessage('');
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: 'environment' },
+        audio: false,
+      });
+
+      streamRef.current = stream;
+
+      if (videoRef.current) {
+        videoRef.current.srcObject = stream;
+        await videoRef.current.play();
+      }
+
+      setCameraActive(true);
+      scanningRef.current = true;
+      scanFrame(new window.BarcodeDetector({ formats: ['qr_code'] }));
+    } catch (err: any) {
+      setMessage(err?.message ?? 'Nuk u hap kamera.');
+    }
+  };
+
+  const scanFrame = (detector: InstanceType<NonNullable<typeof window.BarcodeDetector>>) => {
+    const tick = async () => {
+      if (!scanningRef.current || !videoRef.current || saving) return;
+
+      try {
+        const codes = await detector.detect(videoRef.current);
+        const rawValue = codes[0]?.rawValue;
+
+        if (rawValue) {
+          scanningRef.current = false;
+          await redeemScannedValue(rawValue);
+          return;
+        }
+      } catch {}
+
+      scannerRef.current = window.requestAnimationFrame(tick);
+    };
+
+    scannerRef.current = window.requestAnimationFrame(tick);
+  };
+
+  const loadRedemption = async (code: string): Promise<Redemption | null> => {
+    const { data: directRedemption } = await supabase
+      .from('point_redemptions')
+      .select('id, user_id, points, status, expires_at, created_at')
+      .eq('id', code)
+      .maybeSingle();
+
+    if (directRedemption) return directRedemption as Redemption;
+
+    const { data: qrCode } = await supabase
+      .from('qr_codes')
+      .select('id, user_id, points, created_at')
+      .eq('id', code)
+      .maybeSingle();
+
+    if (!qrCode) return null;
+
+    const { data: redemption } = await supabase
+      .from('point_redemptions')
+      .select('id, user_id, points, status, expires_at, created_at')
+      .eq('user_id', qrCode.user_id)
+      .eq('points', qrCode.points)
+      .eq('status', 'pending')
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    return (redemption as Redemption | null) ?? null;
+  };
+
+  const redeemScannedValue = async (value: string) => {
+    const code = extractCode(value);
+    if (!code || saving || !user?.id) return;
+
+    setSaving(true);
+    setMessage('Duke kontrolluar QR...');
+
+    const redemption = await loadRedemption(code);
+
+    if (!redemption) {
+      setMessage('QR nuk u gjet ose nuk ka zbritje pending.');
+      setSaving(false);
+      scanningRef.current = cameraActive;
+      return;
+    }
+
+    if (redemption.status !== 'pending') {
+      setLastRedemption(redemption);
+      setMessage(`Ky QR eshte perdorur ose nuk eshte aktiv: ${redemption.status}.`);
+      setSaving(false);
+      scanningRef.current = cameraActive;
+      return;
+    }
+
+    if (redemption.expires_at && new Date(redemption.expires_at) < new Date()) {
+      await supabase
+        .from('point_redemptions')
+        .update({ status: 'expired' })
+        .eq('id', redemption.id)
+        .eq('status', 'pending');
+
+      setLastRedemption({ ...redemption, status: 'expired' });
+      setMessage('Ky QR ka skaduar.');
+      setSaving(false);
+      scanningRef.current = cameraActive;
+      return;
+    }
+
+    const { data: updatedRows, error } = await supabase
+      .from('point_redemptions')
+      .update({ status: 'used' })
+      .eq('id', redemption.id)
+      .eq('status', 'pending')
+      .select('id, user_id, points, status, expires_at, created_at');
+
+    if (error || !updatedRows || updatedRows.length === 0) {
+      setMessage(error?.message ?? 'QR nuk mund te perdoret me.');
+      setSaving(false);
+      scanningRef.current = cameraActive;
+      return;
+    }
+
+    const updated = updatedRows[0] as Redemption;
+
+    await supabase.from('audit_logs').insert({
+      actor_id: user.id,
+      action: 'REDEEM_POINTS_QR',
+      target_id: updated.id,
+      metadata: {
+        redemption: {
+          user_id: updated.user_id,
+          points: updated.points,
+          status: updated.status,
+        },
+      },
+    });
+
+    setLastRedemption(updated);
+    setMessage(`Zbritja u pranua: ${updated.points} Fresh Points.`);
+    setSaving(false);
+    stopCamera();
+  };
+
+  const redeemManualCode = () => {
+    redeemScannedValue(manualCode);
+  };
+
+  if (checkingRole) {
+    return (
+      <View style={[styles.center, { backgroundColor: Colors.background }]}>
+        <ActivityIndicator size="large" color={Colors.primary} />
+      </View>
+    );
+  }
+
+  if (!allowed) return null;
+
+  return (
+    <View style={[styles.container, { backgroundColor: Colors.background }]}>
+      <Text style={[styles.title, { color: Colors.text }]}>Skano QR Discount</Text>
+
+      <View style={[styles.card, { backgroundColor: Colors.card }]}>
+        {Platform.OS === 'web' ? (
+          <>
+            {React.createElement('video', {
+              ref: videoRef,
+              playsInline: true,
+              muted: true,
+              style: {
+                width: '100%',
+                aspectRatio: '1 / 1',
+                backgroundColor: '#000',
+                borderRadius: 14,
+                objectFit: 'cover',
+                display: cameraActive ? 'block' : 'none',
+              },
+            })}
+
+            {!cameraActive && (
+              <View style={[styles.cameraPlaceholder, { borderColor: Colors.primary }]}>
+                <Text style={[styles.placeholderText, { color: Colors.muted }]}>
+                  Hape kameren dhe afro QR kodin e klientit.
+                </Text>
+              </View>
+            )}
+
+            <Pressable
+              onPress={cameraActive ? stopCamera : startCamera}
+              disabled={saving}
+              style={[
+                styles.primaryBtn,
+                { backgroundColor: cameraActive ? '#D64545' : Colors.primary },
+              ]}
+            >
+              <Text style={styles.primaryText}>
+                {cameraActive ? 'Mbyll kameren' : 'Hap kameren'}
+              </Text>
+            </Pressable>
+          </>
+        ) : (
+          <Text style={[styles.placeholderText, { color: Colors.muted }]}>
+            Skanimi me kamere eshte i aktivizuar per web/PWA.
+          </Text>
+        )}
+
+        <View style={styles.manualBox}>
+          <Text style={[styles.label, { color: Colors.text }]}>Kodi manual</Text>
+          <TextInput
+            value={manualCode}
+            onChangeText={setManualCode}
+            autoCapitalize="none"
+            placeholder="Vendos id ose linkun e QR"
+            placeholderTextColor={Colors.muted}
+            style={[
+              styles.input,
+              {
+                backgroundColor: Colors.background,
+                borderColor: Colors.primary,
+                color: Colors.text,
+              },
+            ]}
+          />
+
+          <Pressable
+            onPress={redeemManualCode}
+            disabled={saving || !manualCode.trim()}
+            style={[
+              styles.secondaryBtn,
+              {
+                backgroundColor:
+                  saving || !manualCode.trim() ? Colors.muted : Colors.primary,
+              },
+            ]}
+          >
+            <Text style={styles.primaryText}>
+              {saving ? 'Duke kontrolluar...' : 'Prano zbritjen'}
+            </Text>
+          </Pressable>
+        </View>
+      </View>
+
+      {!!message && (
+        <View style={[styles.resultCard, { backgroundColor: Colors.card }]}>
+          <Text style={[styles.resultText, { color: Colors.text }]}>{message}</Text>
+
+          {lastRedemption && (
+            <Text style={[styles.resultMeta, { color: Colors.muted }]}>
+              Points: {lastRedemption.points} · Status: {lastRedemption.status}
+            </Text>
+          )}
+        </View>
+      )}
+    </View>
+  );
+}
+
+const React = require('react');
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    padding: 20,
+  },
+  center: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  title: {
+    fontSize: 24,
+    fontWeight: '800',
+    marginBottom: 16,
+  },
+  card: {
+    borderRadius: 18,
+    padding: 16,
+  },
+  cameraPlaceholder: {
+    aspectRatio: 1,
+    borderWidth: 1,
+    borderStyle: 'dashed',
+    borderRadius: 14,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
+  },
+  placeholderText: {
+    fontSize: 14,
+    fontWeight: '700',
+    textAlign: 'center',
+  },
+  primaryBtn: {
+    marginTop: 14,
+    borderRadius: 14,
+    paddingVertical: 14,
+    alignItems: 'center',
+  },
+  secondaryBtn: {
+    borderRadius: 14,
+    paddingVertical: 14,
+    alignItems: 'center',
+  },
+  primaryText: {
+    color: '#fff',
+    fontSize: 15,
+    fontWeight: '800',
+  },
+  manualBox: {
+    marginTop: 18,
+  },
+  label: {
+    fontSize: 14,
+    fontWeight: '800',
+    marginBottom: 8,
+  },
+  input: {
+    borderWidth: 1,
+    borderRadius: 12,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    fontSize: 15,
+    marginBottom: 10,
+  },
+  resultCard: {
+    marginTop: 14,
+    borderRadius: 18,
+    padding: 16,
+  },
+  resultText: {
+    fontSize: 16,
+    fontWeight: '800',
+  },
+  resultMeta: {
+    marginTop: 8,
+    fontSize: 13,
+    fontWeight: '700',
+  },
+});
