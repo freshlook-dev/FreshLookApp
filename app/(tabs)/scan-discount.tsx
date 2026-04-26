@@ -326,6 +326,40 @@ export default function ScanDiscountScreen() {
 
     const updated = updatedRows[0] as Redemption;
 
+    const { data: clientProfile, error: profileLoadError } = await supabase
+      .from('profiles')
+      .select('points')
+      .eq('id', updated.user_id)
+      .single();
+
+    if (profileLoadError) {
+      setMessage(
+        `QR u pranua, por points nuk u perditesuan: ${profileLoadError.message}`
+      );
+      setLastRedemption(updated);
+      setSaving(false);
+      stopCamera();
+      return;
+    }
+
+    const currentPoints = Number(clientProfile?.points ?? 0);
+    const nextPoints = Math.max(0, currentPoints - Number(updated.points ?? 0));
+
+    const { error: profileUpdateError } = await supabase
+      .from('profiles')
+      .update({ points: nextPoints })
+      .eq('id', updated.user_id);
+
+    if (profileUpdateError) {
+      setMessage(
+        `QR u pranua, por points nuk u perditesuan: ${profileUpdateError.message}`
+      );
+      setLastRedemption(updated);
+      setSaving(false);
+      stopCamera();
+      return;
+    }
+
     await supabase.from('audit_logs').insert({
       actor_id: user.id,
       action: 'REDEEM_POINTS_QR',
@@ -336,11 +370,18 @@ export default function ScanDiscountScreen() {
           points: updated.points,
           status: updated.status,
         },
+        profile_points: {
+          old: currentPoints,
+          new: nextPoints,
+          deducted: Number(updated.points ?? 0),
+        },
       },
     });
 
     setLastRedemption(updated);
-    setMessage(`Zbritja u pranua: ${updated.points} Fresh Points.`);
+    setMessage(
+      `Zbritja u pranua: ${updated.points} Fresh Points. Balanca: ${nextPoints}.`
+    );
     setSaving(false);
     stopCamera();
   };
