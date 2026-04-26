@@ -56,6 +56,29 @@ type RedemptionRow = Redemption & {
   scanned_at: string | null;
 };
 
+const getLogRedemptionId = (log: AuditLog) =>
+  log.target_id ??
+  log.metadata?.redemption?.id ??
+  log.metadata?.redemption_id ??
+  null;
+
+const getLogScannerName = (log: AuditLog, profiles: ProfileMap) => {
+  if (log.actor_id) {
+    const actor = profiles[log.actor_id];
+    if (actor?.full_name || actor?.email) {
+      return actor.full_name ?? actor.email;
+    }
+  }
+
+  return (
+    log.metadata?.scanner?.full_name ??
+    log.metadata?.scanner?.email ??
+    log.metadata?.actor?.full_name ??
+    log.metadata?.actor?.email ??
+    null
+  );
+};
+
 const formatDateTime = (value: string | null) => {
   if (!value) return '-';
   const date = new Date(value);
@@ -115,15 +138,12 @@ export default function QrRedemptionsScreen() {
     const rows = (redemptionRows ?? []) as Redemption[];
     const redemptionIds = rows.map((item) => item.id);
 
-    const { data: scanLogs } =
-      redemptionIds.length > 0
-        ? await supabase
-            .from('audit_logs')
-            .select('id, target_id, actor_id, created_at, metadata')
-            .eq('action', 'REDEEM_POINTS_QR')
-            .in('target_id', redemptionIds)
-            .order('created_at', { ascending: false })
-        : { data: [] };
+    const { data: scanLogs } = await supabase
+      .from('audit_logs')
+      .select('id, target_id, actor_id, created_at, metadata')
+      .eq('action', 'REDEEM_POINTS_QR')
+      .order('created_at', { ascending: false })
+      .limit(1000);
 
     const logs = (scanLogs ?? []) as AuditLog[];
     const actorIds = logs
@@ -155,16 +175,16 @@ export default function QrRedemptionsScreen() {
 
     setRedemptions(
       rows.map((item) => {
-        const scanLog = logs.find((log) => log.target_id === item.id) ?? null;
+        const scanLog =
+          logs.find((log) => getLogRedemptionId(log) === item.id) ?? null;
         const client = profiles[item.user_id];
-        const actor = scanLog?.actor_id ? profiles[scanLog.actor_id] : null;
 
         return {
           ...item,
           client_name: client?.full_name ?? client?.email ?? 'Klient',
           client_email: client?.email ?? null,
           client_phone: client?.phone ?? null,
-          scanned_by: actor?.full_name ?? actor?.email ?? null,
+          scanned_by: scanLog ? getLogScannerName(scanLog, profiles) : null,
           scanned_at: scanLog?.created_at ?? null,
         };
       })

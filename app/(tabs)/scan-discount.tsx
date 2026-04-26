@@ -360,12 +360,24 @@ export default function ScanDiscountScreen() {
       return;
     }
 
-    await supabase.from('audit_logs').insert({
+    const { data: scannerProfile } = await supabase
+      .from('profiles')
+      .select('full_name, email')
+      .eq('id', user.id)
+      .single();
+
+    const { error: auditError } = await supabase.from('audit_logs').insert({
       actor_id: user.id,
       action: 'REDEEM_POINTS_QR',
       target_id: updated.id,
       metadata: {
+        scanner: {
+          id: user.id,
+          full_name: scannerProfile?.full_name ?? null,
+          email: scannerProfile?.email ?? user.email ?? null,
+        },
         redemption: {
+          id: updated.id,
           user_id: updated.user_id,
           points: updated.points,
           status: updated.status,
@@ -377,6 +389,16 @@ export default function ScanDiscountScreen() {
         },
       },
     });
+
+    if (auditError) {
+      setLastRedemption(updated);
+      setMessage(
+        `Zbritja u pranua dhe points u zbriten, por nuk u ruajt kush e skanoi: ${auditError.message}`
+      );
+      setSaving(false);
+      stopCamera();
+      return;
+    }
 
     setLastRedemption(updated);
     setMessage(
