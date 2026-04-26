@@ -578,9 +578,18 @@ export default function ProfileTab() {
         <Text style={styles.logoutText}>Dil</Text>
       </Pressable>
 
-      <Modal visible={avatarPreviewVisible} transparent animationType="fade">
-        <Pressable onPress={() => setAvatarPreviewVisible(false)} style={styles.avatarOverlay}>
-          <Pressable style={[styles.avatarPreviewCard, { backgroundColor: Colors.card }]}>
+      {avatarPreviewVisible && Platform.OS === 'web' && (
+        <View
+          style={[
+            styles.avatarOverlay,
+            {
+              position: 'fixed' as any,
+              inset: 0,
+              zIndex: 9999,
+            },
+          ]}
+        >
+          <View style={[styles.avatarPreviewCard, { backgroundColor: Colors.card }]}>
             <Image
               source={
                 profile.avatar_url
@@ -597,9 +606,34 @@ export default function ProfileTab() {
             >
               <Text style={styles.avatarCloseText}>Mbyll</Text>
             </Pressable>
-          </Pressable>
-        </Pressable>
-      </Modal>
+          </View>
+        </View>
+      )}
+
+      {Platform.OS !== 'web' && (
+        <Modal visible={avatarPreviewVisible} transparent animationType="fade">
+          <View style={styles.avatarOverlay}>
+            <View style={[styles.avatarPreviewCard, { backgroundColor: Colors.card }]}>
+              <Image
+                source={
+                  profile.avatar_url
+                    ? { uri: profile.avatar_url }
+                    : require('../../assets/images/avatar-placeholder.png')
+                }
+                style={styles.avatarPreview}
+                resizeMode="cover"
+              />
+
+              <Pressable
+                onPress={() => setAvatarPreviewVisible(false)}
+                style={[styles.avatarCloseBtn, { backgroundColor: Colors.primary }]}
+              >
+                <Text style={styles.avatarCloseText}>Mbyll</Text>
+              </Pressable>
+            </View>
+          </View>
+        </Modal>
+      )}
 
       {Platform.OS === 'web' && !isIOSWeb && showCropper && webPreviewUrl && (
         <View
