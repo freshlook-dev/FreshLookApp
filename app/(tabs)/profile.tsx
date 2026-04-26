@@ -486,6 +486,15 @@ export default function ProfileTab() {
           </Pressable>
         )}
 
+        {canViewStats && (
+          <Pressable
+            onPress={() => router.push('../(tabs)/qr-redemptions')}
+            style={[styles.primaryButton, { marginTop: 12 }]}
+          >
+            <Text style={styles.primaryButtonText}>QR Discounts</Text>
+          </Pressable>
+        )}
+
         {isOwner && (
           <>
             <Pressable

@@ -257,6 +257,14 @@ export default function TabsLayout() {
       />
 
       <Tabs.Screen
+        name="qr-redemptions"
+        options={{
+          href: null,
+          title: 'QR Discounts',
+        }}
+      />
+
+      <Tabs.Screen
         name="audit-log"
         options={{
           href: null,
