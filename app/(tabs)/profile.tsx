@@ -12,6 +12,7 @@ import {
   Platform,
   Image,
   Switch,
+  Modal,
 } from 'react-native';
 import { router } from 'expo-router';
 import * as ImagePicker from 'expo-image-picker';
@@ -135,6 +136,7 @@ export default function ProfileTab() {
   const [zoom, setZoom] = useState(1);
   const [croppedAreaPixels, setCroppedAreaPixels] = useState<any>(null);
   const [showCropper, setShowCropper] = useState(false);
+  const [avatarPreviewVisible, setAvatarPreviewVisible] = useState(false);
 
   const isIOSWeb =
     Platform.OS === 'web' &&
@@ -411,23 +413,25 @@ export default function ProfileTab() {
     >
       <Text style={[styles.pageTitle, { color: Colors.text }]}>Profili im </Text>
 
-      <Pressable
-        onPress={pickAndUploadAvatar}
-        style={{ alignItems: 'center', marginBottom: 20 }}
-      >
-        <Image
-          key={profile.avatar_url}
-          source={
-            profile.avatar_url
-              ? { uri: profile.avatar_url }
-              : require('../../assets/images/avatar-placeholder.png')
-          }
-          style={styles.avatar}
-        />
-        <Text style={{ fontSize: 12, color: Colors.muted }}>
-          {uploading ? 'Uploading…' : 'Kliko për të ndërruar fotografinë'}
-        </Text>
-      </Pressable>
+      <View style={{ alignItems: 'center', marginBottom: 20 }}>
+        <Pressable onPress={() => setAvatarPreviewVisible(true)}>
+          <Image
+            key={profile.avatar_url}
+            source={
+              profile.avatar_url
+                ? { uri: profile.avatar_url }
+                : require('../../assets/images/avatar-placeholder.png')
+            }
+            style={styles.avatar}
+          />
+        </Pressable>
+
+        <Pressable onPress={pickAndUploadAvatar} disabled={uploading}>
+          <Text style={{ fontSize: 12, color: Colors.muted }}>
+            {uploading ? 'Uploading…' : 'Kliko për të ndërruar fotografinë'}
+          </Text>
+        </Pressable>
+      </View>
 
       <View style={[styles.card, { backgroundColor: Colors.card }]}>
         <Text style={[styles.label, { color: Colors.muted }]}>Email</Text>
@@ -574,6 +578,24 @@ export default function ProfileTab() {
         <Text style={styles.logoutText}>Dil</Text>
       </Pressable>
 
+      <Modal visible={avatarPreviewVisible} transparent animationType="fade">
+        <Pressable
+          onPress={() => setAvatarPreviewVisible(false)}
+          style={styles.avatarOverlay}
+        >
+          <Image
+            source={
+              profile.avatar_url
+                ? { uri: profile.avatar_url }
+                : require('../../assets/images/avatar-placeholder.png')
+            }
+            style={styles.avatarPreview}
+            resizeMode="contain"
+          />
+          <Text style={styles.avatarCloseText}>Mbyll</Text>
+        </Pressable>
+      </Modal>
+
       {Platform.OS === 'web' && !isIOSWeb && showCropper && webPreviewUrl && (
         <View
           style={{
@@ -683,5 +705,22 @@ const styles = StyleSheet.create({
     borderRadius: 55,
     marginBottom: 8,
     backgroundColor: '#EAEAEA',
+  },
+  avatarOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.92)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
+  },
+  avatarPreview: {
+    width: '100%',
+    height: '78%',
+  },
+  avatarCloseText: {
+    marginTop: 18,
+    color: '#fff',
+    fontSize: 15,
+    fontWeight: '800',
   },
 });
