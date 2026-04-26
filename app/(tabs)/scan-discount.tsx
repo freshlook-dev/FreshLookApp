@@ -420,13 +420,7 @@ export default function ScanDiscountScreen() {
     });
 
     if (auditError) {
-      setLastRedemption(updated);
-      setMessage(
-        `Zbritja u pranua, points u zbriten dhe skanimi u ruajt, por audit log nuk u ruajt: ${auditError.message}`
-      );
-      setSaving(false);
-      stopCamera();
-      return;
+      console.warn('QR scan audit log failed:', auditError.message);
     }
 
     setLastRedemption(updated);
