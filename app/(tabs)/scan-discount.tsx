@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import {
   View,
   Text,
@@ -12,6 +12,7 @@ import {
   TextInput,
 } from 'react-native';
 import { router } from 'expo-router';
+import jsQR from 'jsqr';
 
 import { supabase } from '../../context/supabase';
 import { useAuth } from '../../context/AuthContext';
@@ -77,6 +78,7 @@ export default function ScanDiscountScreen() {
   const Colors = theme === 'dark' ? DarkColors : LightColors;
 
   const videoRef = useRef<HTMLVideoElement | null>(null);
+  const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
   const scannerRef = useRef<number | null>(null);
   const scanningRef = useRef(false);
@@ -142,17 +144,14 @@ export default function ScanDiscountScreen() {
       return;
     }
 
-    if (!window.BarcodeDetector) {
-      setMessage(
-        'Ky browser nuk e mbeshtet skanimin automatik. Shkruaj kodin manualisht.'
-      );
-      return;
-    }
-
     try {
       setMessage('');
       const stream = await navigator.mediaDevices.getUserMedia({
-        video: { facingMode: 'environment' },
+        video: {
+          facingMode: { ideal: 'environment' },
+          width: { ideal: 1280 },
+          height: { ideal: 720 },
+        },
         audio: false,
       });
 
@@ -165,31 +164,82 @@ export default function ScanDiscountScreen() {
 
       setCameraActive(true);
       scanningRef.current = true;
-      scanFrame(new window.BarcodeDetector({ formats: ['qr_code'] }));
+      scanFrame(
+        window.BarcodeDetector
+          ? new window.BarcodeDetector({ formats: ['qr_code'] })
+          : null
+      );
     } catch (err: any) {
       setMessage(err?.message ?? 'Nuk u hap kamera.');
     }
   };
 
-  const scanFrame = (detector: InstanceType<NonNullable<typeof window.BarcodeDetector>>) => {
+  const scanFrame = (
+    detector: InstanceType<NonNullable<typeof window.BarcodeDetector>> | null
+  ) => {
     const tick = async () => {
       if (!scanningRef.current || !videoRef.current || saving) return;
 
-      try {
-        const codes = await detector.detect(videoRef.current);
-        const rawValue = codes[0]?.rawValue;
+      let rawValue: string | null = null;
 
-        if (rawValue) {
-          scanningRef.current = false;
-          await redeemScannedValue(rawValue);
-          return;
+      try {
+        if (detector) {
+          const codes = await detector.detect(videoRef.current);
+          rawValue = codes[0]?.rawValue ?? null;
+        } else {
+          rawValue = scanWithCanvas();
         }
-      } catch {}
+      } catch {
+        rawValue = scanWithCanvas();
+      }
+
+      if (rawValue) {
+        scanningRef.current = false;
+        await redeemScannedValue(rawValue);
+        return;
+      }
 
       scannerRef.current = window.requestAnimationFrame(tick);
     };
 
     scannerRef.current = window.requestAnimationFrame(tick);
+  };
+
+  const scanWithCanvas = () => {
+    const video = videoRef.current;
+    const canvas = canvasRef.current;
+    if (!video || !canvas) return null;
+    if (!video.videoWidth || !video.videoHeight) return null;
+
+    const size = Math.min(video.videoWidth, video.videoHeight);
+    const sourceX = Math.floor((video.videoWidth - size) / 2);
+    const sourceY = Math.floor((video.videoHeight - size) / 2);
+    const targetSize = 720;
+
+    canvas.width = targetSize;
+    canvas.height = targetSize;
+
+    const ctx = canvas.getContext('2d', { willReadFrequently: true });
+    if (!ctx) return null;
+
+    ctx.drawImage(
+      video,
+      sourceX,
+      sourceY,
+      size,
+      size,
+      0,
+      0,
+      targetSize,
+      targetSize
+    );
+
+    const imageData = ctx.getImageData(0, 0, targetSize, targetSize);
+    const code = jsQR(imageData.data, targetSize, targetSize, {
+      inversionAttempts: 'attemptBoth',
+    });
+
+    return code?.data ?? null;
   };
 
   const loadRedemption = async (code: string): Promise<Redemption | null> => {
@@ -330,6 +380,11 @@ export default function ScanDiscountScreen() {
               },
             })}
 
+            {React.createElement('canvas', {
+              ref: canvasRef,
+              style: { display: 'none' },
+            })}
+
             {!cameraActive && (
               <View style={[styles.cameraPlaceholder, { borderColor: Colors.primary }]}>
                 <Text style={[styles.placeholderText, { color: Colors.muted }]}>
@@ -407,8 +462,6 @@ export default function ScanDiscountScreen() {
     </View>
   );
 }
-
-const React = require('react');
 
 const styles = StyleSheet.create({
   container: {
