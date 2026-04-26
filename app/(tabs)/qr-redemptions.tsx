@@ -29,6 +29,8 @@ type Redemption = {
   status: string;
   expires_at: string | null;
   created_at: string;
+  scanned_by: string | null;
+  scanned_at: string | null;
 };
 
 type AuditLog = {
@@ -125,7 +127,7 @@ export default function QrRedemptionsScreen() {
 
     const { data: redemptionRows, error } = await supabase
       .from('point_redemptions')
-      .select('id, user_id, points, status, expires_at, created_at')
+      .select('id, user_id, points, status, expires_at, created_at, scanned_by, scanned_at')
       .order('created_at', { ascending: false })
       .limit(300);
 
@@ -146,13 +148,18 @@ export default function QrRedemptionsScreen() {
       .limit(1000);
 
     const logs = (scanLogs ?? []) as AuditLog[];
+    const scannedByIds = rows
+      .map((item) => item.scanned_by)
+      .filter((id): id is string => !!id);
     const actorIds = logs
       .map((log) => log.actor_id)
       .filter((id): id is string => !!id);
     const clientIds = rows
       .map((item) => item.user_id)
       .filter((id): id is string => !!id);
-    const profileIds = Array.from(new Set([...actorIds, ...clientIds]));
+    const profileIds = Array.from(
+      new Set([...scannedByIds, ...actorIds, ...clientIds])
+    );
 
     let profiles: ProfileMap = {};
 
@@ -178,14 +185,18 @@ export default function QrRedemptionsScreen() {
         const scanLog =
           logs.find((log) => getLogRedemptionId(log) === item.id) ?? null;
         const client = profiles[item.user_id];
+        const scanner = item.scanned_by ? profiles[item.scanned_by] : null;
 
         return {
           ...item,
           client_name: client?.full_name ?? client?.email ?? 'Klient',
           client_email: client?.email ?? null,
           client_phone: client?.phone ?? null,
-          scanned_by: scanLog ? getLogScannerName(scanLog, profiles) : null,
-          scanned_at: scanLog?.created_at ?? null,
+          scanned_by:
+            scanner?.full_name ??
+            scanner?.email ??
+            (scanLog ? getLogScannerName(scanLog, profiles) : null),
+          scanned_at: item.scanned_at ?? scanLog?.created_at ?? null,
         };
       })
     );

@@ -40,7 +40,12 @@ type Redemption = {
   status: string;
   expires_at: string | null;
   created_at: string;
+  scanned_by?: string | null;
+  scanned_at?: string | null;
 };
+
+const REDEMPTION_SELECT =
+  'id, user_id, points, status, expires_at, created_at, scanned_by, scanned_at';
 
 const UUID_PATTERN =
   /[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/i;
@@ -245,7 +250,7 @@ export default function ScanDiscountScreen() {
   const loadRedemption = async (code: string): Promise<Redemption | null> => {
     const { data: directRedemption } = await supabase
       .from('point_redemptions')
-      .select('id, user_id, points, status, expires_at, created_at')
+      .select(REDEMPTION_SELECT)
       .eq('id', code)
       .maybeSingle();
 
@@ -261,7 +266,7 @@ export default function ScanDiscountScreen() {
 
     const { data: redemption } = await supabase
       .from('point_redemptions')
-      .select('id, user_id, points, status, expires_at, created_at')
+      .select(REDEMPTION_SELECT)
       .eq('user_id', qrCode.user_id)
       .eq('points', qrCode.points)
       .eq('status', 'pending')
@@ -310,12 +315,18 @@ export default function ScanDiscountScreen() {
       return;
     }
 
+    const scannedAt = new Date().toISOString();
+
     const { data: updatedRows, error } = await supabase
       .from('point_redemptions')
-      .update({ status: 'used' })
+      .update({
+        status: 'used',
+        scanned_by: user.id,
+        scanned_at: scannedAt,
+      })
       .eq('id', redemption.id)
       .eq('status', 'pending')
-      .select('id, user_id, points, status, expires_at, created_at');
+      .select(REDEMPTION_SELECT);
 
     if (error || !updatedRows || updatedRows.length === 0) {
       setMessage(error?.message ?? 'QR nuk mund te perdoret me.');
