@@ -9,13 +9,9 @@ import {
   FlatList,
   Image,
   Pressable,
-  Alert,
   Platform,
   Modal,
 } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
-import * as ImagePicker from 'expo-image-picker';
-import * as ImageManipulator from 'expo-image-manipulator';
 
 import { useAuth } from '../../context/AuthContext';
 import { supabase } from '../../context/supabase';
@@ -38,18 +34,6 @@ type StaffStat = {
 
 const avatarPlaceholder = require('../../assets/images/avatar-placeholder.png');
 
-const pickImageWebFile = async (): Promise<File | null> => {
-  return new Promise((resolve) => {
-    const input = document.createElement('input');
-    input.type = 'file';
-    input.accept = 'image/*';
-    input.onchange = () => resolve(input.files?.[0] || null);
-    document.body.appendChild(input);
-    input.click();
-    document.body.removeChild(input);
-  });
-};
-
 /* ---------- SCREEN ---------- */
 
 export default function HomeTab() {
@@ -67,8 +51,8 @@ export default function HomeTab() {
   const [staffStats, setStaffStats] = useState<StaffStat[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-  const [avatarUploading, setAvatarUploading] = useState(false);
   const [avatarPreviewVisible, setAvatarPreviewVisible] = useState(false);
+  const [previewAvatarUrl, setPreviewAvatarUrl] = useState<string | null>(null);
 
   useEffect(() => {
     if (user) loadStats();
@@ -156,82 +140,9 @@ export default function HomeTab() {
     setLoading(false);
   };
 
-  const saveAvatar = async (
-    body: ArrayBuffer | Blob | File,
-    contentType = 'image/jpeg'
-  ) => {
-    if (!user) return;
-
-    const filePath = `${user.id}.jpg`;
-
-    const { error } = await supabase.storage
-      .from('avatars')
-      .upload(filePath, body, {
-        upsert: true,
-        contentType,
-      });
-
-    if (error) throw error;
-
-    const { data } = supabase.storage.from('avatars').getPublicUrl(filePath);
-    const nextAvatarUrl = `${data.publicUrl}?t=${Date.now()}`;
-
-    const { error: updateError } = await supabase
-      .from('profiles')
-      .update({ avatar_url: nextAvatarUrl })
-      .eq('id', user.id);
-
-    if (updateError) throw updateError;
-
-    setAvatarUrl(nextAvatarUrl);
-  };
-
-  const pickAndUploadAvatar = async () => {
-    if (!user || avatarUploading) return;
-
-    try {
-      setAvatarUploading(true);
-
-      if (Platform.OS === 'web') {
-        const file = await pickImageWebFile();
-        if (!file) return;
-
-        await saveAvatar(file, file.type || 'image/jpeg');
-        return;
-      }
-
-      const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
-      if (!permission.granted) {
-        Alert.alert('Permission required', 'Please allow photo library access.');
-        return;
-      }
-
-      const result = await ImagePicker.launchImageLibraryAsync({
-        mediaTypes: ['images'],
-        allowsEditing: true,
-        aspect: [1, 1],
-        quality: 1,
-      });
-
-      if (result.canceled || !result.assets?.length) return;
-
-      const manipulated = await ImageManipulator.manipulateAsync(
-        result.assets[0].uri,
-        [{ resize: { width: 512, height: 512 } }],
-        { compress: 0.85, format: ImageManipulator.SaveFormat.JPEG }
-      );
-
-      const arrayBuffer = await fetch(manipulated.uri).then((res) =>
-        res.arrayBuffer()
-      );
-
-      await saveAvatar(arrayBuffer);
-    } catch (err: any) {
-      console.error('Home avatar upload error:', err);
-      Alert.alert('Error', err?.message || 'Failed to upload photo');
-    } finally {
-      setAvatarUploading(false);
-    }
+  const openAvatarPreview = (url?: string | null) => {
+    setPreviewAvatarUrl(url ?? null);
+    setAvatarPreviewVisible(true);
   };
 
   const onRefresh = async () => {
@@ -262,6 +173,9 @@ export default function HomeTab() {
   }
 
   const currentAvatarSource = avatarUrl ? { uri: avatarUrl } : avatarPlaceholder;
+  const previewAvatarSource = previewAvatarUrl
+    ? { uri: previewAvatarUrl }
+    : avatarPlaceholder;
 
   return (
     <View style={[styles.container, { backgroundColor: Colors.background }]}>
@@ -275,26 +189,12 @@ export default function HomeTab() {
         </View>
 
         <View style={styles.homeAvatarWrap}>
-          <Pressable onPress={() => setAvatarPreviewVisible(true)}>
+          <Pressable onPress={() => openAvatarPreview(avatarUrl)}>
             <Image
               key={avatarUrl}
               source={currentAvatarSource}
               style={[styles.homeAvatar, { backgroundColor: Colors.card }]}
             />
-          </Pressable>
-
-          <Pressable
-            onPress={pickAndUploadAvatar}
-            disabled={avatarUploading}
-            style={[
-              styles.homeAvatarEdit,
-              {
-                backgroundColor: avatarUploading ? Colors.muted : Colors.primary,
-                borderColor: Colors.background,
-              },
-            ]}
-          >
-            <Ionicons name={avatarUploading ? 'hourglass' : 'camera'} size={14} color="#fff" />
           </Pressable>
         </View>
       </View>
@@ -359,17 +259,19 @@ export default function HomeTab() {
           <Card>
             <View style={styles.staffRow}>
               <View style={styles.staffLeft}>
-                <Image
-                  source={
-                    item.avatar_url
-                      ? { uri: item.avatar_url }
-                      : avatarPlaceholder
-                  }
-                  style={[
-                    styles.avatar,
-                    { backgroundColor: Colors.muted },
-                  ]}
-                />
+                <Pressable onPress={() => openAvatarPreview(item.avatar_url)}>
+                  <Image
+                    source={
+                      item.avatar_url
+                        ? { uri: item.avatar_url }
+                        : avatarPlaceholder
+                    }
+                    style={[
+                      styles.avatar,
+                      { backgroundColor: Colors.muted },
+                    ]}
+                  />
+                </Pressable>
 
                 <Text style={[styles.staffName, { color: Colors.text }]}>
                   {renderBadge(index)} {item.full_name}
@@ -399,7 +301,7 @@ export default function HomeTab() {
         >
           <View style={[styles.avatarPreviewCard, { backgroundColor: Colors.card }]}>
             <Image
-              source={currentAvatarSource}
+              source={previewAvatarSource}
               style={styles.avatarPreview}
               resizeMode="cover"
             />
@@ -419,7 +321,7 @@ export default function HomeTab() {
           <View style={styles.avatarOverlay}>
             <View style={[styles.avatarPreviewCard, { backgroundColor: Colors.card }]}>
               <Image
-                source={currentAvatarSource}
+                source={previewAvatarSource}
                 style={styles.avatarPreview}
                 resizeMode="cover"
               />
@@ -477,17 +379,6 @@ const styles = StyleSheet.create({
     width: 62,
     height: 62,
     borderRadius: 31,
-  },
-  homeAvatarEdit: {
-    position: 'absolute',
-    top: -2,
-    right: -2,
-    width: 28,
-    height: 28,
-    borderRadius: 14,
-    borderWidth: 2,
-    alignItems: 'center',
-    justifyContent: 'center',
   },
   statsRow: {
     flexDirection: 'row',
