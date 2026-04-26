@@ -8,7 +8,14 @@ import {
   ActivityIndicator,
   FlatList,
   Image,
+  Pressable,
+  Alert,
+  Platform,
+  Modal,
 } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
+import * as ImagePicker from 'expo-image-picker';
+import * as ImageManipulator from 'expo-image-manipulator';
 
 import { useAuth } from '../../context/AuthContext';
 import { supabase } from '../../context/supabase';
@@ -29,6 +36,20 @@ type StaffStat = {
   count: number;
 };
 
+const avatarPlaceholder = require('../../assets/images/avatar-placeholder.png');
+
+const pickImageWebFile = async (): Promise<File | null> => {
+  return new Promise((resolve) => {
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = 'image/*';
+    input.onchange = () => resolve(input.files?.[0] || null);
+    document.body.appendChild(input);
+    input.click();
+    document.body.removeChild(input);
+  });
+};
+
 /* ---------- SCREEN ---------- */
 
 export default function HomeTab() {
@@ -38,6 +59,7 @@ export default function HomeTab() {
   const Colors = theme === 'dark' ? DarkColors : LightColors;
 
   const [fullName, setFullName] = useState<string>('User');
+  const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
   const [totalCount, setTotalCount] = useState(0);
   const [upcomingCount, setUpcomingCount] = useState(0);
   const [prishtinaToday, setPrishtinaToday] = useState(0);
@@ -45,6 +67,8 @@ export default function HomeTab() {
   const [staffStats, setStaffStats] = useState<StaffStat[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [avatarUploading, setAvatarUploading] = useState(false);
+  const [avatarPreviewVisible, setAvatarPreviewVisible] = useState(false);
 
   useEffect(() => {
     if (user) loadStats();
@@ -58,11 +82,12 @@ export default function HomeTab() {
 
     const { data: profile } = await supabase
       .from('profiles')
-      .select('full_name')
+      .select('full_name, avatar_url')
       .eq('id', user!.id)
       .single();
 
     setFullName(profile?.full_name ?? 'User');
+    setAvatarUrl(profile?.avatar_url ?? null);
 
     const firstDayOfMonth = new Date(
       new Date().getFullYear(),
@@ -131,6 +156,84 @@ export default function HomeTab() {
     setLoading(false);
   };
 
+  const saveAvatar = async (
+    body: ArrayBuffer | Blob | File,
+    contentType = 'image/jpeg'
+  ) => {
+    if (!user) return;
+
+    const filePath = `${user.id}.jpg`;
+
+    const { error } = await supabase.storage
+      .from('avatars')
+      .upload(filePath, body, {
+        upsert: true,
+        contentType,
+      });
+
+    if (error) throw error;
+
+    const { data } = supabase.storage.from('avatars').getPublicUrl(filePath);
+    const nextAvatarUrl = `${data.publicUrl}?t=${Date.now()}`;
+
+    const { error: updateError } = await supabase
+      .from('profiles')
+      .update({ avatar_url: nextAvatarUrl })
+      .eq('id', user.id);
+
+    if (updateError) throw updateError;
+
+    setAvatarUrl(nextAvatarUrl);
+  };
+
+  const pickAndUploadAvatar = async () => {
+    if (!user || avatarUploading) return;
+
+    try {
+      setAvatarUploading(true);
+
+      if (Platform.OS === 'web') {
+        const file = await pickImageWebFile();
+        if (!file) return;
+
+        await saveAvatar(file, file.type || 'image/jpeg');
+        return;
+      }
+
+      const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      if (!permission.granted) {
+        Alert.alert('Permission required', 'Please allow photo library access.');
+        return;
+      }
+
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ['images'],
+        allowsEditing: true,
+        aspect: [1, 1],
+        quality: 1,
+      });
+
+      if (result.canceled || !result.assets?.length) return;
+
+      const manipulated = await ImageManipulator.manipulateAsync(
+        result.assets[0].uri,
+        [{ resize: { width: 512, height: 512 } }],
+        { compress: 0.85, format: ImageManipulator.SaveFormat.JPEG }
+      );
+
+      const arrayBuffer = await fetch(manipulated.uri).then((res) =>
+        res.arrayBuffer()
+      );
+
+      await saveAvatar(arrayBuffer);
+    } catch (err: any) {
+      console.error('Home avatar upload error:', err);
+      Alert.alert('Error', err?.message || 'Failed to upload photo');
+    } finally {
+      setAvatarUploading(false);
+    }
+  };
+
   const onRefresh = async () => {
     setRefreshing(true);
     await loadStats();
@@ -158,13 +261,43 @@ export default function HomeTab() {
     );
   }
 
+  const currentAvatarSource = avatarUrl ? { uri: avatarUrl } : avatarPlaceholder;
+
   return (
     <View style={[styles.container, { backgroundColor: Colors.background }]}>
-      <Text style={[styles.welcome, { color: Colors.muted }]}>
-        Mirë se vini!
-      </Text>
+      <View style={styles.homeHeader}>
+        <View style={styles.homeHeaderText}>
+          <Text style={[styles.welcome, { color: Colors.muted }]}>
+            Mirë se vini!
+          </Text>
 
-      <Text style={[styles.name, { color: Colors.text }]}>{fullName}</Text>
+          <Text style={[styles.name, { color: Colors.text }]}>{fullName}</Text>
+        </View>
+
+        <View style={styles.homeAvatarWrap}>
+          <Pressable onPress={() => setAvatarPreviewVisible(true)}>
+            <Image
+              key={avatarUrl}
+              source={currentAvatarSource}
+              style={[styles.homeAvatar, { backgroundColor: Colors.card }]}
+            />
+          </Pressable>
+
+          <Pressable
+            onPress={pickAndUploadAvatar}
+            disabled={avatarUploading}
+            style={[
+              styles.homeAvatarEdit,
+              {
+                backgroundColor: avatarUploading ? Colors.muted : Colors.primary,
+                borderColor: Colors.background,
+              },
+            ]}
+          >
+            <Ionicons name={avatarUploading ? 'hourglass' : 'camera'} size={14} color="#fff" />
+          </Pressable>
+        </View>
+      </View>
 
       <View style={styles.statsRow}>
         <View style={[styles.statBox, { backgroundColor: Colors.card }]}>
@@ -230,7 +363,7 @@ export default function HomeTab() {
                   source={
                     item.avatar_url
                       ? { uri: item.avatar_url }
-                      : require('../../assets/images/avatar-placeholder.png')
+                      : avatarPlaceholder
                   }
                   style={[
                     styles.avatar,
@@ -252,6 +385,55 @@ export default function HomeTab() {
           </Card>
         )}
       />
+
+      {avatarPreviewVisible && Platform.OS === 'web' && (
+        <View
+          style={[
+            styles.avatarOverlay,
+            {
+              position: 'fixed' as any,
+              inset: 0,
+              zIndex: 9999,
+            },
+          ]}
+        >
+          <View style={[styles.avatarPreviewCard, { backgroundColor: Colors.card }]}>
+            <Image
+              source={currentAvatarSource}
+              style={styles.avatarPreview}
+              resizeMode="cover"
+            />
+
+            <Pressable
+              onPress={() => setAvatarPreviewVisible(false)}
+              style={[styles.avatarCloseBtn, { backgroundColor: Colors.primary }]}
+            >
+              <Text style={styles.avatarCloseText}>Mbyll</Text>
+            </Pressable>
+          </View>
+        </View>
+      )}
+
+      {Platform.OS !== 'web' && (
+        <Modal visible={avatarPreviewVisible} transparent animationType="fade">
+          <View style={styles.avatarOverlay}>
+            <View style={[styles.avatarPreviewCard, { backgroundColor: Colors.card }]}>
+              <Image
+                source={currentAvatarSource}
+                style={styles.avatarPreview}
+                resizeMode="cover"
+              />
+
+              <Pressable
+                onPress={() => setAvatarPreviewVisible(false)}
+                style={[styles.avatarCloseBtn, { backgroundColor: Colors.primary }]}
+              >
+                <Text style={styles.avatarCloseText}>Mbyll</Text>
+              </Pressable>
+            </View>
+          </View>
+        </Modal>
+      )}
     </View>
   );
 }
@@ -268,13 +450,44 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
+  homeHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 14,
+    marginBottom: Spacing.lg,
+  },
+  homeHeaderText: {
+    flex: 1,
+    minWidth: 0,
+  },
   welcome: {
     fontSize: 14,
   },
   name: {
     fontSize: 26,
     fontWeight: '800',
-    marginBottom: Spacing.lg,
+  },
+  homeAvatarWrap: {
+    width: 62,
+    height: 62,
+    flexShrink: 0,
+  },
+  homeAvatar: {
+    width: 62,
+    height: 62,
+    borderRadius: 31,
+  },
+  homeAvatarEdit: {
+    position: 'absolute',
+    top: -2,
+    right: -2,
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    borderWidth: 2,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   statsRow: {
     flexDirection: 'row',
@@ -333,6 +546,36 @@ const styles = StyleSheet.create({
   },
   staffCount: {
     fontSize: 18,
+    fontWeight: '800',
+  },
+  avatarOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.65)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
+  },
+  avatarPreviewCard: {
+    width: '88%',
+    maxWidth: 420,
+    borderRadius: 20,
+    padding: 14,
+    alignItems: 'center',
+  },
+  avatarPreview: {
+    width: '100%',
+    aspectRatio: 1,
+    borderRadius: 16,
+  },
+  avatarCloseBtn: {
+    marginTop: 14,
+    borderRadius: 12,
+    paddingVertical: 10,
+    paddingHorizontal: 24,
+  },
+  avatarCloseText: {
+    color: '#fff',
+    fontSize: 14,
     fontWeight: '800',
   },
 });

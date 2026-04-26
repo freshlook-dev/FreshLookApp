@@ -17,6 +17,7 @@ import {
 import { router } from 'expo-router';
 import * as ImagePicker from 'expo-image-picker';
 import * as ImageManipulator from 'expo-image-manipulator';
+import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../../context/AuthContext';
 import { supabase } from '../../context/supabase';
 import { useTheme } from '../../context/ThemeContext';
@@ -413,24 +414,34 @@ export default function ProfileTab() {
     >
       <Text style={[styles.pageTitle, { color: Colors.text }]}>Profili im </Text>
 
-      <View style={{ alignItems: 'center', marginBottom: 20 }}>
-        <Pressable onPress={() => setAvatarPreviewVisible(true)}>
-          <Image
-            key={profile.avatar_url}
-            source={
-              profile.avatar_url
-                ? { uri: profile.avatar_url }
-                : require('../../assets/images/avatar-placeholder.png')
-            }
-            style={styles.avatar}
-          />
-        </Pressable>
+      <View style={styles.avatarSection}>
+        <View style={styles.avatarWrap}>
+          <Pressable onPress={() => setAvatarPreviewVisible(true)}>
+            <Image
+              key={profile.avatar_url}
+              source={
+                profile.avatar_url
+                  ? { uri: profile.avatar_url }
+                  : require('../../assets/images/avatar-placeholder.png')
+              }
+              style={styles.avatar}
+            />
+          </Pressable>
 
-        <Pressable onPress={pickAndUploadAvatar} disabled={uploading}>
-          <Text style={{ fontSize: 12, color: Colors.muted }}>
-            {uploading ? 'Uploading…' : 'Kliko për të ndërruar fotografinë'}
-          </Text>
-        </Pressable>
+          <Pressable
+            onPress={pickAndUploadAvatar}
+            disabled={uploading}
+            style={[
+              styles.avatarEditButton,
+              {
+                backgroundColor: uploading ? Colors.muted : Colors.primary,
+                borderColor: Colors.background,
+              },
+            ]}
+          >
+            <Ionicons name={uploading ? 'hourglass' : 'camera'} size={16} color="#fff" />
+          </Pressable>
+        </View>
       </View>
 
       <View style={[styles.card, { backgroundColor: Colors.card }]}>
@@ -742,8 +753,26 @@ const styles = StyleSheet.create({
     width: 110,
     height: 110,
     borderRadius: 55,
-    marginBottom: 8,
     backgroundColor: '#EAEAEA',
+  },
+  avatarSection: {
+    alignItems: 'center',
+    marginBottom: 20,
+  },
+  avatarWrap: {
+    width: 110,
+    height: 110,
+  },
+  avatarEditButton: {
+    position: 'absolute',
+    top: 0,
+    right: 0,
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    borderWidth: 2,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   avatarOverlay: {
     flex: 1,
