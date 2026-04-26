@@ -200,7 +200,7 @@ export default function HomeTab() {
           </View>
         </View>
 
-        <View style={[styles.statBox, { backgroundColor: Colors.card }]}>
+        <View style={[styles.statBox, styles.lastStatBox, { backgroundColor: Colors.card }]}>
           <View style={styles.smallStat}>
             <Text style={[styles.smallNumber, { color: Colors.primary }]}>
               {fusheToday}
@@ -278,27 +278,32 @@ const styles = StyleSheet.create({
   },
   statsRow: {
     flexDirection: 'row',
-    gap: 6,
+    justifyContent: 'space-between',
     marginBottom: Spacing.lg,
+    width: '100%',
   },
   statBox: {
-    flex: 1,
-    minWidth: 0,
+    width: '23.5%',
+    flexShrink: 0,
     borderRadius: 12,
-    paddingHorizontal: 4,
-    paddingVertical: 10,
+    paddingHorizontal: 2,
+    paddingVertical: 8,
+    marginRight: 4,
+  },
+  lastStatBox: {
+    marginRight: 0,
   },
   smallStat: {
     alignItems: 'center',
     minWidth: 0,
   },
   smallNumber: {
-    fontSize: 18,
+    fontSize: 16,
     fontWeight: '800',
   },
   smallLabel: {
     marginTop: 2,
-    fontSize: 10,
+    fontSize: 9,
     fontWeight: '600',
     textAlign: 'center',
   },
