@@ -364,8 +364,8 @@ export default function ProfileTab() {
       nativeEvent;
 
     return {
-      x: touch.clientX ?? touch.pageX ?? 0,
-      y: touch.clientY ?? touch.pageY ?? 0,
+      x: touch.locationX ?? touch.clientX ?? touch.pageX ?? 0,
+      y: touch.locationY ?? touch.clientY ?? touch.pageY ?? 0,
       pointerId: nativeEvent.pointerId ?? null,
     };
   };
@@ -380,7 +380,9 @@ export default function ProfileTab() {
       originX: webCropOffset.x,
       originY: webCropOffset.y,
     };
-    event?.currentTarget?.setPointerCapture?.(point.pointerId);
+    if (point.pointerId != null) {
+      event?.currentTarget?.setPointerCapture?.(point.pointerId);
+    }
   };
 
   const moveWebCropDrag = (event: any) => {
@@ -735,44 +737,35 @@ export default function ProfileTab() {
               Rregullo fotografinë
             </Text>
 
-            <div
-              style={{
-                ...styles.webCropBox,
-                touchAction: 'none',
-              } as any}
-              onPointerDown={startWebCropDrag}
-              onPointerMove={moveWebCropDrag}
-              onPointerUp={endWebCropDrag}
-              onPointerCancel={endWebCropDrag}
-              onPointerLeave={endWebCropDrag}
-              onTouchStart={startWebCropDrag}
-              onTouchMove={moveWebCropDrag}
-              onTouchEnd={endWebCropDrag}
-              onMouseDown={startWebCropDrag}
-              onMouseMove={moveWebCropDrag}
-              onMouseUp={endWebCropDrag}
+            <View
+              style={styles.webCropBox}
+              onStartShouldSetResponder={() => true}
+              onMoveShouldSetResponder={() => true}
+              onResponderGrant={startWebCropDrag}
+              onResponderMove={moveWebCropDrag}
+              onResponderRelease={endWebCropDrag}
+              onResponderTerminate={endWebCropDrag}
             >
-              <img
-                alt=""
-                draggable={false}
-                src={webPreviewUrl}
-                style={{
-                  position: 'absolute',
-                  width: webCropMetrics.displayWidth,
-                  height: webCropMetrics.displayHeight,
-                  left:
+              <Image
+                source={{ uri: webPreviewUrl }}
+                style={[
+                  styles.webCropImage,
+                  {
+                    width: webCropMetrics.displayWidth,
+                    height: webCropMetrics.displayHeight,
+                    left:
                     WEB_CROP_SIZE / 2 -
                     webCropMetrics.displayWidth / 2 +
                     webCropOffset.x,
-                  top:
+                    top:
                     WEB_CROP_SIZE / 2 -
                     webCropMetrics.displayHeight / 2 +
                     webCropOffset.y,
-                  userSelect: 'none',
-                  WebkitUserSelect: 'none',
-                }}
+                  },
+                ]}
+                resizeMode="stretch"
               />
-            </div>
+            </View>
 
             <View style={styles.webCropControls}>
               <Pressable
@@ -961,6 +954,11 @@ const styles = StyleSheet.create({
     backgroundColor: '#000',
     borderWidth: 2,
     borderColor: '#C9A24D',
+    touchAction: 'none' as any,
+    userSelect: 'none' as any,
+  },
+  webCropImage: {
+    position: 'absolute',
   },
   webCropControls: {
     marginTop: 16,
