@@ -44,25 +44,90 @@ const pickImageWebFile = async (): Promise<File | null> => {
     const input = document.createElement('input');
     input.type = 'file';
     input.accept = 'image/*';
+    input.style.position = 'fixed';
+    input.style.left = '-1000px';
+    input.style.top = '-1000px';
+    input.style.opacity = '0';
 
-    input.onchange = () => {
-      const file = input.files?.[0] || null;
+    let done = false;
+
+    const cleanup = () => {
+      window.removeEventListener('focus', onFocus);
+      if (input.parentNode) input.parentNode.removeChild(input);
+    };
+
+    const finish = (file: File | null) => {
+      if (done) return;
+      done = true;
+      cleanup();
       resolve(file);
     };
 
+    const onFocus = () => {
+      window.setTimeout(() => {
+        if (!done && !input.files?.length) finish(null);
+      }, 700);
+    };
+
+    input.onchange = () => {
+      const file = input.files?.[0] || null;
+      finish(file);
+    };
+
     document.body.appendChild(input);
+    window.setTimeout(() => window.addEventListener('focus', onFocus), 0);
     input.click();
-    document.body.removeChild(input);
   });
 };
 
 const webLoadImage = (src: string) =>
   new Promise<HTMLImageElement>((resolve, reject) => {
     const img = new window.Image();
-    img.crossOrigin = 'anonymous';
+    if (!src.startsWith('blob:') && !src.startsWith('data:')) {
+      img.crossOrigin = 'anonymous';
+    }
     img.onload = () => resolve(img);
     img.onerror = (e) => reject(e);
     img.src = src;
+  });
+
+const readWebFileAsDataUrl = (file: File): Promise<string> =>
+  new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(String(reader.result || ''));
+    reader.onerror = () => reject(reader.error || new Error('Failed to read image'));
+    reader.readAsDataURL(file);
+  });
+
+const canvasToJpegBlob = (canvas: HTMLCanvasElement): Promise<Blob> =>
+  new Promise((resolve, reject) => {
+    if (canvas.toBlob) {
+      canvas.toBlob(
+        (blob) => {
+          if (!blob) return reject(new Error('Failed to export image'));
+          resolve(blob);
+        },
+        'image/jpeg',
+        0.85
+      );
+      return;
+    }
+
+    try {
+      const dataUrl = canvas.toDataURL('image/jpeg', 0.85);
+      const [header, data] = dataUrl.split(',');
+      const mime = header.match(/data:(.*);base64/)?.[1] || 'image/jpeg';
+      const binary = window.atob(data);
+      const bytes = new Uint8Array(binary.length);
+
+      for (let i = 0; i < binary.length; i += 1) {
+        bytes[i] = binary.charCodeAt(i);
+      }
+
+      resolve(new Blob([bytes], { type: mime }));
+    } catch (error) {
+      reject(error);
+    }
   });
 
 const webCropToBlob512 = async (
@@ -92,18 +157,7 @@ const webCropToBlob512 = async (
     512
   );
 
-  const blob: Blob = await new Promise((resolve, reject) => {
-    canvas.toBlob(
-      (b) => {
-        if (!b) return reject(new Error('Failed to export image'));
-        resolve(b);
-      },
-      'image/jpeg',
-      0.85
-    );
-  });
-
-  return blob;
+  return canvasToJpegBlob(canvas);
 };
 
 /* ================================================= */
@@ -147,7 +201,7 @@ export default function ProfileTab() {
 
   useEffect(() => {
     return () => {
-      if (webPreviewUrl) URL.revokeObjectURL(webPreviewUrl);
+      if (webPreviewUrl?.startsWith('blob:')) URL.revokeObjectURL(webPreviewUrl);
     };
   }, [webPreviewUrl]);
 
@@ -198,9 +252,9 @@ export default function ProfileTab() {
         const file = await pickImageWebFile();
         if (!file) return;
 
-        const url = URL.createObjectURL(file);
+        const url = await readWebFileAsDataUrl(file);
 
-        if (webPreviewUrl) URL.revokeObjectURL(webPreviewUrl);
+        if (webPreviewUrl?.startsWith('blob:')) URL.revokeObjectURL(webPreviewUrl);
 
         setWebPreviewUrl(url);
         setWebCropOffset({ x: 0, y: 0 });
@@ -291,13 +345,9 @@ export default function ProfileTab() {
 
       const filePath = `${user!.id}.jpg`;
 
-      const file = new File([blob], 'avatar.jpg', {
-        type: 'image/jpeg',
-      });
-
       const { error } = await supabase.storage
         .from('avatars')
-        .upload(filePath, file, {
+        .upload(filePath, blob, {
           upsert: true,
           contentType: 'image/jpeg',
         });
@@ -356,6 +406,15 @@ export default function ProfileTab() {
     setWebCropOffset((offset) => clampWebCropOffset(offset, next));
   };
 
+  const moveWebCrop = (x: number, y: number) => {
+    setWebCropOffset((offset) =>
+      clampWebCropOffset({
+        x: offset.x + x,
+        y: offset.y + y,
+      })
+    );
+  };
+
   const getWebEventPoint = (event: any) => {
     const nativeEvent = event?.nativeEvent ?? event;
     const touch =
@@ -364,8 +423,8 @@ export default function ProfileTab() {
       nativeEvent;
 
     return {
-      x: touch.locationX ?? touch.clientX ?? touch.pageX ?? 0,
-      y: touch.locationY ?? touch.clientY ?? touch.pageY ?? 0,
+      x: touch.clientX ?? touch.pageX ?? touch.locationX ?? 0,
+      y: touch.clientY ?? touch.pageY ?? touch.locationY ?? 0,
       pointerId: nativeEvent.pointerId ?? null,
     };
   };
@@ -483,6 +542,7 @@ export default function ProfileTab() {
 
   return (
     <ScrollView
+      scrollEnabled={!showCropper}
       contentContainerStyle={[
         styles.container,
         { backgroundColor: Colors.background },
@@ -767,6 +827,44 @@ export default function ProfileTab() {
               />
             </View>
 
+            <View style={styles.webCropMovePad}>
+              <Pressable
+                onPress={() => moveWebCrop(0, -18)}
+                style={[styles.webCropIconBtn, { backgroundColor: Colors.background }]}
+              >
+                <Ionicons name="chevron-up" size={20} color={Colors.text} />
+              </Pressable>
+              <View style={styles.webCropMoveRow}>
+                <Pressable
+                  onPress={() => moveWebCrop(-18, 0)}
+                  style={[styles.webCropIconBtn, { backgroundColor: Colors.background }]}
+                >
+                  <Ionicons name="chevron-back" size={20} color={Colors.text} />
+                </Pressable>
+                <Pressable
+                  onPress={() => {
+                    setWebCropZoom(1);
+                    setWebCropOffset({ x: 0, y: 0 });
+                  }}
+                  style={[styles.webCropIconBtn, { backgroundColor: Colors.background }]}
+                >
+                  <Ionicons name="scan" size={18} color={Colors.text} />
+                </Pressable>
+                <Pressable
+                  onPress={() => moveWebCrop(18, 0)}
+                  style={[styles.webCropIconBtn, { backgroundColor: Colors.background }]}
+                >
+                  <Ionicons name="chevron-forward" size={20} color={Colors.text} />
+                </Pressable>
+              </View>
+              <Pressable
+                onPress={() => moveWebCrop(0, 18)}
+                style={[styles.webCropIconBtn, { backgroundColor: Colors.background }]}
+              >
+                <Ionicons name="chevron-down" size={20} color={Colors.text} />
+              </Pressable>
+            </View>
+
             <View style={styles.webCropControls}>
               <Pressable
                 onPress={() => setWebZoom(webCropZoom - 0.1)}
@@ -959,6 +1057,15 @@ const styles = StyleSheet.create({
   },
   webCropImage: {
     position: 'absolute',
+  },
+  webCropMovePad: {
+    marginTop: 14,
+    alignItems: 'center',
+    gap: 6,
+  },
+  webCropMoveRow: {
+    flexDirection: 'row',
+    gap: 6,
   },
   webCropControls: {
     marginTop: 16,
