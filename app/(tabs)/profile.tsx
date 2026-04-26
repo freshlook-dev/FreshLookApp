@@ -579,20 +579,25 @@ export default function ProfileTab() {
       </Pressable>
 
       <Modal visible={avatarPreviewVisible} transparent animationType="fade">
-        <Pressable
-          onPress={() => setAvatarPreviewVisible(false)}
-          style={styles.avatarOverlay}
-        >
-          <Image
-            source={
-              profile.avatar_url
-                ? { uri: profile.avatar_url }
-                : require('../../assets/images/avatar-placeholder.png')
-            }
-            style={styles.avatarPreview}
-            resizeMode="contain"
-          />
-          <Text style={styles.avatarCloseText}>Mbyll</Text>
+        <Pressable onPress={() => setAvatarPreviewVisible(false)} style={styles.avatarOverlay}>
+          <Pressable style={[styles.avatarPreviewCard, { backgroundColor: Colors.card }]}>
+            <Image
+              source={
+                profile.avatar_url
+                  ? { uri: profile.avatar_url }
+                  : require('../../assets/images/avatar-placeholder.png')
+              }
+              style={styles.avatarPreview}
+              resizeMode="cover"
+            />
+
+            <Pressable
+              onPress={() => setAvatarPreviewVisible(false)}
+              style={[styles.avatarCloseBtn, { backgroundColor: Colors.primary }]}
+            >
+              <Text style={styles.avatarCloseText}>Mbyll</Text>
+            </Pressable>
+          </Pressable>
         </Pressable>
       </Modal>
 
@@ -708,19 +713,32 @@ const styles = StyleSheet.create({
   },
   avatarOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.92)',
+    backgroundColor: 'rgba(0,0,0,0.65)',
     justifyContent: 'center',
     alignItems: 'center',
     padding: 20,
   },
+  avatarPreviewCard: {
+    width: '88%',
+    maxWidth: 420,
+    borderRadius: 20,
+    padding: 14,
+    alignItems: 'center',
+  },
   avatarPreview: {
     width: '100%',
-    height: '78%',
+    aspectRatio: 1,
+    borderRadius: 16,
+  },
+  avatarCloseBtn: {
+    marginTop: 14,
+    borderRadius: 12,
+    paddingVertical: 10,
+    paddingHorizontal: 24,
   },
   avatarCloseText: {
-    marginTop: 18,
     color: '#fff',
-    fontSize: 15,
+    fontSize: 14,
     fontWeight: '800',
   },
 });
