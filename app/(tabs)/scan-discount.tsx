@@ -398,13 +398,31 @@ export default function ScanDiscountScreen() {
           new: nextPoints,
           deducted: Number(updated.points ?? 0),
         },
+        changed: {
+          status: {
+            old: 'pending',
+            new: updated.status,
+          },
+          scanned_by: {
+            old: null,
+            new: user.id,
+          },
+          scanned_at: {
+            old: null,
+            new: updated.scanned_at ?? scannedAt,
+          },
+          points: {
+            old: currentPoints,
+            new: nextPoints,
+          },
+        },
       },
     });
 
     if (auditError) {
       setLastRedemption(updated);
       setMessage(
-        `Zbritja u pranua dhe points u zbriten, por nuk u ruajt kush e skanoi: ${auditError.message}`
+        `Zbritja u pranua, points u zbriten dhe skanimi u ruajt, por audit log nuk u ruajt: ${auditError.message}`
       );
       setSaving(false);
       stopCamera();
