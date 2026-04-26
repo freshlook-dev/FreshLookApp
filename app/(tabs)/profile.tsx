@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import {
   View,
   Text,
@@ -23,11 +23,6 @@ import { supabase } from '../../context/supabase';
 import { useTheme } from '../../context/ThemeContext';
 import { LightColors, DarkColors } from '../../constants/colors';
 
-let Cropper: any = null;
-if (Platform.OS === 'web') {
-  Cropper = require('react-easy-crop').default;
-}
-
 type Role = 'owner' | 'manager' | 'staff';
 
 type Profile = {
@@ -37,6 +32,11 @@ type Profile = {
   role: Role;
   avatar_url?: string | null;
 };
+
+const WEB_CROP_SIZE = 300;
+
+const clamp = (value: number, min: number, max: number) =>
+  Math.min(Math.max(value, min), max);
 
 /* ================= WEB HELPERS ================= */
 const pickImageWebFile = async (): Promise<File | null> => {
@@ -106,15 +106,6 @@ const webCropToBlob512 = async (
   return blob;
 };
 
-const webCenterSquareToBlob512 = async (imageSrc: string): Promise<Blob> => {
-  const img = await webLoadImage(imageSrc);
-
-  const side = Math.min(img.naturalWidth, img.naturalHeight);
-  const x = Math.floor((img.naturalWidth - side) / 2);
-  const y = Math.floor((img.naturalHeight - side) / 2);
-
-  return webCropToBlob512(imageSrc, { x, y, width: side, height: side });
-};
 /* ================================================= */
 
 export default function ProfileTab() {
@@ -131,18 +122,19 @@ export default function ProfileTab() {
   } | null>(null);
 
   /* 🟢 CROP STATES (WEB) */
-  const [webFile, setWebFile] = useState<File | null>(null);
   const [webPreviewUrl, setWebPreviewUrl] = useState<string | null>(null);
-  const [crop, setCrop] = useState({ x: 0, y: 0 });
-  const [zoom, setZoom] = useState(1);
-  const [croppedAreaPixels, setCroppedAreaPixels] = useState<any>(null);
+  const [webImageSize, setWebImageSize] = useState({ width: 1, height: 1 });
+  const [webCropOffset, setWebCropOffset] = useState({ x: 0, y: 0 });
+  const [webCropZoom, setWebCropZoom] = useState(1);
   const [showCropper, setShowCropper] = useState(false);
   const [avatarPreviewVisible, setAvatarPreviewVisible] = useState(false);
-
-  const isIOSWeb =
-    Platform.OS === 'web' &&
-    typeof navigator !== 'undefined' &&
-    /iPhone|iPad|iPod/i.test(navigator.userAgent);
+  const webDragRef = useRef<{
+    pointerId: number | null;
+    startX: number;
+    startY: number;
+    originX: number;
+    originY: number;
+  } | null>(null);
 
   useEffect(() => {
     if (!authLoading && !user) {
@@ -170,10 +162,6 @@ export default function ProfileTab() {
 
     setProfile(data ?? null);
     setLoading(false);
-  };
-
-  const onCropComplete = (_: any, croppedPixels: any) => {
-    setCroppedAreaPixels(croppedPixels);
   };
 
   const generateAccessCode = async (role: Role) => {
@@ -214,18 +202,16 @@ export default function ProfileTab() {
 
         if (webPreviewUrl) URL.revokeObjectURL(webPreviewUrl);
 
-        setWebFile(file);
         setWebPreviewUrl(url);
-        setCrop({ x: 0, y: 0 });
-        setZoom(1);
+        setWebCropOffset({ x: 0, y: 0 });
+        setWebCropZoom(1);
+        setWebImageSize({ width: 1, height: 1 });
 
-        if (isIOSWeb) {
-          setShowCropper(false);
-          const blob = await webCenterSquareToBlob512(url);
-          await uploadWebBlob(blob);
-          return;
-        }
-
+        const image = await webLoadImage(url);
+        setWebImageSize({
+          width: image.naturalWidth || 1,
+          height: image.naturalHeight || 1,
+        });
         setShowCropper(true);
       } catch (err: any) {
         console.error('Web image picker error:', err);
@@ -338,6 +324,88 @@ export default function ProfileTab() {
     }
   };
 
+  const getWebCropMetrics = (zoomValue = webCropZoom) => {
+    const scale =
+      Math.max(
+        WEB_CROP_SIZE / webImageSize.width,
+        WEB_CROP_SIZE / webImageSize.height
+      ) * zoomValue;
+    const displayWidth = webImageSize.width * scale;
+    const displayHeight = webImageSize.height * scale;
+    const maxX = Math.max(0, (displayWidth - WEB_CROP_SIZE) / 2);
+    const maxY = Math.max(0, (displayHeight - WEB_CROP_SIZE) / 2);
+
+    return { scale, displayWidth, displayHeight, maxX, maxY };
+  };
+
+  const clampWebCropOffset = (
+    offset: { x: number; y: number },
+    zoomValue = webCropZoom
+  ) => {
+    const { maxX, maxY } = getWebCropMetrics(zoomValue);
+
+    return {
+      x: clamp(offset.x, -maxX, maxX),
+      y: clamp(offset.y, -maxY, maxY),
+    };
+  };
+
+  const setWebZoom = (nextZoom: number) => {
+    const next = clamp(nextZoom, 1, 3);
+    setWebCropZoom(next);
+    setWebCropOffset((offset) => clampWebCropOffset(offset, next));
+  };
+
+  const getWebEventPoint = (event: any) => {
+    const nativeEvent = event?.nativeEvent ?? event;
+    const touch =
+      nativeEvent.touches?.[0] ??
+      nativeEvent.changedTouches?.[0] ??
+      nativeEvent;
+
+    return {
+      x: touch.clientX ?? touch.pageX ?? 0,
+      y: touch.clientY ?? touch.pageY ?? 0,
+      pointerId: nativeEvent.pointerId ?? null,
+    };
+  };
+
+  const startWebCropDrag = (event: any) => {
+    event?.preventDefault?.();
+    const point = getWebEventPoint(event);
+    webDragRef.current = {
+      pointerId: point.pointerId,
+      startX: point.x,
+      startY: point.y,
+      originX: webCropOffset.x,
+      originY: webCropOffset.y,
+    };
+    event?.currentTarget?.setPointerCapture?.(point.pointerId);
+  };
+
+  const moveWebCropDrag = (event: any) => {
+    if (!webDragRef.current) return;
+
+    event?.preventDefault?.();
+    const point = getWebEventPoint(event);
+    const next = {
+      x:
+        webDragRef.current.originX +
+        point.x -
+        webDragRef.current.startX,
+      y:
+        webDragRef.current.originY +
+        point.y -
+        webDragRef.current.startY,
+    };
+
+    setWebCropOffset(clampWebCropOffset(next));
+  };
+
+  const endWebCropDrag = () => {
+    webDragRef.current = null;
+  };
+
   /* ================= SAVE CROPPED IMAGE (WEB) ================= */
   const saveCroppedImage = async () => {
     if (!webPreviewUrl) return;
@@ -345,24 +413,29 @@ export default function ProfileTab() {
     try {
       setShowCropper(false);
 
-      const cropPixels = croppedAreaPixels
-        ? {
-            x: Math.round(croppedAreaPixels.x),
-            y: Math.round(croppedAreaPixels.y),
-            width: Math.round(croppedAreaPixels.width),
-            height: Math.round(croppedAreaPixels.height),
-          }
-        : null;
+      const { scale } = getWebCropMetrics();
+      const cropWidth = WEB_CROP_SIZE / scale;
+      const cropHeight = WEB_CROP_SIZE / scale;
+      const cropPixels = {
+        x: Math.round(
+          clamp(
+            (webImageSize.width - cropWidth) / 2 - webCropOffset.x / scale,
+            0,
+            webImageSize.width - cropWidth
+          )
+        ),
+        y: Math.round(
+          clamp(
+            (webImageSize.height - cropHeight) / 2 - webCropOffset.y / scale,
+            0,
+            webImageSize.height - cropHeight
+          )
+        ),
+        width: Math.round(cropWidth),
+        height: Math.round(cropHeight),
+      };
 
-      let blob: Blob;
-
-      try {
-        blob = cropPixels
-          ? await webCropToBlob512(webPreviewUrl, cropPixels)
-          : await webCenterSquareToBlob512(webPreviewUrl);
-      } catch {
-        blob = await webCenterSquareToBlob512(webPreviewUrl);
-      }
+      const blob = await webCropToBlob512(webPreviewUrl, cropPixels);
 
       await uploadWebBlob(blob);
     } catch (err: any) {
@@ -404,6 +477,7 @@ export default function ProfileTab() {
 
   const isOwner = profile.role === 'owner';
   const canViewStats = profile.role === 'owner' || profile.role === 'manager';
+  const webCropMetrics = getWebCropMetrics();
 
   return (
     <ScrollView
@@ -646,40 +720,94 @@ export default function ProfileTab() {
         </Modal>
       )}
 
-      {Platform.OS === 'web' && !isIOSWeb && showCropper && webPreviewUrl && (
+      {Platform.OS === 'web' && showCropper && webPreviewUrl && (
         <View
-          style={{
-            position: 'fixed' as any,
-            inset: 0,
-            backgroundColor: 'rgba(0,0,0,0.85)',
-            zIndex: 9999,
-            justifyContent: 'center',
-            alignItems: 'center',
-            pointerEvents: 'auto' as any,
-          }}
+          style={[
+            styles.webCropOverlay,
+            {
+              position: 'fixed' as any,
+              inset: 0,
+            },
+          ]}
         >
-          <View style={{ width: 300, height: 300, backgroundColor: '#000' }}>
-            <Cropper
-              image={webPreviewUrl}
-              crop={crop}
-              zoom={zoom}
-              aspect={1}
-              onCropChange={setCrop}
-              onZoomChange={setZoom}
-              onCropComplete={onCropComplete}
-            />
-          </View>
+          <View style={[styles.webCropCard, { backgroundColor: Colors.card }]}>
+            <Text style={[styles.webCropTitle, { color: Colors.text }]}>
+              Rregullo fotografinë
+            </Text>
 
-          <View style={{ flexDirection: 'row', gap: 12, marginTop: 20 }}>
-            <Pressable
-              onPress={() => setShowCropper(false)}
-              style={{ padding: 12 }}
+            <div
+              style={{
+                ...styles.webCropBox,
+                touchAction: 'none',
+              } as any}
+              onPointerDown={startWebCropDrag}
+              onPointerMove={moveWebCropDrag}
+              onPointerUp={endWebCropDrag}
+              onPointerCancel={endWebCropDrag}
+              onPointerLeave={endWebCropDrag}
+              onTouchStart={startWebCropDrag}
+              onTouchMove={moveWebCropDrag}
+              onTouchEnd={endWebCropDrag}
+              onMouseDown={startWebCropDrag}
+              onMouseMove={moveWebCropDrag}
+              onMouseUp={endWebCropDrag}
             >
-              <Text style={{ color: '#fff' }}>Cancel</Text>
-            </Pressable>
-            <Pressable onPress={saveCroppedImage} style={{ padding: 12 }}>
-              <Text style={{ color: '#C9A24D', fontWeight: '800' }}>Save</Text>
-            </Pressable>
+              <img
+                alt=""
+                draggable={false}
+                src={webPreviewUrl}
+                style={{
+                  position: 'absolute',
+                  width: webCropMetrics.displayWidth,
+                  height: webCropMetrics.displayHeight,
+                  left:
+                    WEB_CROP_SIZE / 2 -
+                    webCropMetrics.displayWidth / 2 +
+                    webCropOffset.x,
+                  top:
+                    WEB_CROP_SIZE / 2 -
+                    webCropMetrics.displayHeight / 2 +
+                    webCropOffset.y,
+                  userSelect: 'none',
+                  WebkitUserSelect: 'none',
+                }}
+              />
+            </div>
+
+            <View style={styles.webCropControls}>
+              <Pressable
+                onPress={() => setWebZoom(webCropZoom - 0.1)}
+                style={[styles.webCropIconBtn, { backgroundColor: Colors.background }]}
+              >
+                <Ionicons name="remove" size={20} color={Colors.text} />
+              </Pressable>
+              <Text style={[styles.webCropZoomText, { color: Colors.muted }]}>
+                Zoom {Math.round(webCropZoom * 100)}%
+              </Text>
+              <Pressable
+                onPress={() => setWebZoom(webCropZoom + 0.1)}
+                style={[styles.webCropIconBtn, { backgroundColor: Colors.background }]}
+              >
+                <Ionicons name="add" size={20} color={Colors.text} />
+              </Pressable>
+            </View>
+
+            <View style={styles.webCropActions}>
+              <Pressable
+                onPress={() => setShowCropper(false)}
+                style={[styles.webCropButton, { backgroundColor: Colors.background }]}
+              >
+                <Text style={[styles.webCropCancelText, { color: Colors.text }]}>
+                  Anulo
+                </Text>
+              </Pressable>
+              <Pressable
+                onPress={saveCroppedImage}
+                style={[styles.webCropButton, { backgroundColor: Colors.primary }]}
+              >
+                <Text style={styles.webCropSaveText}>Ruaj</Text>
+              </Pressable>
+            </View>
           </View>
         </View>
       )}
@@ -800,6 +928,77 @@ const styles = StyleSheet.create({
     paddingHorizontal: 24,
   },
   avatarCloseText: {
+    color: '#fff',
+    fontSize: 14,
+    fontWeight: '800',
+  },
+  webCropOverlay: {
+    backgroundColor: 'rgba(0,0,0,0.85)',
+    zIndex: 9999,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 18,
+    pointerEvents: 'auto' as any,
+  },
+  webCropCard: {
+    width: '100%',
+    maxWidth: 380,
+    borderRadius: 20,
+    padding: 16,
+    alignItems: 'center',
+  },
+  webCropTitle: {
+    fontSize: 18,
+    fontWeight: '800',
+    marginBottom: 14,
+  },
+  webCropBox: {
+    width: WEB_CROP_SIZE,
+    height: WEB_CROP_SIZE,
+    borderRadius: 18,
+    overflow: 'hidden',
+    position: 'relative',
+    backgroundColor: '#000',
+    borderWidth: 2,
+    borderColor: '#C9A24D',
+  },
+  webCropControls: {
+    marginTop: 16,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 12,
+  },
+  webCropIconBtn: {
+    width: 42,
+    height: 42,
+    borderRadius: 21,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  webCropZoomText: {
+    minWidth: 90,
+    textAlign: 'center',
+    fontSize: 13,
+    fontWeight: '700',
+  },
+  webCropActions: {
+    width: '100%',
+    flexDirection: 'row',
+    gap: 10,
+    marginTop: 16,
+  },
+  webCropButton: {
+    flex: 1,
+    borderRadius: 12,
+    paddingVertical: 12,
+    alignItems: 'center',
+  },
+  webCropCancelText: {
+    fontSize: 14,
+    fontWeight: '800',
+  },
+  webCropSaveText: {
     color: '#fff',
     fontSize: 14,
     fontWeight: '800',
