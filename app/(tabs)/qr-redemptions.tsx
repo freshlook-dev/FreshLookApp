@@ -18,6 +18,7 @@ import { useAuth } from '../../context/AuthContext';
 import { useTheme } from '../../context/ThemeContext';
 import { LightColors, DarkColors } from '../../constants/colors';
 import { useAutoRefresh } from '../../hooks/useAutoRefresh';
+import { formatKosovoDateTime } from '../../utils/dateTime';
 
 type Role = 'owner' | 'manager' | 'staff';
 type StatusFilter = 'all' | 'pending' | 'used' | 'expired';
@@ -79,15 +80,6 @@ const getLogScannerName = (log: AuditLog, profiles: ProfileMap) => {
     log.metadata?.actor?.email ??
     null
   );
-};
-
-const formatDateTime = (value: string | null) => {
-  if (!value) return '-';
-  const date = new Date(value);
-  return `${date.toLocaleDateString()} ${date.toLocaleTimeString([], {
-    hour: '2-digit',
-    minute: '2-digit',
-  })}`;
 };
 
 export default function QrRedemptionsScreen() {
@@ -329,7 +321,7 @@ export default function QrRedemptionsScreen() {
                 Created
               </Text>
               <Text style={[styles.detailValue, { color: Colors.text }]}>
-                {formatDateTime(item.created_at)}
+                {formatKosovoDateTime(item.created_at)}
               </Text>
             </View>
 
@@ -338,7 +330,7 @@ export default function QrRedemptionsScreen() {
                 Expires
               </Text>
               <Text style={[styles.detailValue, { color: Colors.text }]}>
-                {formatDateTime(item.expires_at)}
+                {formatKosovoDateTime(item.expires_at)}
               </Text>
             </View>
 
@@ -356,7 +348,7 @@ export default function QrRedemptionsScreen() {
                 Scanned at
               </Text>
               <Text style={[styles.detailValue, { color: Colors.text }]}>
-                {formatDateTime(item.scanned_at)}
+                {formatKosovoDateTime(item.scanned_at)}
               </Text>
             </View>
           </View>

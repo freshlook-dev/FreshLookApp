@@ -44,6 +44,13 @@ type Redemption = {
   scanned_at?: string | null;
 };
 
+type RedeemPointsQrResult = {
+  redemption: Redemption;
+  previous_points: number;
+  new_points: number;
+  deducted_points: number;
+};
+
 const REDEMPTION_SELECT =
   'id, user_id, points, status, expires_at, created_at, scanned_by, scanned_at';
 
@@ -75,6 +82,12 @@ const extractCode = (value: string) => {
   } catch {}
 
   return trimmed.match(UUID_PATTERN)?.[0] ?? trimmed;
+};
+
+const getRpcResult = (data: unknown): RedeemPointsQrResult | null => {
+  if (!data) return null;
+  if (Array.isArray(data)) return (data[0] as RedeemPointsQrResult) ?? null;
+  return data as RedeemPointsQrResult;
 };
 
 export default function ScanDiscountScreen() {
@@ -317,59 +330,28 @@ export default function ScanDiscountScreen() {
 
     const scannedAt = new Date().toISOString();
 
-    const { data: updatedRows, error } = await supabase
-      .from('point_redemptions')
-      .update({
-        status: 'used',
-        scanned_by: user.id,
-        scanned_at: scannedAt,
-      })
-      .eq('id', redemption.id)
-      .eq('status', 'pending')
-      .select(REDEMPTION_SELECT);
+    const { data: rpcData, error } = await supabase.rpc('redeem_points_qr', {
+      p_redemption_id: redemption.id,
+      p_scanned_at: scannedAt,
+    });
 
-    if (error || !updatedRows || updatedRows.length === 0) {
-      setMessage(error?.message ?? 'QR nuk mund te perdoret me.');
+    const redeemResult = getRpcResult(rpcData);
+
+    if (error || !redeemResult?.redemption) {
+      const missingFunction = error?.message?.includes('redeem_points_qr');
+      setMessage(
+        missingFunction
+          ? 'Mungon funksioni i databazes per QR. Duhet aplikuar SQL update.'
+          : error?.message ?? 'QR nuk mund te perdoret me.'
+      );
       setSaving(false);
       scanningRef.current = cameraActive;
       return;
     }
 
-    const updated = updatedRows[0] as Redemption;
-
-    const { data: clientProfile, error: profileLoadError } = await supabase
-      .from('profiles')
-      .select('points')
-      .eq('id', updated.user_id)
-      .single();
-
-    if (profileLoadError) {
-      setMessage(
-        `QR u pranua, por points nuk u perditesuan: ${profileLoadError.message}`
-      );
-      setLastRedemption(updated);
-      setSaving(false);
-      stopCamera();
-      return;
-    }
-
-    const currentPoints = Number(clientProfile?.points ?? 0);
-    const nextPoints = Math.max(0, currentPoints - Number(updated.points ?? 0));
-
-    const { error: profileUpdateError } = await supabase
-      .from('profiles')
-      .update({ points: nextPoints })
-      .eq('id', updated.user_id);
-
-    if (profileUpdateError) {
-      setMessage(
-        `QR u pranua, por points nuk u perditesuan: ${profileUpdateError.message}`
-      );
-      setLastRedemption(updated);
-      setSaving(false);
-      stopCamera();
-      return;
-    }
+    const updated = redeemResult.redemption;
+    const currentPoints = Number(redeemResult.previous_points ?? 0);
+    const nextPoints = Number(redeemResult.new_points ?? 0);
 
     const { data: scannerProfile } = await supabase
       .from('profiles')
