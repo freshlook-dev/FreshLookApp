@@ -9,6 +9,7 @@ import {
   ActivityIndicator,
   Alert,
   Platform,
+  ScrollView,
   TextInput,
 } from 'react-native';
 import { router } from 'expo-router';
@@ -108,6 +109,9 @@ export default function ScanDiscountScreen() {
   const [message, setMessage] = useState('');
   const [manualCode, setManualCode] = useState('');
   const [lastRedemption, setLastRedemption] = useState<Redemption | null>(null);
+  const [pendingRedemption, setPendingRedemption] = useState<Redemption | null>(
+    null
+  );
 
   useEffect(() => {
     if (!user?.id) return;
@@ -213,7 +217,7 @@ export default function ScanDiscountScreen() {
 
       if (rawValue) {
         scanningRef.current = false;
-        await redeemScannedValue(rawValue);
+        await prepareScannedValue(rawValue);
         return;
       }
 
@@ -290,19 +294,21 @@ export default function ScanDiscountScreen() {
     return (redemption as Redemption | null) ?? null;
   };
 
-  const redeemScannedValue = async (value: string) => {
+  const prepareScannedValue = async (value: string) => {
     const code = extractCode(value);
     if (!code || saving || !user?.id) return;
 
     setSaving(true);
     setMessage('Duke kontrolluar QR...');
+    setPendingRedemption(null);
+    setLastRedemption(null);
 
     const redemption = await loadRedemption(code);
 
     if (!redemption) {
       setMessage('QR nuk u gjet ose nuk ka zbritje pending.');
       setSaving(false);
-      scanningRef.current = cameraActive;
+      stopCamera();
       return;
     }
 
@@ -310,7 +316,7 @@ export default function ScanDiscountScreen() {
       setLastRedemption(redemption);
       setMessage(`Ky QR eshte perdorur ose nuk eshte aktiv: ${redemption.status}.`);
       setSaving(false);
-      scanningRef.current = cameraActive;
+      stopCamera();
       return;
     }
 
@@ -324,9 +330,25 @@ export default function ScanDiscountScreen() {
       setLastRedemption({ ...redemption, status: 'expired' });
       setMessage('Ky QR ka skaduar.');
       setSaving(false);
-      scanningRef.current = cameraActive;
+      stopCamera();
       return;
     }
+
+    setPendingRedemption(redemption);
+    setLastRedemption(redemption);
+    setMessage(
+      `QR u gjet. Konfirmo zbritjen prej ${redemption.points} Fresh Points.`
+    );
+    setSaving(false);
+    stopCamera();
+  };
+
+  const redeemPendingRedemption = async () => {
+    const redemption = pendingRedemption;
+    if (!redemption || saving || !user?.id) return;
+
+    setSaving(true);
+    setMessage('Duke pranuar zbritjen...');
 
     const scannedAt = new Date().toISOString();
 
@@ -345,7 +367,6 @@ export default function ScanDiscountScreen() {
           : error?.message ?? 'QR nuk mund te perdoret me.'
       );
       setSaving(false);
-      scanningRef.current = cameraActive;
       return;
     }
 
@@ -406,6 +427,8 @@ export default function ScanDiscountScreen() {
     }
 
     setLastRedemption(updated);
+    setPendingRedemption(null);
+    setManualCode('');
     setMessage(
       `Zbritja u pranua: ${updated.points} Fresh Points. Balanca: ${nextPoints}.`
     );
@@ -414,7 +437,12 @@ export default function ScanDiscountScreen() {
   };
 
   const redeemManualCode = () => {
-    redeemScannedValue(manualCode);
+    prepareScannedValue(manualCode);
+  };
+
+  const cancelPendingRedemption = () => {
+    setPendingRedemption(null);
+    setMessage('');
   };
 
   if (checkingRole) {
@@ -428,7 +456,12 @@ export default function ScanDiscountScreen() {
   if (!allowed) return null;
 
   return (
-    <View style={[styles.container, { backgroundColor: Colors.background }]}>
+    <ScrollView
+      style={[styles.screen, { backgroundColor: Colors.background }]}
+      contentContainerStyle={styles.container}
+      keyboardShouldPersistTaps="handled"
+      showsVerticalScrollIndicator
+    >
       <Text style={[styles.title, { color: Colors.text }]}>Skano QR Discount</Text>
 
       <View style={[styles.card, { backgroundColor: Colors.card }]}>
@@ -510,11 +543,48 @@ export default function ScanDiscountScreen() {
             ]}
           >
             <Text style={styles.primaryText}>
-              {saving ? 'Duke kontrolluar...' : 'Prano zbritjen'}
+              {saving ? 'Duke kontrolluar...' : 'Kontrollo zbritjen'}
             </Text>
           </Pressable>
         </View>
       </View>
+
+      {pendingRedemption && (
+        <View style={[styles.confirmCard, { backgroundColor: Colors.card }]}>
+          <Text style={[styles.confirmTitle, { color: Colors.text }]}>
+            Konfirmo zbritjen
+          </Text>
+          <Text style={[styles.confirmText, { color: Colors.muted }]}>
+            Ky QR do te zbrese {pendingRedemption.points} Fresh Points nga
+            klienti.
+          </Text>
+
+          <View style={styles.confirmActions}>
+            <Pressable
+              onPress={cancelPendingRedemption}
+              disabled={saving}
+              style={[styles.cancelBtn, { backgroundColor: Colors.background }]}
+            >
+              <Text style={[styles.cancelText, { color: Colors.text }]}>
+                Anulo
+              </Text>
+            </Pressable>
+
+            <Pressable
+              onPress={redeemPendingRedemption}
+              disabled={saving}
+              style={[
+                styles.confirmBtn,
+                { backgroundColor: saving ? Colors.muted : Colors.primary },
+              ]}
+            >
+              <Text style={styles.primaryText}>
+                {saving ? 'Duke pranuar...' : 'Konfirmo'}
+              </Text>
+            </Pressable>
+          </View>
+        </View>
+      )}
 
       {!!message && (
         <View style={[styles.resultCard, { backgroundColor: Colors.card }]}>
@@ -527,14 +597,17 @@ export default function ScanDiscountScreen() {
           )}
         </View>
       )}
-    </View>
+    </ScrollView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
+  screen: {
     flex: 1,
+  },
+  container: {
     padding: 20,
+    paddingBottom: 96,
   },
   center: {
     flex: 1,
@@ -600,6 +673,42 @@ const styles = StyleSheet.create({
     marginTop: 14,
     borderRadius: 18,
     padding: 16,
+  },
+  confirmCard: {
+    marginTop: 14,
+    borderRadius: 18,
+    padding: 16,
+  },
+  confirmTitle: {
+    fontSize: 18,
+    fontWeight: '800',
+    marginBottom: 8,
+  },
+  confirmText: {
+    fontSize: 14,
+    fontWeight: '700',
+    lineHeight: 20,
+  },
+  confirmActions: {
+    flexDirection: 'row',
+    gap: 10,
+    marginTop: 14,
+  },
+  cancelBtn: {
+    flex: 1,
+    borderRadius: 14,
+    paddingVertical: 14,
+    alignItems: 'center',
+  },
+  confirmBtn: {
+    flex: 1,
+    borderRadius: 14,
+    paddingVertical: 14,
+    alignItems: 'center',
+  },
+  cancelText: {
+    fontSize: 15,
+    fontWeight: '800',
   },
   resultText: {
     fontSize: 16,
