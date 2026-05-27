@@ -37,11 +37,16 @@ const TREATMENTS: Treatment[] = [
   { id: 'ems', name: 'EMS', price: 50 },
   { id: 'manikyr', name: 'Manikyr', price: 15 },
   { id: 'microblading', name: 'Microblading', price: 100 },
-  { id: 'filler05', name: '0.5ml', price: 80 },
-  { id: 'filler1', name: '1ml', price: 150 },
+  { id: 'cleanser', name: 'Face Cleanser', price: 40 },
+  { id: 'spf', name: 'SPF 50', price: 35 },
+  { id: 'vitc', name: 'Vitamin C', price: 40 },
+  { id: 'antiacne', name: 'Anti-Acne', price: 40 },
+  { id: 'cream', name: 'Moisturizing Cream', price: 40 },
   { id: '1', name: '1€', price: 1 },
   { id: '5', name: '5€', price: 5 },
   { id: '10', name: '10€', price: 10 },
+  { id: '20', name: '20€', price: 20 },
+  { id: '50', name: '50€', price: 50 },
 ];
 
 export default function RegisterVisitScreen() {
