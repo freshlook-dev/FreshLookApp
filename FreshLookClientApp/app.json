@@ -1,11 +1,11 @@
 {
   "expo": {
-    "name": "FreshLookApp Staff",
-    "slug": "freshlook-app",
-    "version": "1.1.0",
+    "name": "FreshLook Client",
+    "slug": "freshlook-client",
+    "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
-    "scheme": "freshlookapp",
+    "scheme": "freshlookclient",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
     "splash": {
@@ -15,14 +15,11 @@
     },
     "ios": {
       "supportsTablet": false,
-      "bundleIdentifier": "com.freshlook.staff",
-      "buildNumber": "1",
-      "infoPlist": {
-        "NSPhotoLibraryUsageDescription": "FreshLookApp Staff uses your photo library so you can choose and upload a profile picture."
-      }
+      "bundleIdentifier": "com.freshlook.client",
+      "buildNumber": "1"
     },
     "android": {
-      "package": "com.freshlook.staff",
+      "package": "com.freshlook.client",
       "versionCode": 1,
       "adaptiveIcon": {
         "foregroundImage": "./assets/images/adaptive-icon.png",
@@ -36,7 +33,7 @@
       "output": "static",
       "favicon": "./assets/images/icon.png",
       "manifest": {
-        "name": "FreshLookApp Staff",
+        "name": "FreshLook Client",
         "short_name": "FreshLook",
         "start_url": "/",
         "display": "standalone",
@@ -46,18 +43,11 @@
     },
     "plugins": [
       "expo-router",
-      "@react-native-community/datetimepicker",
       "expo-font",
       "expo-web-browser"
     ],
     "experiments": {
       "typedRoutes": true
-    },
-    "extra": {
-      "router": {},
-      "eas": {
-        "projectId": "fc17aa50-593c-4740-8bf4-6c62354c1290"
-      }
     }
   }
 }
