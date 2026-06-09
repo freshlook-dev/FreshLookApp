@@ -1,5 +1,6 @@
 import { Stack } from 'expo-router';
 import Head from 'expo-router/head';
+import { usePathname } from 'expo-router';
 import { Platform, StyleSheet, View } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
@@ -10,10 +11,16 @@ import { ThemeProvider, useTheme } from '../context/ThemeContext';
 function AppLayout() {
   const { theme } = useTheme();
   const isDark = theme === 'dark';
+  const pathname = usePathname();
+  const isClientWeb = Platform.OS === 'web' && pathname.startsWith('/client');
 
   return (
     <>
       <Head>
+        <meta
+          name="viewport"
+          content="width=device-width, initial-scale=1, viewport-fit=cover"
+        />
         <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
         <link rel="manifest" href="/manifest.json" />
         <meta name="apple-mobile-web-app-capable" content="yes" />
@@ -33,9 +40,21 @@ function AppLayout() {
             backgroundColor: isDark ? '#0F0F10' : '#FAF8F4',
           },
         ]}
-        edges={Platform.OS === 'web' ? ['top', 'left', 'right'] : ['top']}
+        edges={
+          Platform.OS === 'web'
+            ? ['top', 'left', 'right', 'bottom']
+            : ['top']
+        }
       >
-        <View style={Platform.OS === 'web' ? styles.webInner : styles.nativeInner}>
+        <View
+          style={
+            isClientWeb
+              ? styles.clientWebInner
+              : Platform.OS === 'web'
+              ? styles.webInner
+              : styles.nativeInner
+          }
+        >
           <Stack screenOptions={{ headerShown: false }} />
         </View>
       </SafeAreaView>
@@ -62,6 +81,12 @@ const styles = StyleSheet.create({
   webInner: {
     flex: 1,
     paddingHorizontal: 16,
+  },
+  clientWebInner: {
+    flex: 1,
+    alignSelf: 'center',
+    maxWidth: 720,
+    width: '100%',
   },
   nativeInner: {
     flex: 1,

@@ -1,13 +1,30 @@
-import { Redirect, Tabs } from 'expo-router';
+import { Slot, Redirect, router, usePathname } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import { ActivityIndicator, StyleSheet, View } from 'react-native';
+import {
+  ActivityIndicator,
+  Platform,
+  Pressable,
+  StyleSheet,
+  Text,
+  View,
+} from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth } from '../../context/AuthContext';
 import { useTheme } from '../../context/ThemeContext';
 import { DarkColors, LightColors } from '../../constants/colors';
 
-export default function TabsLayout() {
+const CLIENT_TABS = [
+  { href: '/client', label: 'Home', icon: 'home-outline' },
+  { href: '/client/appointments', label: 'Visits', icon: 'calendar-outline' },
+  { href: '/client/rewards', label: 'Rewards', icon: 'gift-outline' },
+  { href: '/client/profile', label: 'Profile', icon: 'person-outline' },
+] as const;
+
+export default function ClientLayout() {
   const { user, profile, loading } = useAuth();
   const { theme } = useTheme();
+  const pathname = usePathname();
+  const insets = useSafeAreaInsets();
   const Colors = theme === 'dark' ? DarkColors : LightColors;
 
   if (loading) {
@@ -23,66 +40,90 @@ export default function TabsLayout() {
     return <Redirect href="/(tabs)" />;
   }
 
+  const bottomInset =
+    Platform.OS === 'web' ? 'env(safe-area-inset-bottom)' : insets.bottom;
+
   return (
-    <Tabs
-      screenOptions={{
-        headerShown: false,
-        tabBarActiveTintColor: Colors.primary,
-        tabBarInactiveTintColor: Colors.muted,
-        tabBarStyle: {
-          backgroundColor: Colors.card,
-          borderTopColor: Colors.border,
-        },
-        tabBarLabelStyle: {
-          fontSize: 11,
-          fontWeight: '700',
-        },
-      }}
-    >
-      <Tabs.Screen
-        name="index"
-        options={{
-          title: 'Home',
-          tabBarIcon: ({ color, size }) => (
-            <Ionicons name="home-outline" color={color} size={size} />
-          ),
-        }}
-      />
-      <Tabs.Screen
-        name="appointments"
-        options={{
-          title: 'Visits',
-          tabBarIcon: ({ color, size }) => (
-            <Ionicons name="calendar-outline" color={color} size={size} />
-          ),
-        }}
-      />
-      <Tabs.Screen
-        name="rewards"
-        options={{
-          title: 'Rewards',
-          tabBarIcon: ({ color, size }) => (
-            <Ionicons name="gift-outline" color={color} size={size} />
-          ),
-        }}
-      />
-      <Tabs.Screen
-        name="profile"
-        options={{
-          title: 'Profile',
-          tabBarIcon: ({ color, size }) => (
-            <Ionicons name="person-outline" color={color} size={size} />
-          ),
-        }}
-      />
-    </Tabs>
+    <View style={[styles.shell, { backgroundColor: Colors.background }]}>
+      <View style={styles.content}>
+        <Slot />
+      </View>
+
+      <View
+        style={[
+          styles.nav,
+          {
+            backgroundColor: Colors.card,
+            borderTopColor: Colors.border,
+            paddingBottom:
+              Platform.OS === 'web'
+                ? (`max(12px, ${bottomInset})` as any)
+                : Math.max(insets.bottom, 12),
+          },
+        ]}
+      >
+        {CLIENT_TABS.map((item) => {
+          const active =
+            item.href === '/client'
+              ? pathname === '/client'
+              : pathname.startsWith(item.href);
+
+          return (
+            <Pressable
+              key={item.href}
+              style={styles.navItem}
+              onPress={() => router.replace(item.href as any)}
+            >
+              <Ionicons
+                name={item.icon}
+                size={22}
+                color={active ? Colors.primary : Colors.muted}
+              />
+              <Text
+                style={[
+                  styles.navLabel,
+                  { color: active ? Colors.primary : Colors.muted },
+                ]}
+              >
+                {item.label}
+              </Text>
+            </Pressable>
+          );
+        })}
+      </View>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
+  shell: {
+    flex: 1,
+    minHeight: 0,
+  },
+  content: {
+    flex: 1,
+    minHeight: 0,
+  },
   center: {
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  nav: {
+    borderTopWidth: 1,
+    flexDirection: 'row',
+    paddingTop: 10,
+    paddingHorizontal: 6,
+  },
+  navItem: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    minHeight: 54,
+    gap: 3,
+  },
+  navLabel: {
+    fontSize: 11,
+    fontWeight: '800',
   },
 });
