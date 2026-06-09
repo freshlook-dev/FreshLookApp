@@ -29,7 +29,7 @@ const HeaderLogo = () => (
 );
 
 export default function TabsLayout() {
-  const { user, loading } = useAuth();
+  const { user, profile, loading } = useAuth();
   const insets = useSafeAreaInsets();
 
   const { theme } = useTheme();
@@ -70,6 +70,9 @@ export default function TabsLayout() {
   // ✅ Redirects AFTER hooks
   if (loading) return null;
   if (!user) return <Redirect href="/(auth)/login" />;
+  if (Platform.OS === 'web' && profile?.role === 'client') {
+    return <Redirect href={'/client' as any} />;
+  }
 
   return (
     <Tabs

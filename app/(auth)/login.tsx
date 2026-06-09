@@ -67,6 +67,12 @@ export default function Login() {
 
     // 🚫 BLOCK CLIENT ROLE
     if (profile.role === 'client') {
+      if (Platform.OS === 'web') {
+        setLoading(false);
+        router.replace('/client' as any);
+        return;
+      }
+
       await supabase.auth.signOut();
       setLoading(false);
       alert('This app is only for staff.');
