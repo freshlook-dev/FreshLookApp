@@ -8,6 +8,7 @@ import {
   ScrollView,
   StyleSheet,
   Text,
+  TextInput,
   View,
 } from 'react-native';
 import QRCode from 'react-native-qrcode-svg';
@@ -25,7 +26,7 @@ type Redemption = {
   created_at: string;
 };
 
-const REWARD_OPTIONS = [25, 50, 100];
+const REWARD_OPTIONS = [100, 500];
 
 export default function RewardsScreen() {
   const { user, profile, refreshProfile } = useAuth();
@@ -35,6 +36,8 @@ export default function RewardsScreen() {
   const [loading, setLoading] = useState(true);
   const [creating, setCreating] = useState<number | null>(null);
   const [refreshing, setRefreshing] = useState(false);
+  const [customOpen, setCustomOpen] = useState(false);
+  const [customPoints, setCustomPoints] = useState('');
 
   const activeRedemption = useMemo(() => {
     const now = Date.now();
@@ -73,32 +76,79 @@ export default function RewardsScreen() {
     setRefreshing(false);
   };
 
+  const notify = (title: string, message: string) => {
+    if (Platform.OS === 'web' && typeof window !== 'undefined') {
+      window.alert(`${title}\n${message}`);
+      return;
+    }
+
+    Alert.alert(title, message);
+  };
+
   const createRedemption = async (points: number) => {
     if (!user?.id || creating) return;
 
+    if (!Number.isInteger(points) || points <= 0) {
+      notify('Invalid points', 'Enter a valid Fresh Points amount.');
+      return;
+    }
+
     if ((profile?.points ?? 0) < points) {
-      Alert.alert('Not enough points', `You need ${points} Fresh Points for this reward.`);
+      notify('Not enough points', `You need ${points} Fresh Points for this reward.`);
+      return;
+    }
+
+    if (activeRedemption) {
+      notify(
+        'QR already active',
+        'Use or wait for the current QR to expire before creating another one.'
+      );
       return;
     }
 
     setCreating(points);
     const expiresAt = new Date(Date.now() + 15 * 60 * 1000).toISOString();
 
-    const { error } = await supabase.from('point_redemptions').insert({
+    let { data, error } = await supabase
+      .from('point_redemptions')
+      .insert({
       user_id: user.id,
       points,
       status: 'pending',
       expires_at: expiresAt,
-    });
+      })
+      .select('id, points, status, expires_at, created_at')
+      .single();
+
+    if (error) {
+      const rpcResult = await supabase.rpc('create_point_redemption_qr', {
+        p_points: points,
+        p_expires_at: expiresAt,
+      });
+
+      data = rpcResult.data as Redemption | null;
+      error = rpcResult.error;
+    }
 
     setCreating(null);
 
     if (error) {
-      Alert.alert('Reward unavailable', error.message);
+      notify('Reward unavailable', error.message);
       return;
     }
 
+    if (data) {
+      setRedemptions((prev) => [data as Redemption, ...prev]);
+    }
+
+    setCustomOpen(false);
+    setCustomPoints('');
     await loadRedemptions();
+  };
+
+  const createCustomRedemption = () => {
+    const points = Number(customPoints);
+    createRedemption(points);
   };
 
   return (
@@ -145,7 +195,7 @@ export default function RewardsScreen() {
       <Text style={[styles.section, { color: Colors.text }]}>Create Reward</Text>
       <View style={styles.options}>
         {REWARD_OPTIONS.map((points) => {
-          const disabled = !!creating || (profile?.points ?? 0) < points;
+          const disabled = !!creating;
           return (
             <Pressable
               key={points}
@@ -174,7 +224,69 @@ export default function RewardsScreen() {
             </Pressable>
           );
         })}
+        <Pressable
+          style={[
+            styles.option,
+            {
+              backgroundColor: customOpen ? Colors.card : Colors.primary,
+              borderColor: customOpen ? Colors.primary : Colors.border,
+            },
+          ]}
+          onPress={() => setCustomOpen((value) => !value)}
+          disabled={!!creating}
+        >
+          <Text
+            style={[
+              styles.optionText,
+              { color: customOpen ? Colors.primary : '#fff' },
+            ]}
+          >
+            Custom
+          </Text>
+        </Pressable>
       </View>
+
+      {customOpen && (
+        <View
+          style={[
+            styles.customCard,
+            { backgroundColor: Colors.card, borderColor: Colors.border },
+          ]}
+        >
+          <Text style={[styles.customLabel, { color: Colors.text }]}>
+            Custom Fresh Points
+          </Text>
+          <TextInput
+            placeholder="Enter points"
+            placeholderTextColor={Colors.muted}
+            keyboardType="number-pad"
+            value={customPoints}
+            onChangeText={(value) => setCustomPoints(value.replace(/[^0-9]/g, ''))}
+            style={[
+              styles.customInput,
+              {
+                color: Colors.text,
+                borderColor: Colors.border,
+                backgroundColor: Colors.background,
+              },
+            ]}
+          />
+          <Pressable
+            style={[
+              styles.customButton,
+              { backgroundColor: Colors.primary, opacity: creating ? 0.7 : 1 },
+            ]}
+            onPress={createCustomRedemption}
+            disabled={!!creating}
+          >
+            {creating === Number(customPoints) ? (
+              <ActivityIndicator color="#fff" />
+            ) : (
+              <Text style={styles.customButtonText}>Create QR</Text>
+            )}
+          </Pressable>
+        </View>
+      )}
 
       {Platform.OS === 'web' && (
         <Text style={[styles.webHint, { color: Colors.muted }]}>
@@ -265,5 +377,34 @@ const styles = StyleSheet.create({
     fontSize: 13,
     lineHeight: 19,
     marginTop: 16,
+  },
+  customCard: {
+    borderWidth: 1,
+    borderRadius: 8,
+    padding: 14,
+    marginTop: 12,
+    gap: 10,
+  },
+  customLabel: {
+    fontSize: 15,
+    fontWeight: '900',
+  },
+  customInput: {
+    borderWidth: 1,
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 12,
+    fontSize: 16,
+  },
+  customButton: {
+    minHeight: 48,
+    borderRadius: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  customButtonText: {
+    color: '#fff',
+    fontSize: 15,
+    fontWeight: '900',
   },
 });
