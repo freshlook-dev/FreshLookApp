@@ -176,23 +176,25 @@ export default function ChangePasswordScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    padding: 20,
+    paddingHorizontal: 20,
+    paddingTop: 22,
   },
   title: {
-    fontSize: 24,
+    fontSize: 30,
     fontWeight: '800',
-    marginBottom: 20,
+    letterSpacing: -0.8,
+    marginBottom: 24,
   },
   input: {
     borderWidth: 1,
-    borderRadius: 12,
+    borderRadius: 15,
     padding: 14,
     fontSize: 15,
     marginBottom: 12,
   },
   button: {
     paddingVertical: 14,
-    borderRadius: 14,
+    borderRadius: 15,
     alignItems: 'center',
     marginTop: 10,
   },

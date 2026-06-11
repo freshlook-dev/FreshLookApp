@@ -280,7 +280,7 @@ export default function UpcomingAppointments() {
                 {
                   color:
                     locationFilter === loc
-                      ? Colors.background
+                      ? Colors.onPrimary
                       : Colors.muted,
                 },
               ]}
@@ -357,7 +357,7 @@ export default function UpcomingAppointments() {
                       })
                     }
                   >
-                    <Text style={[styles.editText, { color: Colors.background }]}>
+                    <Text style={[styles.editText, { color: Colors.onPrimary }]}>
                       Edit
                     </Text>
                   </TouchableOpacity>
@@ -377,7 +377,7 @@ export default function UpcomingAppointments() {
                     })
                   }
                 >
-                  <Text style={[styles.statusText, { color: Colors.background }]}>
+                  <Text style={[styles.statusText, { color: '#FFFFFF' }]}>
                     {processingId === item.id ? '...' : 'Ka ardhur'}
                   </Text>
                 </TouchableOpacity>
@@ -391,7 +391,7 @@ export default function UpcomingAppointments() {
                   ]}
                   onPress={() => markStatus(item.id, 'canceled')}
                 >
-                  <Text style={[styles.statusText, { color: Colors.background }]}>
+                  <Text style={[styles.statusText, { color: '#FFFFFF' }]}>
                     {processingId === item.id ? '...' : 'Anulim'}
                   </Text>
                 </TouchableOpacity>
@@ -415,7 +415,8 @@ export default function UpcomingAppointments() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    padding: Spacing.lg,
+    paddingHorizontal: 20,
+    paddingTop: 22,
   },
   center: {
     flex: 1,
@@ -424,29 +425,34 @@ const styles = StyleSheet.create({
   },
   filters: {
     flexDirection: 'row',
-    gap: Spacing.sm,
-    marginBottom: Spacing.md,
+    gap: 8,
+    marginBottom: 18,
   },
   filterBtn: {
-    paddingVertical: 6,
-    paddingHorizontal: 12,
-    borderRadius: 20,
+    flex: 1,
+    minHeight: 42,
+    paddingVertical: 9,
+    paddingHorizontal: 8,
+    borderRadius: 13,
     borderWidth: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   filterText: {
-    fontSize: 13,
-    fontWeight: '600',
+    fontSize: 12,
+    fontWeight: '700',
   },
   row: {
     flexDirection: 'row',
-    gap: Spacing.md,
+    gap: 14,
   },
   client: {
-    fontSize: 16,
-    fontWeight: '700',
+    fontSize: 17,
+    fontWeight: '800',
   },
   service: {
     fontSize: 14,
+    marginTop: 3,
   },
   datetime: {
     marginTop: 4,
@@ -467,11 +473,11 @@ const styles = StyleSheet.create({
   },
   sideActions: {
     justifyContent: 'center',
-    gap: Spacing.sm,
+    gap: 8,
   },
   editBtn: {
-    paddingVertical: 6,
-    borderRadius: 8,
+    paddingVertical: 9,
+    borderRadius: 11,
     alignItems: 'center',
   },
   editText: {
@@ -479,10 +485,10 @@ const styles = StyleSheet.create({
     fontWeight: '700',
   },
   statusBtn: {
-    paddingVertical: 6,
+    paddingVertical: 9,
     paddingHorizontal: 10,
-    borderRadius: 8,
-    minWidth: 84,
+    borderRadius: 11,
+    minWidth: 88,
     alignItems: 'center',
   },
   arrived: {

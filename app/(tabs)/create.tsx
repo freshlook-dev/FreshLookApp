@@ -427,8 +427,9 @@ export default function CreateAppointmentScreen() {
 const styles = StyleSheet.create({
 
   container: {
-    padding: 20,
-    paddingBottom: 40,
+    paddingHorizontal: 20,
+    paddingTop: 22,
+    paddingBottom: 50,
   },
 
   page: {
@@ -438,22 +439,27 @@ const styles = StyleSheet.create({
   },
 
   title: {
-    fontSize: 26,
+    fontSize: 30,
     fontWeight: '800',
-    marginBottom: 20,
+    letterSpacing: -0.8,
+    marginBottom: 22,
   },
 
   card: {
-    borderRadius: 18,
-    padding: 18,
+    borderRadius: 20,
+    padding: 20,
     marginBottom: 18,
     width: '100%',
+    borderWidth: 1,
+    borderColor: 'rgba(128,128,128,0.18)',
   },
 
   sectionTitle: {
-    fontSize: 16,
+    fontSize: 13,
     fontWeight: '800',
-    marginBottom: 14,
+    letterSpacing: 1,
+    textTransform: 'uppercase',
+    marginBottom: 16,
   },
 
   label: {
@@ -465,12 +471,12 @@ const styles = StyleSheet.create({
 
   input: {
     borderWidth: 1,
-    borderRadius: 12,
+    borderRadius: 14,
     paddingHorizontal: 14,
     paddingVertical: 12,
     marginBottom: 12,
     fontSize: 15,
-    fontWeight: '700',
+    fontWeight: '600',
     width: '100%',
   },
 

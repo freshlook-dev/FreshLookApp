@@ -14,10 +14,10 @@ import { useTheme } from '../../context/ThemeContext';
 import { DarkColors, LightColors } from '../../constants/colors';
 
 const CLIENT_TABS = [
-  { href: '/client', label: 'Home', icon: 'home-outline' },
-  { href: '/client/appointments', label: 'Visits', icon: 'calendar-outline' },
-  { href: '/client/rewards', label: 'Rewards', icon: 'gift-outline' },
-  { href: '/client/profile', label: 'Profile', icon: 'person-outline' },
+  { href: '/client', label: 'Home', icon: 'home-outline', activeIcon: 'home' },
+  { href: '/client/appointments', label: 'Visits', icon: 'calendar-outline', activeIcon: 'calendar' },
+  { href: '/client/rewards', label: 'Rewards', icon: 'gift-outline', activeIcon: 'gift' },
+  { href: '/client/profile', label: 'Profile', icon: 'person-outline', activeIcon: 'person' },
 ] as const;
 
 export default function ClientLayout() {
@@ -74,9 +74,15 @@ export default function ClientLayout() {
               style={styles.navItem}
               onPress={() => router.replace(item.href as any)}
             >
+              <View
+                style={[
+                  styles.activeIndicator,
+                  { backgroundColor: active ? Colors.primary : 'transparent' },
+                ]}
+              />
               <Ionicons
-                name={item.icon}
-                size={22}
+                name={active ? item.activeIcon : item.icon}
+                size={21}
                 color={active ? Colors.primary : Colors.muted}
               />
               <Text
@@ -112,18 +118,30 @@ const styles = StyleSheet.create({
   nav: {
     borderTopWidth: 1,
     flexDirection: 'row',
-    paddingTop: 10,
-    paddingHorizontal: 6,
+    paddingTop: 8,
+    paddingHorizontal: 10,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: -8 },
+    shadowOpacity: 0.05,
+    shadowRadius: 18,
+    elevation: 8,
   },
   navItem: {
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    minHeight: 54,
-    gap: 3,
+    minHeight: 58,
+    gap: 4,
+  },
+  activeIndicator: {
+    width: 22,
+    height: 3,
+    borderRadius: 2,
+    marginBottom: 3,
   },
   navLabel: {
-    fontSize: 11,
-    fontWeight: '800',
+    fontSize: 10,
+    fontWeight: '700',
+    letterSpacing: 0.2,
   },
 });

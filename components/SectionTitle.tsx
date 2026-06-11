@@ -18,8 +18,10 @@ export function SectionTitle({ children }: { children: string }) {
 
 const styles = StyleSheet.create({
   title: {
-    fontSize: 22,
-    fontWeight: '700',
-    marginBottom: Spacing.md,
+    fontSize: 25,
+    lineHeight: 31,
+    fontWeight: '800',
+    letterSpacing: -0.6,
+    marginBottom: 18,
   },
 });

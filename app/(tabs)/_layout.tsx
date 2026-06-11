@@ -18,11 +18,11 @@ import { LightColors, DarkColors } from '../../constants/colors';
 /* 🖼 HEADER LOGO */
 const HeaderLogo = () => (
   <Image
-    source={require('../../assets/images/logo.png')}
+    source={require('../../assets/images/LOGO_HORIZONTAL.png')}
     style={{
-      width: 80,
-      height: 80,
-      marginLeft: 25,
+      width: 118,
+      height: 34,
+      marginLeft: 18,
     }}
     resizeMode="contain"
   />
@@ -105,12 +105,14 @@ export default function TabsLayout() {
 
         /* ✅ HEADER THEME */
         headerStyle: {
-          backgroundColor: Colors.background,
+          backgroundColor: Colors.card,
         },
+        headerShadowVisible: false,
         headerTintColor: Colors.text,
         headerTitleStyle: {
           color: Colors.text,
-          fontWeight: '700',
+          fontWeight: '800',
+          fontSize: 15,
         },
 
         /* ✅ TAB BAR THEME */
@@ -118,21 +120,27 @@ export default function TabsLayout() {
         tabBarInactiveTintColor: Colors.muted,
 
         tabBarStyle: {
-          backgroundColor: Colors.background,
+          backgroundColor: Colors.card,
           borderTopWidth: 1,
-          borderTopColor: Colors.muted,
-          height: 70 + insets.bottom,
-          paddingBottom: Math.max(insets.bottom - 6, 8),
+          borderTopColor: Colors.border,
+          height: 74 + insets.bottom,
+          paddingBottom: Math.max(insets.bottom - 4, 10),
+          paddingTop: 7,
+          shadowColor: '#000',
+          shadowOffset: { width: 0, height: -6 },
+          shadowOpacity: 0.05,
+          shadowRadius: 16,
+          elevation: 8,
         },
 
         tabBarLabelStyle: {
           fontSize: 11,
-          fontWeight: '600',
+          fontWeight: '700',
           marginBottom: 4,
         },
 
         tabBarItemStyle: {
-          paddingTop: 6,
+          paddingTop: 3,
         },
       }}
     >

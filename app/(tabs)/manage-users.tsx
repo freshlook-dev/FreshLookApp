@@ -325,20 +325,24 @@ export default function ManageUsersScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    padding: 20,
+    paddingHorizontal: 20,
+    paddingTop: 22,
   },
   title: {
-    fontSize: 24,
+    fontSize: 30,
     fontWeight: '800',
-    marginBottom: 16,
+    letterSpacing: -0.8,
+    marginBottom: 20,
   },
   row: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
     padding: 16,
-    borderRadius: 14,
+    borderRadius: 18,
     marginBottom: 10,
+    borderWidth: 1,
+    borderColor: 'rgba(128,128,128,0.18)',
   },
   name: {
     fontSize: 15,
@@ -357,7 +361,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#C9A24D',
     paddingVertical: 8,
     paddingHorizontal: 14,
-    borderRadius: 20,
+    borderRadius: 22,
   },
   changeBtnText: {
     color: '#fff',

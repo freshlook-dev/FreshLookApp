@@ -220,7 +220,8 @@ export default function StatsScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    padding: 20,
+    paddingHorizontal: 20,
+    paddingTop: 22,
   },
   center: {
     flex: 1,
@@ -228,14 +229,17 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   title: {
-    fontSize: 24,
+    fontSize: 30,
     fontWeight: '800',
-    marginBottom: 16,
+    letterSpacing: -0.8,
+    marginBottom: 20,
   },
   card: {
-    borderRadius: 18,
-    padding: 16,
+    borderRadius: 20,
+    padding: 18,
     marginBottom: 14,
+    borderWidth: 1,
+    borderColor: 'rgba(128,128,128,0.18)',
   },
 
   userRow: {

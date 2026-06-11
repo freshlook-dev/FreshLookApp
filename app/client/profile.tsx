@@ -2,155 +2,167 @@ import { Pressable, ScrollView, StyleSheet, Switch, Text, View } from 'react-nat
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../../context/AuthContext';
 import { useTheme } from '../../context/ThemeContext';
-import { DarkColors, LightColors } from '../../constants/colors';
+import {
+  PremiumCard,
+  ScreenHeader,
+  useClientColors,
+} from '../../components/ClientUI';
 
 export default function ProfileScreen() {
   const { profile, logout } = useAuth();
   const { theme, toggleTheme } = useTheme();
-  const Colors = theme === 'dark' ? DarkColors : LightColors;
+  const Colors = useClientColors();
+  const displayName = profile?.full_name || 'FreshLook Client';
 
   return (
     <ScrollView
       style={{ backgroundColor: Colors.background }}
       contentContainerStyle={styles.content}
     >
-      <Text style={[styles.title, { color: Colors.text }]}>Profile</Text>
-      <Text style={[styles.subtitle, { color: Colors.muted }]}>
-        Your FreshLook client account.
-      </Text>
+      <ScreenHeader
+        eyebrow="Membership"
+        title="Profile"
+        subtitle="Your personal details and FreshLook preferences."
+      />
 
-      <View style={[styles.card, { backgroundColor: Colors.card, borderColor: Colors.border }]}>
-        <View style={[styles.avatar, { backgroundColor: Colors.primary }]}>
-          <Text style={styles.avatarText}>
-            {(profile?.full_name || profile?.email || 'F').slice(0, 1).toUpperCase()}
-          </Text>
+      <PremiumCard elevated style={styles.identityCard}>
+        <View style={[styles.avatarRing, { borderColor: Colors.primarySoft }]}>
+          <View style={[styles.avatar, { backgroundColor: Colors.primary }]}>
+            <Text style={[styles.avatarText, { color: Colors.onPrimary }]}>
+              {(profile?.full_name || profile?.email || 'F').slice(0, 1).toUpperCase()}
+            </Text>
+          </View>
         </View>
-        <Text style={[styles.name, { color: Colors.text }]}>
-          {profile?.full_name || 'FreshLook Client'}
-        </Text>
+        <Text style={[styles.name, { color: Colors.text }]}>{displayName}</Text>
         <Text style={[styles.email, { color: Colors.muted }]}>{profile?.email}</Text>
-      </View>
-
-      <View style={[styles.card, { backgroundColor: Colors.card, borderColor: Colors.border }]}>
-        <Row label="Phone" value={profile?.phone || 'Not added'} />
-        <Row label="Fresh Points" value={String(profile?.points ?? 0)} />
-        <Row label="Account" value={profile?.is_active === false ? 'Inactive' : 'Active'} />
-      </View>
-
-      <View style={[styles.setting, { backgroundColor: Colors.card, borderColor: Colors.border }]}>
-        <View style={styles.settingLabel}>
-          <Ionicons name="moon-outline" size={20} color={Colors.primary} />
-          <Text style={[styles.settingText, { color: Colors.text }]}>Dark mode</Text>
+        <View style={[styles.memberBadge, { backgroundColor: Colors.primarySoft }]}>
+          <Ionicons name="sparkles-outline" size={14} color={Colors.primary} />
+          <Text style={[styles.memberText, { color: Colors.primary }]}>FreshLook Member</Text>
         </View>
-        <Switch value={theme === 'dark'} onValueChange={toggleTheme} />
-      </View>
+      </PremiumCard>
+
+      <Text style={[styles.sectionLabel, { color: Colors.primary }]}>Account details</Text>
+      <PremiumCard style={styles.detailsCard}>
+        <ProfileRow
+          icon="call-outline"
+          label="Phone"
+          value={profile?.phone || 'Not added'}
+        />
+        <Divider />
+        <ProfileRow
+          icon="diamond-outline"
+          label="Fresh Points"
+          value={String(profile?.points ?? 0)}
+          accent
+        />
+        <Divider />
+        <ProfileRow
+          icon="shield-checkmark-outline"
+          label="Account status"
+          value={profile?.is_active === false ? 'Inactive' : 'Active'}
+        />
+      </PremiumCard>
+
+      <Text style={[styles.sectionLabel, { color: Colors.primary }]}>Preferences</Text>
+      <PremiumCard style={styles.settingsCard}>
+        <View style={styles.settingRow}>
+          <View style={[styles.settingIcon, { backgroundColor: Colors.primarySoft }]}>
+            <Ionicons name={theme === 'dark' ? 'moon-outline' : 'sunny-outline'} size={20} color={Colors.primary} />
+          </View>
+          <View style={styles.settingCopy}>
+            <Text style={[styles.settingTitle, { color: Colors.text }]}>Dark mode</Text>
+            <Text style={[styles.settingSubtitle, { color: Colors.muted }]}>Adjust the app appearance</Text>
+          </View>
+          <Switch
+            value={theme === 'dark'}
+            onValueChange={toggleTheme}
+            trackColor={{ false: Colors.border, true: Colors.primarySoft }}
+            thumbColor={theme === 'dark' ? Colors.primary : Colors.muted}
+          />
+        </View>
+      </PremiumCard>
 
       <Pressable
-        style={[styles.logout, { borderColor: Colors.border }]}
+        style={[styles.logout, { borderColor: Colors.border, backgroundColor: Colors.card }]}
         onPress={logout}
       >
-        <Ionicons name="log-out-outline" size={20} color={Colors.danger} />
+        <View style={[styles.logoutIcon, { backgroundColor: `${Colors.danger}18` }]}>
+          <Ionicons name="log-out-outline" size={19} color={Colors.danger} />
+        </View>
         <Text style={[styles.logoutText, { color: Colors.danger }]}>Sign out</Text>
+        <Ionicons name="chevron-forward" size={18} color={Colors.danger} />
       </Pressable>
     </ScrollView>
   );
 }
 
-function Row({ label, value }: { label: string; value: string }) {
-  const { theme } = useTheme();
-  const Colors = theme === 'dark' ? DarkColors : LightColors;
-
+function ProfileRow({
+  icon,
+  label,
+  value,
+  accent = false,
+}: {
+  icon: keyof typeof Ionicons.glyphMap;
+  label: string;
+  value: string;
+  accent?: boolean;
+}) {
+  const Colors = useClientColors();
   return (
-    <View style={styles.row}>
-      <Text style={[styles.rowLabel, { color: Colors.muted }]}>{label}</Text>
-      <Text style={[styles.rowValue, { color: Colors.text }]}>{value}</Text>
+    <View style={styles.profileRow}>
+      <View style={[styles.rowIcon, { backgroundColor: Colors.surface }]}>
+        <Ionicons name={icon} size={19} color={Colors.primary} />
+      </View>
+      <View style={styles.rowCopy}>
+        <Text style={[styles.rowLabel, { color: Colors.muted }]}>{label}</Text>
+        <Text style={[styles.rowValue, { color: accent ? Colors.primary : Colors.text }]}>{value}</Text>
+      </View>
     </View>
   );
 }
 
+function Divider() {
+  const Colors = useClientColors();
+  return <View style={[styles.divider, { backgroundColor: Colors.border }]} />;
+}
+
 const styles = StyleSheet.create({
-  content: {
-    padding: 20,
-    paddingBottom: 110,
+  content: { paddingHorizontal: 22, paddingTop: 24, paddingBottom: 118 },
+  identityCard: { alignItems: 'center', paddingVertical: 25, marginBottom: 28 },
+  avatarRing: {
+    width: 92, height: 92, borderRadius: 46, borderWidth: 6,
+    alignItems: 'center', justifyContent: 'center', marginBottom: 15,
   },
-  title: {
-    fontSize: 30,
-    fontWeight: '900',
+  avatar: { width: 74, height: 74, borderRadius: 37, alignItems: 'center', justifyContent: 'center' },
+  avatarText: { fontSize: 29, fontWeight: '800' },
+  name: { fontSize: 23, fontWeight: '800', letterSpacing: -0.4, textAlign: 'center' },
+  email: { fontSize: 14, marginTop: 5, textAlign: 'center' },
+  memberBadge: {
+    flexDirection: 'row', alignItems: 'center', gap: 6, borderRadius: 999,
+    paddingHorizontal: 11, paddingVertical: 7, marginTop: 15,
   },
-  subtitle: {
-    fontSize: 15,
-    lineHeight: 22,
-    marginTop: 6,
-    marginBottom: 18,
+  memberText: { fontSize: 11, fontWeight: '800', letterSpacing: 0.5, textTransform: 'uppercase' },
+  sectionLabel: {
+    fontSize: 11, fontWeight: '800', letterSpacing: 1.3,
+    textTransform: 'uppercase', marginBottom: 10, marginLeft: 2,
   },
-  card: {
-    borderWidth: 1,
-    borderRadius: 8,
-    padding: 18,
-    marginBottom: 14,
-  },
-  avatar: {
-    width: 76,
-    height: 76,
-    borderRadius: 38,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 12,
-  },
-  avatarText: {
-    color: '#fff',
-    fontSize: 30,
-    fontWeight: '900',
-  },
-  name: {
-    fontSize: 22,
-    fontWeight: '900',
-  },
-  email: {
-    fontSize: 14,
-    marginTop: 4,
-  },
-  row: {
-    paddingVertical: 10,
-  },
-  rowLabel: {
-    fontSize: 13,
-    fontWeight: '800',
-    marginBottom: 4,
-  },
-  rowValue: {
-    fontSize: 16,
-    fontWeight: '700',
-  },
-  setting: {
-    borderWidth: 1,
-    borderRadius: 8,
-    padding: 16,
-    marginBottom: 14,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-  },
-  settingLabel: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-  },
-  settingText: {
-    fontSize: 16,
-    fontWeight: '800',
-  },
+  detailsCard: { paddingVertical: 6, marginBottom: 25 },
+  profileRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 13 },
+  rowIcon: { width: 42, height: 42, borderRadius: 13, alignItems: 'center', justifyContent: 'center' },
+  rowCopy: { flex: 1, marginLeft: 13 },
+  rowLabel: { fontSize: 12, fontWeight: '600', marginBottom: 3 },
+  rowValue: { fontSize: 15, fontWeight: '700' },
+  divider: { height: 1, marginLeft: 55 },
+  settingsCard: { paddingVertical: 8, marginBottom: 14 },
+  settingRow: { minHeight: 58, flexDirection: 'row', alignItems: 'center' },
+  settingIcon: { width: 42, height: 42, borderRadius: 13, alignItems: 'center', justifyContent: 'center' },
+  settingCopy: { flex: 1, marginLeft: 13 },
+  settingTitle: { fontSize: 15, fontWeight: '700' },
+  settingSubtitle: { fontSize: 12, marginTop: 3 },
   logout: {
-    borderWidth: 1,
-    borderRadius: 8,
-    padding: 16,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 8,
+    minHeight: 64, borderWidth: 1, borderRadius: 18, paddingHorizontal: 15,
+    flexDirection: 'row', alignItems: 'center', gap: 12,
   },
-  logoutText: {
-    fontSize: 16,
-    fontWeight: '900',
-  },
+  logoutIcon: { width: 38, height: 38, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
+  logoutText: { flex: 1, fontSize: 15, fontWeight: '700' },
 });

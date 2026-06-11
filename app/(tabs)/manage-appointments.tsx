@@ -371,7 +371,8 @@ export default function ManageAppointmentsScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    padding: 20,
+    paddingHorizontal: 20,
+    paddingTop: 22,
   },
   center: {
     flex: 1,
@@ -379,13 +380,14 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   title: {
-    fontSize: 24,
+    fontSize: 30,
     fontWeight: '800',
-    marginBottom: 16,
+    letterSpacing: -0.8,
+    marginBottom: 20,
   },
   searchInput: {
     borderWidth: 1,
-    borderRadius: 12,
+    borderRadius: 15,
     paddingHorizontal: 14,
     paddingVertical: 12,
     fontSize: 15,
@@ -397,9 +399,11 @@ const styles = StyleSheet.create({
   row: {
     flexDirection: 'row',
     alignItems: 'center',
-    borderRadius: 14,
-    padding: 14,
+    borderRadius: 18,
+    padding: 17,
     marginBottom: 10,
+    borderWidth: 1,
+    borderColor: 'rgba(128,128,128,0.18)',
   },
   appointmentInfo: {
     flex: 1,
@@ -435,8 +439,8 @@ const styles = StyleSheet.create({
     width: '100%',
     maxWidth: 460,
     maxHeight: '78%',
-    borderRadius: 18,
-    padding: 18,
+    borderRadius: 22,
+    padding: 20,
   },
   modalTitle: {
     fontSize: 18,

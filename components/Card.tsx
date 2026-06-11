@@ -18,7 +18,7 @@ export function Card({ children, style }: CardProps) {
     <View
       style={[
         styles.card,
-        { backgroundColor: Colors.card },
+        { backgroundColor: Colors.card, borderColor: Colors.border },
         style,
       ]}
     >
@@ -29,8 +29,14 @@ export function Card({ children, style }: CardProps) {
 
 const styles = StyleSheet.create({
   card: {
-    padding: Spacing.md,
-    borderRadius: Radius.md,
-    marginBottom: Spacing.sm,
+    padding: 18,
+    borderRadius: 18,
+    borderWidth: 1,
+    marginBottom: 12,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 5 },
+    shadowOpacity: 0.05,
+    shadowRadius: 16,
+    elevation: 2,
   },
 });

@@ -426,15 +426,15 @@ export default function EditAppointment() {
 /* ---------------- STYLES ---------------- */
 
 const styles = StyleSheet.create({
-  container: { padding: 20 },
-  title: { fontSize: 26, fontWeight: '800', marginBottom: 20 },
-  card: { padding: 16, borderRadius: 16, marginBottom: 16 },
+  container: { paddingHorizontal: 20, paddingTop: 22, paddingBottom: 50 },
+  title: { fontSize: 30, fontWeight: '800', letterSpacing: -0.8, marginBottom: 22 },
+  card: { padding: 18, borderRadius: 20, marginBottom: 16, borderWidth: 1, borderColor: 'rgba(128,128,128,0.18)' },
   label: { fontSize: 13, marginBottom: 6 },
-  input: { borderWidth: 1, borderRadius: 12, padding: 14 },
-  option: { padding: 12, borderRadius: 10, borderWidth: 1, marginBottom: 8 },
+  input: { borderWidth: 1, borderRadius: 14, padding: 14 },
+  option: { padding: 13, borderRadius: 13, borderWidth: 1, marginBottom: 8 },
   optionText: { fontWeight: '600' },
   timeGrid: { flexDirection: 'row', flexWrap: 'wrap' },
-  timeSlot: { width: '30%', margin: '1.5%', padding: 10, borderWidth: 1, borderRadius: 10 },
+  timeSlot: { width: '30%', margin: '1.5%', padding: 11, borderWidth: 1, borderRadius: 13 },
   button: { padding: 18, borderRadius: 16, alignItems: 'center' },
   buttonText: { color: '#fff', fontWeight: '800' },
   center: { flex: 1, justifyContent: 'center', alignItems: 'center' },

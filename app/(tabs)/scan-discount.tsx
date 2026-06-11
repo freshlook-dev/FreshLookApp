@@ -606,7 +606,8 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   container: {
-    padding: 20,
+    paddingHorizontal: 20,
+    paddingTop: 22,
     paddingBottom: 96,
   },
   center: {
@@ -615,19 +616,22 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   title: {
-    fontSize: 24,
+    fontSize: 30,
     fontWeight: '800',
-    marginBottom: 16,
+    letterSpacing: -0.8,
+    marginBottom: 20,
   },
   card: {
-    borderRadius: 18,
-    padding: 16,
+    borderRadius: 20,
+    padding: 18,
+    borderWidth: 1,
+    borderColor: 'rgba(128,128,128,0.18)',
   },
   cameraPlaceholder: {
     aspectRatio: 1,
     borderWidth: 1,
     borderStyle: 'dashed',
-    borderRadius: 14,
+    borderRadius: 18,
     justifyContent: 'center',
     alignItems: 'center',
     padding: 20,

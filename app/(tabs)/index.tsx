@@ -12,6 +12,7 @@ import {
   Platform,
   Modal,
 } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 
 import { useAuth } from '../../context/AuthContext';
 import { supabase } from '../../context/supabase';
@@ -200,7 +201,8 @@ export default function HomeTab() {
       </View>
 
       <View style={styles.statsRow}>
-        <View style={[styles.statBox, { backgroundColor: Colors.card }]}>
+        <View style={[styles.statBox, { backgroundColor: Colors.card, borderColor: Colors.border }]}>
+          <Ionicons name="today-outline" size={18} color={Colors.primary} />
           <View style={styles.smallStat}>
             <Text style={[styles.smallNumber, { color: Colors.primary }]}>
               {upcomingCount}
@@ -211,7 +213,8 @@ export default function HomeTab() {
           </View>
         </View>
 
-        <View style={[styles.statBox, { backgroundColor: Colors.card }]}>
+        <View style={[styles.statBox, { backgroundColor: Colors.card, borderColor: Colors.border }]}>
+          <Ionicons name="add-circle-outline" size={18} color={Colors.primary} />
           <View style={styles.smallStat}>
             <Text style={[styles.smallNumber, { color: Colors.primary }]}>
               {totalCount}
@@ -222,7 +225,8 @@ export default function HomeTab() {
           </View>
         </View>
 
-        <View style={[styles.statBox, { backgroundColor: Colors.card }]}>
+        <View style={[styles.statBox, { backgroundColor: Colors.card, borderColor: Colors.border }]}>
+          <Ionicons name="location-outline" size={18} color={Colors.primary} />
           <View style={styles.smallStat}>
             <Text style={[styles.smallNumber, { color: Colors.primary }]}>
               {prishtinaToday}
@@ -233,7 +237,8 @@ export default function HomeTab() {
           </View>
         </View>
 
-        <View style={[styles.statBox, styles.lastStatBox, { backgroundColor: Colors.card }]}>
+        <View style={[styles.statBox, styles.lastStatBox, { backgroundColor: Colors.card, borderColor: Colors.border }]}>
+          <Ionicons name="business-outline" size={18} color={Colors.primary} />
           <View style={styles.smallStat}>
             <Text style={[styles.smallNumber, { color: Colors.primary }]}>
               {fusheToday}
@@ -345,7 +350,8 @@ export default function HomeTab() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    padding: Spacing.lg,
+    paddingHorizontal: 20,
+    paddingTop: 22,
   },
   center: {
     flex: 1,
@@ -357,18 +363,23 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     gap: 14,
-    marginBottom: Spacing.lg,
+    marginBottom: 24,
   },
   homeHeaderText: {
     flex: 1,
     minWidth: 0,
   },
   welcome: {
-    fontSize: 14,
+    fontSize: 11,
+    fontWeight: '800',
+    letterSpacing: 1.2,
+    textTransform: 'uppercase',
+    marginBottom: 4,
   },
   name: {
-    fontSize: 26,
+    fontSize: 28,
     fontWeight: '800',
+    letterSpacing: -0.7,
   },
   homeAvatarWrap: {
     width: 62,
@@ -379,20 +390,22 @@ const styles = StyleSheet.create({
     width: 62,
     height: 62,
     borderRadius: 31,
+    borderWidth: 2,
   },
   statsRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    marginBottom: Spacing.lg,
+    marginBottom: 28,
     width: '100%',
   },
   statBox: {
-    width: '23.5%',
+    width: '23%',
     flexShrink: 0,
-    borderRadius: 12,
-    paddingHorizontal: 2,
-    paddingVertical: 8,
-    marginRight: 4,
+    borderRadius: 17,
+    borderWidth: 1,
+    paddingHorizontal: 5,
+    paddingVertical: 12,
+    alignItems: 'center',
   },
   lastStatBox: {
     marginRight: 0,
@@ -402,19 +415,21 @@ const styles = StyleSheet.create({
     minWidth: 0,
   },
   smallNumber: {
-    fontSize: 16,
+    fontSize: 20,
     fontWeight: '800',
+    marginTop: 5,
   },
   smallLabel: {
     marginTop: 2,
-    fontSize: 9,
-    fontWeight: '600',
+    fontSize: 10,
+    fontWeight: '700',
     textAlign: 'center',
   },
   sectionTitle: {
-    marginBottom: Spacing.sm,
-    fontSize: 16,
-    fontWeight: '700',
+    marginBottom: 13,
+    fontSize: 20,
+    fontWeight: '800',
+    letterSpacing: -0.4,
   },
   staffRow: {
     flexDirection: 'row',
@@ -426,17 +441,17 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   avatar: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    marginRight: 10,
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    marginRight: 12,
   },
   staffName: {
     fontSize: 15,
-    fontWeight: '600',
+    fontWeight: '700',
   },
   staffCount: {
-    fontSize: 18,
+    fontSize: 20,
     fontWeight: '800',
   },
   avatarOverlay: {

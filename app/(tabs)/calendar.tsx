@@ -130,6 +130,7 @@ export default function CalendarTab() {
       <SectionTitle>Calendar</SectionTitle>
 
       <Calendar
+        style={[styles.calendar, { backgroundColor: Colors.card, borderColor: Colors.border }]}
         minDate={today}
         disableAllTouchEventsForDisabledDays
         markedDates={{
@@ -158,7 +159,7 @@ export default function CalendarTab() {
         }
         theme={{
           backgroundColor: Colors.background,
-          calendarBackground: Colors.background,
+          calendarBackground: Colors.card,
           dayTextColor: Colors.text,
           monthTextColor: Colors.text,
           textSectionTitleColor: Colors.muted,
@@ -230,7 +231,8 @@ export default function CalendarTab() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    padding: Spacing.lg,
+    paddingHorizontal: 20,
+    paddingTop: 22,
   },
   center: {
     flex: 1,
@@ -238,8 +240,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   client: {
-    fontSize: 16,
-    fontWeight: '700',
+    fontSize: 17,
+    fontWeight: '800',
   },
   service: {
     fontSize: 14,
@@ -265,8 +267,19 @@ const styles = StyleSheet.create({
     fontStyle: 'italic',
   },
   empty: {
-    marginTop: Spacing.md,
+    marginVertical: 22,
     textAlign: 'center',
-    fontStyle: 'italic',
+    fontSize: 14,
+  },
+  calendar: {
+    borderWidth: 1,
+    borderRadius: 20,
+    padding: 8,
+    marginBottom: 16,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 5 },
+    shadowOpacity: 0.05,
+    shadowRadius: 16,
+    elevation: 2,
   },
 });
