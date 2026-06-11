@@ -911,8 +911,8 @@ const styles = StyleSheet.create({
   container: {
     flexGrow: 1,
     paddingHorizontal: 20,
-    paddingTop: 22,
-    paddingBottom: 50,
+    paddingTop: 18,
+    paddingBottom: 120,
   },
   pageTitle: {
     fontSize: 30,

@@ -79,6 +79,7 @@ export default function TabsLayout() {
       screenOptions={{
         headerShown: true,
         headerTitleAlign: 'center',
+        headerStatusBarHeight: 0,
 
         /* 🖼 LOGO ON LEFT */
         headerLeft: () => <HeaderLogo />,
@@ -91,7 +92,10 @@ export default function TabsLayout() {
           });
 
           return (
-            <Pressable onPress={hardRefresh} style={{ marginRight: 20 }}>
+            <Pressable
+              onPress={hardRefresh}
+              style={{ marginRight: 16, padding: 8 }}
+            >
               <Animated.View style={{ transform: [{ rotate: spin }] }}>
                 <Ionicons
                   name="refresh"
@@ -123,9 +127,9 @@ export default function TabsLayout() {
           backgroundColor: Colors.card,
           borderTopWidth: 1,
           borderTopColor: Colors.border,
-          height: 74 + insets.bottom,
-          paddingBottom: Math.max(insets.bottom - 4, 10),
-          paddingTop: 7,
+          height: 62 + insets.bottom,
+          paddingBottom: Math.max(insets.bottom, 8),
+          paddingTop: 6,
           shadowColor: '#000',
           shadowOffset: { width: 0, height: -6 },
           shadowOpacity: 0.05,
@@ -134,13 +138,13 @@ export default function TabsLayout() {
         },
 
         tabBarLabelStyle: {
-          fontSize: 11,
+          fontSize: 9,
           fontWeight: '700',
-          marginBottom: 4,
+          marginBottom: 0,
         },
 
         tabBarItemStyle: {
-          paddingTop: 3,
+          paddingTop: 2,
         },
       }}
     >
