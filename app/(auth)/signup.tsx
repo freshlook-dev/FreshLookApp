@@ -36,28 +36,34 @@ export default function SignUpScreen() {
     const cleanName = fullName.trim();
     const cleanCode = accessCode.trim();
 
-    if (!cleanEmail || !password || !cleanName || !cleanCode) {
-      Alert.alert('Error', 'All fields are required');
+    if (!cleanEmail || !password || !cleanName) {
+      Alert.alert('Error', 'Name, email, and password are required');
       return;
     }
 
     setLoading(true);
 
     try {
-      const { data: codeData, error: codeError } = await supabase
-        .from('access_codes')
-        .select('id, role, used')
-        .eq('code', cleanCode)
-        .eq('used', false)
-        .maybeSingle();
+      let codeData: { id: string } | null = null;
 
-      if (codeError || !codeData) {
-        setLoading(false);
-        Alert.alert('Invalid code', 'Access code is invalid or already used');
-        return;
+      if (cleanCode) {
+        const { data, error: codeError } = await supabase
+          .from('access_codes')
+          .select('id')
+          .eq('code', cleanCode)
+          .eq('role', 'staff')
+          .eq('used', false)
+          .maybeSingle();
+
+        if (codeError || !data) {
+          Alert.alert('Invalid code', 'Access code is invalid or already used');
+          return;
+        }
+
+        codeData = data;
       }
 
-      const nextRole = codeData.role;
+      const nextRole = codeData ? 'staff' : 'client';
 
       const { data: signUpData, error: signUpError } =
         await supabase.auth.signUp({
@@ -77,26 +83,29 @@ export default function SignUpScreen() {
         return;
       }
 
-      const userId = signUpData.user.id;
+      if (codeData) {
+        const { error: codeUpdateError } = await supabase
+          .from('access_codes')
+          .update({ used: true })
+          .eq('id', codeData.id)
+          .eq('used', false);
 
-      const { error: codeUpdateError } = await supabase
-        .from('access_codes')
-        .update({ used: true })
-        .eq('id', codeData.id);
+        if (codeUpdateError) {
+          Alert.alert('Access code error', codeUpdateError.message);
+          return;
+        }
 
-      if (codeUpdateError) {
-        setLoading(false);
-        Alert.alert('Access code error', codeUpdateError.message);
-        return;
+        await supabase.from('audit_logs').insert({
+          actor_id: signUpData.user.id,
+          action: 'USE_ACCESS_CODE',
+          target_id: codeData.id,
+        });
       }
 
-      await supabase.from('audit_logs').insert({
-        actor_id: userId,
-        action: 'USE_ACCESS_CODE',
-        target_id: codeData.id,
-      });
-
-      Alert.alert('Success', 'Account created successfully');
+      Alert.alert(
+        'Success',
+        `Account created successfully as ${nextRole}`
+      );
     } catch (err) {
       console.error(err);
       Alert.alert('Error', 'Something went wrong');
@@ -128,7 +137,7 @@ export default function SignUpScreen() {
               Create Account
             </Text>
             <Text style={[styles.subtitle, { color: Colors.muted }]}>
-              Join Fresh Look internal platform
+              Create a client account or enter a staff access code
             </Text>
           </View>
 
@@ -187,7 +196,7 @@ export default function SignUpScreen() {
             />
 
             <TextInput
-              placeholder="5-digit Access Code"
+              placeholder="5-digit Staff Access Code (optional)"
               placeholderTextColor={Colors.muted}
               keyboardType="number-pad"
               maxLength={5}
