@@ -53,8 +53,8 @@ export default function ClientLayout() {
         style={[
           styles.nav,
           {
-            backgroundColor: Colors.card,
-            borderTopColor: Colors.border,
+            backgroundColor: Colors.elevated,
+            borderColor: Colors.border,
             paddingBottom:
               Platform.OS === 'web'
                 ? (`max(12px, ${bottomInset})` as any)
@@ -74,17 +74,13 @@ export default function ClientLayout() {
               style={styles.navItem}
               onPress={() => router.replace(item.href as any)}
             >
-              <View
-                style={[
-                  styles.activeIndicator,
-                  { backgroundColor: active ? Colors.primary : 'transparent' },
-                ]}
-              />
-              <Ionicons
-                name={active ? item.activeIcon : item.icon}
-                size={21}
-                color={active ? Colors.primary : Colors.muted}
-              />
+              <View style={[styles.iconBubble, { backgroundColor: active ? Colors.primarySoft : 'transparent' }]}>
+                <Ionicons
+                  name={active ? item.activeIcon : item.icon}
+                  size={21}
+                  color={active ? Colors.primary : Colors.muted}
+                />
+              </View>
               <Text
                 style={[
                   styles.navLabel,
@@ -116,32 +112,36 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   nav: {
-    borderTopWidth: 1,
+    borderWidth: 1,
+    borderRadius: 26,
     flexDirection: 'row',
-    paddingTop: 8,
-    paddingHorizontal: 10,
+    paddingTop: 7,
+    paddingHorizontal: 7,
+    marginHorizontal: 12,
+    marginBottom: 8,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: -8 },
-    shadowOpacity: 0.05,
-    shadowRadius: 18,
-    elevation: 8,
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.12,
+    shadowRadius: 24,
+    elevation: 12,
   },
   navItem: {
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    minHeight: 58,
-    gap: 4,
+    minHeight: 61,
+    gap: 3,
   },
-  activeIndicator: {
-    width: 22,
-    height: 3,
-    borderRadius: 2,
-    marginBottom: 3,
+  iconBubble: {
+    width: 40,
+    height: 31,
+    borderRadius: 13,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   navLabel: {
     fontSize: 10,
-    fontWeight: '700',
+    fontWeight: '800',
     letterSpacing: 0.2,
   },
 });

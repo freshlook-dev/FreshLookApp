@@ -20,13 +20,8 @@ export default function ProfileScreen() {
       style={{ backgroundColor: Colors.background }}
       contentContainerStyle={styles.content}
     >
-      <ScreenHeader
-        eyebrow="Membership"
-        title="Profile"
-        subtitle="Your personal details and FreshLook preferences."
-      />
-
-      <PremiumCard elevated style={styles.identityCard}>
+      <View style={[styles.hero, { backgroundColor: Colors.primary }]}>
+        <View style={styles.heroGlow} />
         <View style={[styles.avatarRing, { borderColor: Colors.primarySoft }]}>
           {profile?.avatar_url ? (
             <Image source={{ uri: profile.avatar_url }} style={styles.avatarImage} />
@@ -38,13 +33,26 @@ export default function ProfileScreen() {
             </View>
           )}
         </View>
-        <Text style={[styles.name, { color: Colors.text }]}>{displayName}</Text>
-        <Text style={[styles.email, { color: Colors.muted }]}>{profile?.email}</Text>
-        <View style={[styles.memberBadge, { backgroundColor: Colors.primarySoft }]}>
-          <Ionicons name="sparkles-outline" size={14} color={Colors.primary} />
-          <Text style={[styles.memberText, { color: Colors.primary }]}>FreshLook Member</Text>
+        <Text style={[styles.name, { color: Colors.onPrimary }]}>{displayName}</Text>
+        <Text style={[styles.email, { color: Colors.onPrimary }]}>{profile?.email}</Text>
+        <View style={styles.heroStats}>
+          <View style={styles.heroStat}>
+            <Text style={[styles.heroValue, { color: Colors.onPrimary }]}>{profile?.points ?? 0}</Text>
+            <Text style={[styles.heroLabel, { color: Colors.onPrimary }]}>Fresh Points</Text>
+          </View>
+          <View style={styles.heroDivider} />
+          <View style={styles.heroStat}>
+            <Ionicons name="checkmark-circle" size={23} color={Colors.onPrimary} />
+            <Text style={[styles.heroLabel, { color: Colors.onPrimary }]}>Active member</Text>
+          </View>
         </View>
-      </PremiumCard>
+      </View>
+
+      <View style={styles.quickActions}>
+        <QuickAction icon="calendar-outline" label="Book" onPress={() => router.push('/client/book')} />
+        <QuickAction icon="gift-outline" label="Rewards" onPress={() => router.push('/client/rewards')} />
+        <QuickAction icon="create-outline" label="Edit profile" onPress={() => router.push('/client/settings')} />
+      </View>
 
       <Text style={[styles.sectionLabel, { color: Colors.primary }]}>Account details</Text>
       <PremiumCard style={styles.detailsCard}>
@@ -53,14 +61,6 @@ export default function ProfileScreen() {
           label="Phone"
           value={profile?.phone || 'Not added'}
         />
-        <Divider />
-        <ProfileRow
-          icon="diamond-outline"
-          label="Fresh Points"
-          value={String(profile?.points ?? 0)}
-          accent
-        />
-        <Divider />
         <ProfileRow
           icon="shield-checkmark-outline"
           label="Account status"
@@ -140,9 +140,22 @@ function Divider() {
   return <View style={[styles.divider, { backgroundColor: Colors.border }]} />;
 }
 
+function QuickAction({ icon, label, onPress }: { icon: keyof typeof Ionicons.glyphMap; label: string; onPress: () => void }) {
+  const Colors = useClientColors();
+  return (
+    <Pressable style={[styles.quickAction, { backgroundColor: Colors.card, borderColor: Colors.border }]} onPress={onPress}>
+      <View style={[styles.quickIcon, { backgroundColor: Colors.primarySoft }]}>
+        <Ionicons name={icon} size={20} color={Colors.primary} />
+      </View>
+      <Text style={[styles.quickLabel, { color: Colors.text }]}>{label}</Text>
+    </Pressable>
+  );
+}
+
 const styles = StyleSheet.create({
   content: { paddingHorizontal: 22, paddingTop: 24, paddingBottom: 118 },
-  identityCard: { alignItems: 'center', paddingVertical: 25, marginBottom: 28 },
+  hero: { alignItems: 'center', paddingVertical: 29, paddingHorizontal: 20, borderRadius: 28, marginBottom: 16, overflow: 'hidden' },
+  heroGlow: { position: 'absolute', width: 220, height: 220, borderRadius: 110, right: -90, top: -100, backgroundColor: 'rgba(255,255,255,0.13)' },
   avatarRing: {
     width: 92, height: 92, borderRadius: 46, borderWidth: 6,
     alignItems: 'center', justifyContent: 'center', marginBottom: 15,
@@ -151,7 +164,16 @@ const styles = StyleSheet.create({
   avatarImage: { width: 74, height: 74, borderRadius: 37 },
   avatarText: { fontSize: 29, fontWeight: '800' },
   name: { fontSize: 23, fontWeight: '800', letterSpacing: -0.4, textAlign: 'center' },
-  email: { fontSize: 14, marginTop: 5, textAlign: 'center' },
+  email: { fontSize: 14, marginTop: 5, textAlign: 'center', opacity: 0.78 },
+  heroStats: { width: '100%', flexDirection: 'row', alignItems: 'center', marginTop: 24, paddingTop: 18, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: 'rgba(255,255,255,0.35)' },
+  heroStat: { flex: 1, alignItems: 'center', gap: 4 },
+  heroValue: { fontSize: 23, fontWeight: '900' },
+  heroLabel: { fontSize: 11, fontWeight: '700', opacity: 0.8 },
+  heroDivider: { width: 1, height: 36, backgroundColor: 'rgba(255,255,255,0.3)' },
+  quickActions: { flexDirection: 'row', gap: 10, marginBottom: 28 },
+  quickAction: { flex: 1, minHeight: 92, borderWidth: 1, borderRadius: 18, alignItems: 'center', justifyContent: 'center', gap: 8 },
+  quickIcon: { width: 39, height: 39, borderRadius: 13, alignItems: 'center', justifyContent: 'center' },
+  quickLabel: { fontSize: 11, fontWeight: '800', textAlign: 'center' },
   memberBadge: {
     flexDirection: 'row', alignItems: 'center', gap: 6, borderRadius: 999,
     paddingHorizontal: 11, paddingVertical: 7, marginTop: 15,

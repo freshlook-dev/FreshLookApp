@@ -42,6 +42,7 @@ export default function RewardsScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [customOpen, setCustomOpen] = useState(false);
   const [customPoints, setCustomPoints] = useState('');
+  const [deletingId, setDeletingId] = useState<string | null>(null);
 
   const activeRedemption = useMemo(
     () => redemptions.find((item) => item.id === selectedRedemptionId && item.status === 'pending')
@@ -121,6 +122,36 @@ export default function RewardsScreen() {
     setCustomOpen(false);
     setCustomPoints('');
     await loadRedemptions();
+  };
+
+  const deleteRedemption = async (item: Redemption) => {
+    if (item.status !== 'pending' || deletingId) return;
+
+    const remove = async () => {
+      setDeletingId(item.id);
+      const { error } = await supabase.rpc('delete_pending_reward_qr', {
+        p_redemption_id: item.id,
+      });
+      setDeletingId(null);
+
+      if (error) {
+        notify('Could not delete QR', error.message);
+        return;
+      }
+
+      if (selectedRedemptionId === item.id) setSelectedRedemptionId(null);
+      setRedemptions((current) => current.filter((redemption) => redemption.id !== item.id));
+    };
+
+    if (Platform.OS === 'web' && typeof window !== 'undefined') {
+      if (window.confirm('Delete this unused QR code?')) await remove();
+      return;
+    }
+
+    Alert.alert('Delete QR code?', 'This removes the unused reward pass from your list.', [
+      { text: 'Cancel', style: 'cancel' },
+      { text: 'Delete', style: 'destructive', onPress: () => void remove() },
+    ]);
   };
 
   return (
@@ -227,23 +258,54 @@ export default function RewardsScreen() {
         </PremiumCard>
       )}
 
+      <Pressable
+        style={[styles.adCard, { backgroundColor: Colors.card, borderColor: Colors.border }]}
+        onPress={() => notify('Coming soon', 'Video rewards are not active yet. In the future, watching a full ad will earn 10 Fresh Points.')}
+      >
+        <View style={[styles.adIcon, { backgroundColor: Colors.primarySoft }]}>
+          <Ionicons name="play" size={21} color={Colors.primary} />
+        </View>
+        <View style={styles.adCopy}>
+          <View style={styles.adTitleRow}>
+            <Text style={[styles.adTitle, { color: Colors.text }]}>Watch & earn</Text>
+            <View style={[styles.comingSoon, { backgroundColor: Colors.primarySoft }]}>
+              <Text style={[styles.comingSoonText, { color: Colors.primary }]}>Coming soon</Text>
+            </View>
+          </View>
+          <Text style={[styles.adSubtitle, { color: Colors.muted }]}>Watch a video and earn 10 Fresh Points</Text>
+        </View>
+        <Ionicons name="chevron-forward" size={19} color={Colors.muted} />
+      </Pressable>
+
       <Text style={[styles.eyebrow, styles.historyEyebrow, { color: Colors.primary }]}>History</Text>
       <PremiumCard>
         {redemptions.length === 0 ? (
           <Text style={[styles.historyEmpty, { color: Colors.muted }]}>No reward activity yet.</Text>
         ) : (
           redemptions.map((item) => (
-            <Pressable
-              key={item.id}
-              disabled={item.status !== 'pending'}
-              onPress={() => setSelectedRedemptionId(item.id)}
-              style={[styles.historyRow, { borderBottomColor: Colors.border }]}
-            >
-              <Text style={[styles.historyPoints, { color: Colors.text }]}>{item.points} pts</Text>
-              <Text style={{ color: item.status === 'pending' ? Colors.primary : Colors.muted }}>
-                {item.status === 'pending' ? 'Active' : 'Used'}
-              </Text>
-            </Pressable>
+            <View key={item.id} style={[styles.historyRow, { borderBottomColor: Colors.border }]}>
+              <Pressable
+                disabled={item.status !== 'pending'}
+                onPress={() => setSelectedRedemptionId(item.id)}
+                style={styles.historyMain}
+              >
+                <Text style={[styles.historyPoints, { color: Colors.text }]}>{item.points} pts</Text>
+                <Text style={{ color: item.status === 'pending' ? Colors.primary : Colors.muted }}>
+                  {item.status === 'pending' ? 'Active' : 'Used'}
+                </Text>
+              </Pressable>
+              {item.status === 'pending' && (
+                <Pressable
+                  onPress={() => void deleteRedemption(item)}
+                  disabled={!!deletingId}
+                  style={[styles.deleteButton, { backgroundColor: `${Colors.danger}12` }]}
+                >
+                  {deletingId === item.id
+                    ? <ActivityIndicator size="small" color={Colors.danger} />
+                    : <Ionicons name="trash-outline" size={18} color={Colors.danger} />}
+                </Pressable>
+              )}
+            </View>
           ))
         )}
       </PremiumCard>
@@ -336,6 +398,14 @@ const styles = StyleSheet.create({
   customInput: { borderWidth: 1, borderRadius: 13, paddingHorizontal: 13, paddingVertical: 13, fontSize: 16 },
   customButton: { minHeight: 50, borderRadius: 13, alignItems: 'center', justifyContent: 'center' },
   customButtonText: { fontSize: 14, fontWeight: '800' },
+  adCard: { minHeight: 82, borderWidth: 1, borderRadius: 19, paddingHorizontal: 15, flexDirection: 'row', alignItems: 'center', gap: 12, marginTop: 20 },
+  adIcon: { width: 46, height: 46, borderRadius: 15, alignItems: 'center', justifyContent: 'center' },
+  adCopy: { flex: 1 },
+  adTitleRow: { flexDirection: 'row', alignItems: 'center', gap: 8, flexWrap: 'wrap' },
+  adTitle: { fontSize: 15, fontWeight: '800' },
+  adSubtitle: { fontSize: 12, marginTop: 5 },
+  comingSoon: { borderRadius: 999, paddingHorizontal: 8, paddingVertical: 4 },
+  comingSoonText: { fontSize: 9, fontWeight: '900', textTransform: 'uppercase', letterSpacing: 0.5 },
   webHint: { fontSize: 12, lineHeight: 18, marginTop: 16, textAlign: 'center' },
   historyEyebrow: { marginTop: 28 },
   historyEmpty: { textAlign: 'center', paddingVertical: 8 },
@@ -343,5 +413,7 @@ const styles = StyleSheet.create({
     minHeight: 48, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
     borderBottomWidth: StyleSheet.hairlineWidth,
   },
+  historyMain: { flex: 1, minHeight: 55, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingRight: 12 },
+  deleteButton: { width: 38, height: 38, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
   historyPoints: { fontSize: 14, fontWeight: '700' },
 });

@@ -47,6 +47,7 @@ export default function BookAppointmentScreen() {
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [time, setTime] = useState('');
   const [bookedTimes, setBookedTimes] = useState<string[]>([]);
+  const [loadingTimes, setLoadingTimes] = useState(false);
   const [name, setName] = useState(profile?.full_name ?? '');
   const [phone, setPhone] = useState(profile?.phone ?? '');
   const [loadingServices, setLoadingServices] = useState(true);
@@ -80,24 +81,41 @@ export default function BookAppointmentScreen() {
       return;
     }
 
+    setLoadingTimes(true);
     const { data } = await supabase
       .from('appointments')
       .select('appointment_time')
       .eq('appointment_date', selectedDate)
       .eq('location', location)
-      .eq('status', 'upcoming');
+      .eq('status', 'upcoming')
+      .eq('archived', false);
 
     setBookedTimes(
       ((data ?? []) as { appointment_time: string }[]).map((item) =>
         String(item.appointment_time).substring(0, 5)
       )
     );
+    setLoadingTimes(false);
   }, [location, selectedDate]);
 
   useEffect(() => {
     setTime('');
     void loadBookedTimes();
   }, [loadBookedTimes]);
+
+  useEffect(() => {
+    if (!location) return;
+    const channel = supabase
+      .channel(`client-booking-${location}-${selectedDate}`)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'appointments' }, () => {
+        void loadBookedTimes();
+      })
+      .subscribe();
+
+    return () => {
+      void supabase.removeChannel(channel);
+    };
+  }, [loadBookedTimes, location, selectedDate]);
 
   const submit = async () => {
     if (!service || !location || !time || !name.trim() || !phone.trim()) {
@@ -112,6 +130,22 @@ export default function BookAppointmentScreen() {
 
     setSubmitting(true);
     try {
+      await loadBookedTimes();
+      const { data: occupiedRows } = await supabase
+        .from('appointments')
+        .select('id')
+        .eq('appointment_date', selectedDate)
+        .eq('appointment_time', time)
+        .eq('location', location)
+        .eq('status', 'upcoming')
+        .eq('archived', false)
+        .limit(1);
+
+      if (occupiedRows?.length) {
+        setTime('');
+        throw new Error('That time was just booked by someone else. Please choose another time.');
+      }
+
       const { data: sessionData } = await supabase.auth.getSession();
       const accessToken = sessionData.session?.access_token;
       if (!accessToken) throw new Error('Your session has expired. Please sign in again.');
@@ -220,6 +254,7 @@ export default function BookAppointmentScreen() {
           />
         )}
         <View style={styles.timeGrid}>
+          {loadingTimes && <ActivityIndicator color={Colors.primary} style={styles.timeLoader} />}
           {TIME_SLOTS.map((slot) => {
             const booked = bookedTimes.includes(slot);
             return (
@@ -237,6 +272,7 @@ export default function BookAppointmentScreen() {
                 ]}
               >
                 <Text style={{ color: time === slot ? Colors.onPrimary : Colors.text, fontWeight: '700' }}>{slot}</Text>
+                {booked && <Text style={[styles.takenText, { color: Colors.muted }]}>Taken</Text>}
               </Pressable>
             );
           })}
@@ -306,7 +342,9 @@ const styles = StyleSheet.create({
   dateButton: { minHeight: 50, borderWidth: 1, borderRadius: 13, flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 14 },
   dateText: { fontSize: 15, fontWeight: '700' },
   timeGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
-  time: { width: '30%', minHeight: 44, borderRadius: 12, borderWidth: 1, alignItems: 'center', justifyContent: 'center' },
+  timeLoader: { width: '100%', marginVertical: 5 },
+  time: { width: '30%', minHeight: 52, borderRadius: 12, borderWidth: 1, alignItems: 'center', justifyContent: 'center' },
+  takenText: { fontSize: 9, fontWeight: '700', marginTop: 2, textTransform: 'uppercase' },
   input: { minHeight: 51, borderWidth: 1, borderRadius: 13, paddingHorizontal: 14, fontSize: 15 },
   submit: { minHeight: 56, borderRadius: 16, alignItems: 'center', justifyContent: 'center', marginTop: 24 },
   submitText: { fontSize: 15, fontWeight: '800' },
