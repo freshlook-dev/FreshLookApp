@@ -9,6 +9,7 @@ import {
   View,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { router } from 'expo-router';
 import { supabase } from '../../context/supabase';
 import { useAuth } from '../../context/AuthContext';
 import { formatDate, formatTime } from '../../utils/format';
@@ -93,6 +94,14 @@ export default function AppointmentsScreen() {
         title="Your Visits"
         subtitle="Upcoming appointments and your FreshLook visit history."
       />
+
+      <Pressable
+        style={[styles.bookButton, { backgroundColor: Colors.primary }]}
+        onPress={() => router.push('/client/book' as any)}
+      >
+        <Ionicons name="add-circle-outline" size={20} color={Colors.onPrimary} />
+        <Text style={[styles.bookButtonText, { color: Colors.onPrimary }]}>Book a new appointment</Text>
+      </Pressable>
 
       <View style={[styles.segment, { backgroundColor: Colors.surface }]}>
         {(['upcoming', 'history'] as VisitTab[]).map((tab) => {
@@ -203,6 +212,11 @@ const styles = StyleSheet.create({
     paddingTop: 24,
     paddingBottom: 118,
   },
+  bookButton: {
+    minHeight: 54, borderRadius: 16, flexDirection: 'row', alignItems: 'center',
+    justifyContent: 'center', gap: 8, marginBottom: 18,
+  },
+  bookButtonText: { fontSize: 14, fontWeight: '800' },
   segment: {
     flexDirection: 'row',
     borderRadius: 16,

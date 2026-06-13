@@ -86,6 +86,14 @@ export default function HomeScreen() {
         subtitle="Everything for your next salon visit, thoughtfully kept in one place."
       />
 
+      <Pressable
+        style={[styles.bookButton, { backgroundColor: Colors.primary }]}
+        onPress={() => router.push('/client/book' as any)}
+      >
+        <Ionicons name="calendar-outline" size={20} color={Colors.onPrimary} />
+        <Text style={[styles.bookButtonText, { color: Colors.onPrimary }]}>Book a new appointment</Text>
+      </Pressable>
+
       <Pressable onPress={() => router.push('/client/rewards' as any)}>
         <View style={[styles.pointsCard, { backgroundColor: Colors.primary }]}>
           <View style={styles.pointsGlow} />
@@ -182,6 +190,11 @@ const styles = StyleSheet.create({
     paddingTop: 24,
     paddingBottom: 118,
   },
+  bookButton: {
+    minHeight: 56, borderRadius: 17, flexDirection: 'row', alignItems: 'center',
+    justifyContent: 'center', gap: 9, marginBottom: 22,
+  },
+  bookButtonText: { fontSize: 15, fontWeight: '800' },
   pointsCard: {
     minHeight: 194,
     borderRadius: 24,

@@ -15,7 +15,6 @@ import { Ionicons } from '@expo/vector-icons';
 import QRCode from 'react-native-qrcode-svg';
 import { supabase } from '../../context/supabase';
 import { useAuth } from '../../context/AuthContext';
-import { formatDateTime } from '../../utils/format';
 import {
   EmptyState,
   PremiumCard,
@@ -39,22 +38,18 @@ export default function RewardsScreen() {
   const [redemptions, setRedemptions] = useState<Redemption[]>([]);
   const [loading, setLoading] = useState(true);
   const [creating, setCreating] = useState<number | null>(null);
+  const [selectedRedemptionId, setSelectedRedemptionId] = useState<string | null>(null);
   const [refreshing, setRefreshing] = useState(false);
   const [customOpen, setCustomOpen] = useState(false);
   const [customPoints, setCustomPoints] = useState('');
 
-  const activeRedemption = useMemo(() => {
-    const now = Date.now();
-    return redemptions.find((item) => {
-      if (item.status !== 'pending') return false;
-      if (!item.expires_at) return true;
-      return new Date(item.expires_at).getTime() > now;
-    });
-  }, [redemptions]);
+  const activeRedemption = useMemo(
+    () => redemptions.find((item) => item.id === selectedRedemptionId && item.status === 'pending')
+      ?? redemptions.find((item) => item.status === 'pending'),
+    [redemptions, selectedRedemptionId]
+  );
 
-  const qrValue = activeRedemption
-    ? JSON.stringify({ redemption_id: activeRedemption.id })
-    : null;
+  const qrValue = activeRedemption?.id ?? null;
 
   const loadRedemptions = useCallback(async () => {
     if (!user?.id) return;
@@ -90,31 +85,25 @@ export default function RewardsScreen() {
 
   const createRedemption = async (points: number) => {
     if (!user?.id || creating) return;
-    if (!Number.isInteger(points) || points <= 0) {
-      notify('Invalid points', 'Enter a valid Fresh Points amount.');
+    if (!Number.isInteger(points) || points < 10) {
+      notify('Invalid points', 'Enter at least 10 Fresh Points.');
       return;
     }
     if ((profile?.points ?? 0) < points) {
       notify('Not enough points', `You need ${points} Fresh Points for this reward.`);
       return;
     }
-    if (activeRedemption) {
-      notify('QR already active', 'Use or wait for the current QR to expire before creating another one.');
-      return;
-    }
-
     setCreating(points);
-    const expiresAt = new Date(Date.now() + 15 * 60 * 1000).toISOString();
     let { data, error } = await supabase
       .from('point_redemptions')
-      .insert({ user_id: user.id, points, status: 'pending', expires_at: expiresAt })
+      .insert({ user_id: user.id, points, status: 'pending', expires_at: null })
       .select('id, points, status, expires_at, created_at')
       .single();
 
     if (error) {
       const rpcResult = await supabase.rpc('create_point_redemption_qr', {
         p_points: points,
-        p_expires_at: expiresAt,
+        p_expires_at: null,
       });
       data = rpcResult.data as Redemption | null;
       error = rpcResult.error;
@@ -125,7 +114,10 @@ export default function RewardsScreen() {
       notify('Reward unavailable', error.message);
       return;
     }
-    if (data) setRedemptions((prev) => [data as Redemption, ...prev]);
+    if (data) {
+      setRedemptions((prev) => [data as Redemption, ...prev]);
+      setSelectedRedemptionId((data as Redemption).id);
+    }
     setCustomOpen(false);
     setCustomPoints('');
     await loadRedemptions();
@@ -173,7 +165,7 @@ export default function RewardsScreen() {
               <QRCode value={qrValue} size={210} backgroundColor="#FFFFFF" />
             </View>
             <Text style={[styles.qrTitle, { color: Colors.text }]}>{activeRedemption.points} Fresh Points</Text>
-            <Text style={[styles.qrMeta, { color: Colors.muted }]}>Expires {formatDateTime(activeRedemption.expires_at)}</Text>
+            <Text style={[styles.qrMeta, { color: Colors.muted }]}>Show this QR to staff to redeem</Text>
           </>
         ) : (
           <EmptyState
@@ -186,7 +178,7 @@ export default function RewardsScreen() {
 
       <View style={styles.sectionHeading}>
         <Text style={[styles.sectionTitle, { color: Colors.text }]}>Create a reward</Text>
-        <Text style={[styles.sectionHint, { color: Colors.muted }]}>Pass expires after 15 minutes</Text>
+        <Text style={[styles.sectionHint, { color: Colors.muted }]}>The QR remains active until it is used</Text>
       </View>
       <View style={styles.options}>
         {REWARD_OPTIONS.map((points) => (
@@ -234,6 +226,27 @@ export default function RewardsScreen() {
           </Pressable>
         </PremiumCard>
       )}
+
+      <Text style={[styles.eyebrow, styles.historyEyebrow, { color: Colors.primary }]}>History</Text>
+      <PremiumCard>
+        {redemptions.length === 0 ? (
+          <Text style={[styles.historyEmpty, { color: Colors.muted }]}>No reward activity yet.</Text>
+        ) : (
+          redemptions.map((item) => (
+            <Pressable
+              key={item.id}
+              disabled={item.status !== 'pending'}
+              onPress={() => setSelectedRedemptionId(item.id)}
+              style={[styles.historyRow, { borderBottomColor: Colors.border }]}
+            >
+              <Text style={[styles.historyPoints, { color: Colors.text }]}>{item.points} pts</Text>
+              <Text style={{ color: item.status === 'pending' ? Colors.primary : Colors.muted }}>
+                {item.status === 'pending' ? 'Active' : 'Used'}
+              </Text>
+            </Pressable>
+          ))
+        )}
+      </PremiumCard>
 
       {Platform.OS === 'web' && (
         <Text style={[styles.webHint, { color: Colors.muted }]}>Tip: add FreshLook to your home screen for faster access to your reward pass.</Text>
@@ -324,4 +337,11 @@ const styles = StyleSheet.create({
   customButton: { minHeight: 50, borderRadius: 13, alignItems: 'center', justifyContent: 'center' },
   customButtonText: { fontSize: 14, fontWeight: '800' },
   webHint: { fontSize: 12, lineHeight: 18, marginTop: 16, textAlign: 'center' },
+  historyEyebrow: { marginTop: 28 },
+  historyEmpty: { textAlign: 'center', paddingVertical: 8 },
+  historyRow: {
+    minHeight: 48, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+    borderBottomWidth: StyleSheet.hairlineWidth,
+  },
+  historyPoints: { fontSize: 14, fontWeight: '700' },
 });
