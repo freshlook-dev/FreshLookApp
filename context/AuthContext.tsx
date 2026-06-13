@@ -4,12 +4,14 @@ import { createContext, useContext, useEffect, useState } from 'react';
 import { AppState, Platform } from 'react-native';
 import { AuthChangeEvent, Session, User } from '@supabase/supabase-js';
 import { supabase } from './supabase';
+import { registerPushToken } from '../utils/pushNotifications';
 
 export type Profile = {
   id: string;
   email: string | null;
   full_name: string | null;
   phone: string | null;
+  avatar_url: string | null;
   role: string | null;
   points: number | null;
   is_active: boolean | null;
@@ -31,7 +33,8 @@ const AuthContext = createContext<AuthContextType>({
   logout: async () => {},
 });
 
-const PROFILE_SELECT = 'id, email, full_name, phone, role, points, is_active';
+const PROFILE_SELECT =
+  'id, email, full_name, phone, avatar_url, role, points, is_active';
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
@@ -129,6 +132,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     if (!user?.id) return;
+
+    registerPushToken(user.id).catch((error: unknown) => {
+      console.warn('Push notification registration failed', error);
+    });
 
     const channel = supabase
       .channel(`profile-access-${user.id}`)

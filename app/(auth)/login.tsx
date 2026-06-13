@@ -65,17 +65,10 @@ export default function Login() {
       return;
     }
 
-    // 🚫 BLOCK CLIENT ROLE
+    // Send clients to their dedicated app experience.
     if (profile.role === 'client') {
-      if (Platform.OS === 'web') {
-        setLoading(false);
-        router.replace('/client' as any);
-        return;
-      }
-
-      await supabase.auth.signOut();
       setLoading(false);
-      alert('This app is only for staff.');
+      router.replace('/client' as any);
       return;
     }
 

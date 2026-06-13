@@ -70,7 +70,7 @@ export default function TabsLayout() {
   // ✅ Redirects AFTER hooks
   if (loading) return null;
   if (!user) return <Redirect href="/(auth)/login" />;
-  if (Platform.OS === 'web' && profile?.role === 'client') {
+  if (profile?.role === 'client') {
     return <Redirect href={'/client' as any} />;
   }
 
@@ -233,6 +233,14 @@ export default function TabsLayout() {
       />
 
       {/* 🔒 HIDDEN SCREENS */}
+      <Tabs.Screen
+        name="notifications"
+        options={{
+          href: null,
+          title: 'Send Notifications',
+        }}
+      />
+
       <Tabs.Screen
         name="edit"
         options={{

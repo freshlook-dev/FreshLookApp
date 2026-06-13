@@ -16,6 +16,7 @@ import {
 } from 'react-native';
 import { router } from 'expo-router';
 import { supabase } from '../../context/supabase';
+import { sendWelcomeEmail } from '../../utils/sendWelcomeEmail';
 
 /* ✅ THEME */
 import { useTheme } from '../../context/ThemeContext';
@@ -25,6 +26,7 @@ export default function SignUpScreen() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [fullName, setFullName] = useState('');
+  const [phone, setPhone] = useState('');
   const [accessCode, setAccessCode] = useState('');
   const [loading, setLoading] = useState(false);
 
@@ -34,10 +36,11 @@ export default function SignUpScreen() {
   const handleSignUp = async () => {
     const cleanEmail = email.toLowerCase().trim();
     const cleanName = fullName.trim();
+    const cleanPhone = phone.trim();
     const cleanCode = accessCode.trim();
 
-    if (!cleanEmail || !password || !cleanName) {
-      Alert.alert('Error', 'Name, email, and password are required');
+    if (!cleanEmail || !password || !cleanName || !cleanPhone) {
+      Alert.alert('Error', 'Name, phone, email, and password are required');
       return;
     }
 
@@ -72,6 +75,7 @@ export default function SignUpScreen() {
           options: {
             data: {
               full_name: cleanName,
+              phone: cleanPhone,
               role: nextRole,
             },
           },
@@ -80,6 +84,15 @@ export default function SignUpScreen() {
       if (signUpError || !signUpData.user) {
         setLoading(false);
         Alert.alert('Signup failed', signUpError?.message || 'Unknown error');
+        return;
+      }
+
+      if (!signUpData.session) {
+        Alert.alert(
+          'Account created',
+          'Automatic sign-in is unavailable. Please ask the owner to disable Confirm email in Supabase.'
+        );
+        router.replace('/(auth)/login');
         return;
       }
 
@@ -102,10 +115,9 @@ export default function SignUpScreen() {
         });
       }
 
-      Alert.alert(
-        'Success',
-        `Account created successfully as ${nextRole}`
-      );
+      void sendWelcomeEmail(signUpData.session.access_token);
+      Alert.alert('Success', `Account created successfully as ${nextRole}`);
+      router.replace(nextRole === 'client' ? '/client' : '/(tabs)');
     } catch (err) {
       console.error(err);
       Alert.alert('Error', 'Something went wrong');
@@ -147,6 +159,23 @@ export default function SignUpScreen() {
               placeholderTextColor={Colors.muted}
               value={fullName}
               onChangeText={setFullName}
+              returnKeyType="next"
+              style={[
+                styles.input,
+                {
+                  backgroundColor: Colors.background,
+                  color: Colors.text,
+                  borderColor: Colors.primary,
+                },
+              ]}
+            />
+
+            <TextInput
+              placeholder="Phone number"
+              placeholderTextColor={Colors.muted}
+              keyboardType="phone-pad"
+              value={phone}
+              onChangeText={setPhone}
               returnKeyType="next"
               style={[
                 styles.input,

@@ -679,6 +679,13 @@ export default function ProfileTab() {
             </Pressable>
 
             <Pressable
+              onPress={() => router.push('../(tabs)/notifications')}
+              style={[styles.primaryButton, { marginTop: 12 }]}
+            >
+              <Text style={styles.primaryButtonText}>Send Notifications</Text>
+            </Pressable>
+
+            <Pressable
               onPress={() => generateAccessCode('staff')}
               style={[styles.primaryButton, { marginTop: 12 }]}
             >

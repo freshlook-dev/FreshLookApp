@@ -1,4 +1,5 @@
-import { Pressable, ScrollView, StyleSheet, Switch, Text, View } from 'react-native';
+import { Image, Pressable, ScrollView, StyleSheet, Switch, Text, View } from 'react-native';
+import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../../context/AuthContext';
 import { useTheme } from '../../context/ThemeContext';
@@ -27,11 +28,15 @@ export default function ProfileScreen() {
 
       <PremiumCard elevated style={styles.identityCard}>
         <View style={[styles.avatarRing, { borderColor: Colors.primarySoft }]}>
-          <View style={[styles.avatar, { backgroundColor: Colors.primary }]}>
-            <Text style={[styles.avatarText, { color: Colors.onPrimary }]}>
-              {(profile?.full_name || profile?.email || 'F').slice(0, 1).toUpperCase()}
-            </Text>
-          </View>
+          {profile?.avatar_url ? (
+            <Image source={{ uri: profile.avatar_url }} style={styles.avatarImage} />
+          ) : (
+            <View style={[styles.avatar, { backgroundColor: Colors.primary }]}>
+              <Text style={[styles.avatarText, { color: Colors.onPrimary }]}>
+                {(profile?.full_name || profile?.email || 'F').slice(0, 1).toUpperCase()}
+              </Text>
+            </View>
+          )}
         </View>
         <Text style={[styles.name, { color: Colors.text }]}>{displayName}</Text>
         <Text style={[styles.email, { color: Colors.muted }]}>{profile?.email}</Text>
@@ -81,6 +86,15 @@ export default function ProfileScreen() {
           />
         </View>
       </PremiumCard>
+
+      <Pressable
+        style={[styles.settingsLink, { borderColor: Colors.border, backgroundColor: Colors.card }]}
+        onPress={() => router.push('/client/settings')}
+      >
+        <Ionicons name="settings-outline" size={20} color={Colors.primary} />
+        <Text style={[styles.settingsLinkText, { color: Colors.text }]}>Account settings</Text>
+        <Ionicons name="chevron-forward" size={18} color={Colors.muted} />
+      </Pressable>
 
       <Pressable
         style={[styles.logout, { borderColor: Colors.border, backgroundColor: Colors.card }]}
@@ -134,6 +148,7 @@ const styles = StyleSheet.create({
     alignItems: 'center', justifyContent: 'center', marginBottom: 15,
   },
   avatar: { width: 74, height: 74, borderRadius: 37, alignItems: 'center', justifyContent: 'center' },
+  avatarImage: { width: 74, height: 74, borderRadius: 37 },
   avatarText: { fontSize: 29, fontWeight: '800' },
   name: { fontSize: 23, fontWeight: '800', letterSpacing: -0.4, textAlign: 'center' },
   email: { fontSize: 14, marginTop: 5, textAlign: 'center' },
@@ -154,6 +169,8 @@ const styles = StyleSheet.create({
   rowValue: { fontSize: 15, fontWeight: '700' },
   divider: { height: 1, marginLeft: 55 },
   settingsCard: { paddingVertical: 8, marginBottom: 14 },
+  settingsLink: { minHeight: 60, borderWidth: 1, borderRadius: 18, paddingHorizontal: 15, flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 14 },
+  settingsLinkText: { flex: 1, fontSize: 15, fontWeight: '700' },
   settingRow: { minHeight: 58, flexDirection: 'row', alignItems: 'center' },
   settingIcon: { width: 42, height: 42, borderRadius: 13, alignItems: 'center', justifyContent: 'center' },
   settingCopy: { flex: 1, marginLeft: 13 },

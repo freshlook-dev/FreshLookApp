@@ -9,10 +9,8 @@ import {
   Pressable,
   Alert,
   ActivityIndicator,
-  Platform,
 } from 'react-native';
 import { router } from 'expo-router';
-import * as Linking from 'expo-linking';
 
 import { supabase } from '../../context/supabase';
 
@@ -36,9 +34,7 @@ export default function ForgotPasswordScreen() {
     setLoading(true);
 
     const redirectTo =
-      Platform.OS === 'web'
-        ? `${window.location.origin}/reset-password`
-        : Linking.createURL('/reset-password');
+      'https://www.freshlook-ks.com/auth/callback?next=/reset-password';
 
     const { error } = await supabase.auth.resetPasswordForEmail(
       email.trim(),
@@ -54,7 +50,7 @@ export default function ForgotPasswordScreen() {
 
     Alert.alert(
       'Check your email',
-      'We sent you a password reset link.'
+      'We sent you a password reset link. It will open the secure reset page on www.freshlook-ks.com.'
     );
 
     router.back();
