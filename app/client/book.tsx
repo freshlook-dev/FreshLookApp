@@ -2,6 +2,9 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
+  Animated,
+  Easing,
+  Modal,
   Platform,
   Pressable,
   ScrollView,
@@ -10,6 +13,7 @@ import {
   TextInput,
   View,
 } from 'react-native';
+import { useRef } from 'react';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -52,11 +56,21 @@ export default function BookAppointmentScreen() {
   const [phone, setPhone] = useState(profile?.phone ?? '');
   const [loadingServices, setLoadingServices] = useState(true);
   const [submitting, setSubmitting] = useState(false);
+  const [bookingComplete, setBookingComplete] = useState(false);
+  const successOpacity = useRef(new Animated.Value(0)).current;
+  const successScale = useRef(new Animated.Value(0.86)).current;
+  const redirectTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     setName(profile?.full_name ?? '');
     setPhone(profile?.phone ?? '');
   }, [profile?.full_name, profile?.phone]);
+
+  useEffect(() => {
+    return () => {
+      if (redirectTimeout.current) clearTimeout(redirectTimeout.current);
+    };
+  }, []);
 
   useEffect(() => {
     const loadServices = async () => {
@@ -171,9 +185,26 @@ export default function BookAppointmentScreen() {
       const result = (await response.json()) as { error?: string };
       if (!response.ok) throw new Error(result.error || 'The appointment could not be created.');
 
-      Alert.alert('Appointment requested', 'Your appointment was created successfully.', [
-        { text: 'View visits', onPress: () => router.replace('/client/appointments' as any) },
-      ]);
+      setBookingComplete(true);
+      Animated.parallel([
+        Animated.timing(successOpacity, {
+          toValue: 1,
+          duration: 220,
+          easing: Easing.out(Easing.cubic),
+          useNativeDriver: true,
+        }),
+        Animated.spring(successScale, {
+          toValue: 1,
+          damping: 12,
+          stiffness: 170,
+          mass: 0.7,
+          useNativeDriver: true,
+        }),
+      ]).start();
+
+      redirectTimeout.current = setTimeout(() => {
+        router.replace('/client' as any);
+      }, 1150);
     } catch (error) {
       Alert.alert('Booking failed', error instanceof Error ? error.message : 'Please try again.');
     } finally {
@@ -182,21 +213,22 @@ export default function BookAppointmentScreen() {
   };
 
   return (
-    <ScrollView
-      style={{ backgroundColor: Colors.background }}
-      contentContainerStyle={styles.content}
-      keyboardShouldPersistTaps="handled"
-    >
-      <Pressable style={styles.back} onPress={() => router.back()}>
-        <Ionicons name="arrow-back" size={19} color={Colors.primary} />
-        <Text style={[styles.backText, { color: Colors.primary }]}>Back</Text>
-      </Pressable>
+    <>
+      <ScrollView
+        style={{ backgroundColor: Colors.background }}
+        contentContainerStyle={styles.content}
+        keyboardShouldPersistTaps="handled"
+      >
+        <Pressable style={styles.back} onPress={() => router.back()}>
+          <Ionicons name="arrow-back" size={19} color={Colors.primary} />
+          <Text style={[styles.backText, { color: Colors.primary }]}>Back</Text>
+        </Pressable>
 
-      <ScreenHeader
-        eyebrow="Appointments"
-        title="Book a Visit"
-        subtitle="Choose from the same live services and available times shown on Fresh Look web."
-      />
+        <ScreenHeader
+          eyebrow="Appointments"
+          title="Book a Visit"
+          subtitle="Choose from the same live services and available times shown on Fresh Look web."
+        />
 
       <SectionTitle title="1. Choose a service" />
       {loadingServices ? (
@@ -299,13 +331,41 @@ export default function BookAppointmentScreen() {
       </PremiumCard>
 
       <Pressable
-        disabled={submitting}
+        disabled={submitting || bookingComplete}
         onPress={submit}
-        style={[styles.submit, { backgroundColor: Colors.primary, opacity: submitting ? 0.65 : 1 }]}
+        style={[styles.submit, { backgroundColor: Colors.primary, opacity: submitting || bookingComplete ? 0.65 : 1 }]}
       >
         {submitting ? <ActivityIndicator color={Colors.onPrimary} /> : <Text style={[styles.submitText, { color: Colors.onPrimary }]}>Confirm booking</Text>}
       </Pressable>
-    </ScrollView>
+
+      </ScrollView>
+
+      <Modal visible={bookingComplete} transparent animationType="none">
+        <Animated.View
+          style={[
+            styles.successOverlay,
+            { backgroundColor: Colors.background, opacity: successOpacity },
+          ]}
+        >
+          <Animated.View
+            style={[
+              styles.successCard,
+              {
+                backgroundColor: Colors.elevated,
+                borderColor: Colors.border,
+                transform: [{ scale: successScale }],
+              },
+            ]}
+          >
+            <View style={[styles.successIcon, { backgroundColor: Colors.primary }]}>
+              <Ionicons name="checkmark" size={38} color={Colors.onPrimary} />
+            </View>
+            <Text style={[styles.successTitle, { color: Colors.text }]}>Booking made</Text>
+            <Text style={[styles.successText, { color: Colors.muted }]}>Taking you back home.</Text>
+          </Animated.View>
+        </Animated.View>
+      </Modal>
+    </>
   );
 }
 
@@ -348,4 +408,43 @@ const styles = StyleSheet.create({
   input: { minHeight: 51, borderWidth: 1, borderRadius: 13, paddingHorizontal: 14, fontSize: 15 },
   submit: { minHeight: 56, borderRadius: 16, alignItems: 'center', justifyContent: 'center', marginTop: 24 },
   submitText: { fontSize: 15, fontWeight: '800' },
+  successOverlay: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 26,
+  },
+  successCard: {
+    width: '100%',
+    maxWidth: 340,
+    borderWidth: 1,
+    borderRadius: 20,
+    padding: 28,
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 14 },
+    shadowOpacity: 0.18,
+    shadowRadius: 30,
+    elevation: 6,
+  },
+  successIcon: {
+    width: 76,
+    height: 76,
+    borderRadius: 38,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 18,
+  },
+  successTitle: {
+    fontSize: 22,
+    lineHeight: 28,
+    fontWeight: '800',
+    textAlign: 'center',
+  },
+  successText: {
+    fontSize: 14,
+    lineHeight: 21,
+    textAlign: 'center',
+    marginTop: 6,
+  },
 });

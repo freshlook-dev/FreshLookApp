@@ -30,6 +30,13 @@ type Appointment = {
   status: string | null;
 };
 
+function localDateValue(value: Date) {
+  const year = value.getFullYear();
+  const month = String(value.getMonth() + 1).padStart(2, '0');
+  const day = String(value.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+}
+
 export default function HomeScreen() {
   const { user, profile, refreshProfile } = useAuth();
   const Colors = useClientColors();
@@ -40,12 +47,13 @@ export default function HomeScreen() {
   const loadHome = useCallback(async () => {
     if (!user?.id) return;
 
-    const today = new Date().toISOString().slice(0, 10);
+    const today = localDateValue(new Date());
     const { data } = await supabase
       .from('appointments')
       .select('id, service, appointment_date, appointment_time, location, status')
       .eq('user_id', user.id)
       .eq('archived', false)
+      .eq('status', 'upcoming')
       .gte('appointment_date', today)
       .order('appointment_date', { ascending: true })
       .order('appointment_time', { ascending: true })

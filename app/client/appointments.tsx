@@ -34,6 +34,21 @@ type Appointment = {
 
 type VisitTab = 'upcoming' | 'history';
 
+const ACTIVE_VISIT_STATUSES = new Set(['upcoming', 'scheduled', 'pending']);
+
+function localDateValue(value: Date) {
+  const year = value.getFullYear();
+  const month = String(value.getMonth() + 1).padStart(2, '0');
+  const day = String(value.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+}
+
+function isUpcomingVisit(item: Appointment, today: string) {
+  const status = (item.status ?? '').toLowerCase();
+  const isActive = !status || ACTIVE_VISIT_STATUSES.has(status);
+  return isActive && (item.appointment_date ?? '') >= today;
+}
+
 export default function AppointmentsScreen() {
   const { user } = useAuth();
   const Colors = useClientColors();
@@ -62,10 +77,25 @@ export default function AppointmentsScreen() {
   }, [loadAppointments]);
 
   const grouped = useMemo(() => {
-    const today = new Date().toISOString().slice(0, 10);
+    const today = localDateValue(new Date());
+    const upcoming = appointments
+      .filter((item) => isUpcomingVisit(item, today))
+      .sort((a, b) =>
+        `${a.appointment_date ?? ''} ${a.appointment_time ?? ''}`.localeCompare(
+          `${b.appointment_date ?? ''} ${b.appointment_time ?? ''}`
+        )
+      );
+    const history = appointments
+      .filter((item) => !isUpcomingVisit(item, today))
+      .sort((a, b) =>
+        `${b.appointment_date ?? ''} ${b.appointment_time ?? ''}`.localeCompare(
+          `${a.appointment_date ?? ''} ${a.appointment_time ?? ''}`
+        )
+      );
+
     return {
-      upcoming: appointments.filter((item) => (item.appointment_date ?? '') >= today),
-      history: appointments.filter((item) => (item.appointment_date ?? '') < today),
+      upcoming,
+      history,
     };
   }, [appointments]);
 
