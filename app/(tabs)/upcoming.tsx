@@ -373,7 +373,10 @@ export default function UpcomingAppointments() {
                   onPress={() =>
                     router.push({
                       pathname: '/register-visit/[appointmentId]',
-                      params: { appointmentId: item.id },
+                      params: {
+                        appointmentId: item.id,
+                        returnTo: '/(tabs)/history',
+                      },
                     })
                   }
                 >

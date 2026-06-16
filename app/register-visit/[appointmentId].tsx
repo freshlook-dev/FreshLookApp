@@ -13,7 +13,7 @@ import {
   Platform,
   Modal,
 } from 'react-native';
-import { useLocalSearchParams, router } from 'expo-router';
+import { Href, useLocalSearchParams, router } from 'expo-router';
 
 import { supabase } from '../../context/supabase';
 import { useAuth } from '../../context/AuthContext';
@@ -26,6 +26,11 @@ type Treatment = {
   id: string;
   name: string;
   price: number;
+};
+
+type RouteParams = {
+  appointmentId: string;
+  returnTo?: string;
 };
 
 const TREATMENTS: Treatment[] = [
@@ -49,8 +54,46 @@ const TREATMENTS: Treatment[] = [
   { id: '50', name: '50€', price: 50 },
 ];
 
+const normalizeTreatmentName = (value: string) =>
+  value
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, ' ')
+    .trim();
+
+const findTreatmentByService = (service: string) => {
+  const normalizedService = normalizeTreatmentName(service);
+
+  return TREATMENTS.find((treatment) => {
+    const normalizedTreatment = normalizeTreatmentName(treatment.name);
+    return (
+      normalizedTreatment === normalizedService ||
+      normalizedTreatment.includes(normalizedService) ||
+      normalizedService.includes(normalizedTreatment)
+    );
+  });
+};
+
+const parseAmountInput = (value: string) => Number(value.replace(',', '.'));
+
+const toQuantityMap = (selectedTreatments: any) => {
+  if (!Array.isArray(selectedTreatments)) return {};
+
+  return selectedTreatments.reduce<Record<string, number>>((acc, treatment) => {
+    const id = String(treatment?.id ?? '');
+    const qty = Number(treatment?.qty ?? 0);
+
+    if (id && Number.isFinite(qty) && qty > 0) {
+      acc[id] = qty;
+    }
+
+    return acc;
+  }, {});
+};
+
 export default function RegisterVisitScreen() {
-  const { appointmentId } = useLocalSearchParams<{ appointmentId: string }>();
+  const { appointmentId, returnTo } = useLocalSearchParams<RouteParams>();
   const { user } = useAuth();
   const { theme } = useTheme();
   const Colors = theme === 'dark' ? DarkColors : LightColors;
@@ -90,7 +133,7 @@ export default function RegisterVisitScreen() {
     const { data, error } = await supabase
       .from('appointments')
       .select(
-        'client_name, service, appointment_date, appointment_time, visit_notes, user_id, total_amount'
+        'client_name, service, appointment_date, appointment_time, visit_notes, user_id, total_amount, payment_method, paid_bank, selected_treatments'
       )
       .eq('id', appointmentId)
       .single();
@@ -105,10 +148,32 @@ export default function RegisterVisitScreen() {
     setClientUserId(data?.user_id ?? null);
     const savedTotal = Number(data?.total_amount);
     setPreviousTotalAmount(Number.isFinite(savedTotal) ? savedTotal : null);
-    setServiceName(data?.service ?? '');
+    const loadedServiceName = data?.service ?? '';
+    setServiceName(loadedServiceName);
     setAppointmentDate(data?.appointment_date ?? '');
     setAppointmentTime(data?.appointment_time ?? '');
     setNotes(data?.visit_notes ?? '');
+    setQuantities((current) => {
+      if (Object.values(current).some((qty) => qty > 0)) return current;
+
+      const savedQuantities = toQuantityMap(data?.selected_treatments);
+      if (Object.keys(savedQuantities).length > 0) return savedQuantities;
+
+      const bookedTreatment = findTreatmentByService(loadedServiceName);
+      return bookedTreatment ? { [bookedTreatment.id]: 1 } : current;
+    });
+
+    if (['cash', 'bank', 'mixed'].includes(data?.payment_method)) {
+      setPaymentMethod(data.payment_method as PaymentMethod);
+    }
+
+    if (data?.payment_method === 'mixed') {
+      const savedPaidBank = Number(data?.paid_bank);
+      setPaidBank(Number.isFinite(savedPaidBank) ? String(savedPaidBank) : '');
+    } else {
+      setPaidBank('');
+    }
+
     setLoading(false);
   };
 
@@ -147,7 +212,7 @@ export default function RegisterVisitScreen() {
     return selectedTreatments.reduce((sum, item) => sum + item.total, 0);
   }, [selectedTreatments]);
 
-  const manualTotalValue = Number(manualTotalInput);
+  const manualTotalValue = parseAmountInput(manualTotalInput);
   const hasManualTotal =
     manualTotalInput.trim() !== '' &&
     Number.isFinite(manualTotalValue) &&
@@ -160,7 +225,7 @@ export default function RegisterVisitScreen() {
     return baseTotalAmount;
   }, [baseTotalAmount, hasManualTotal, manualTotalValue, overridePercent]);
 
-  const paidBankValueRaw = Number(paidBank);
+  const paidBankValueRaw = parseAmountInput(paidBank);
   const paidBankValue =
     paymentMethod === 'mixed'
       ? Number.isFinite(paidBankValueRaw)
@@ -257,14 +322,16 @@ export default function RegisterVisitScreen() {
   };
 
   const finishSuccess = () => {
+    const nextRoute = (returnTo || '/(tabs)/history') as Href;
+
     if (Platform.OS === 'web') {
       window.alert('Vizita u regjistrua me sukses.');
-      router.replace('/(tabs)');
+      router.replace(nextRoute);
       return;
     }
 
     Alert.alert('Sukses ✅', 'Vizita u regjistrua me sukses.', [
-      { text: 'OK', onPress: () => router.replace('/(tabs)') },
+      { text: 'OK', onPress: () => router.replace(nextRoute) },
     ]);
   };
 
@@ -292,14 +359,19 @@ export default function RegisterVisitScreen() {
       total_amount: totalAmount,
     };
 
-    const { error } = await supabase
+    const { data: updatedAppointment, error } = await supabase
       .from('appointments')
       .update(payload)
       .eq('id', appointmentId)
-      .eq('archived', false);
+      .eq('archived', false)
+      .select('id')
+      .maybeSingle();
 
-    if (error) {
-      Alert.alert('Gabim', error.message);
+    if (error || !updatedAppointment) {
+      Alert.alert(
+        'Gabim',
+        error?.message ?? 'Termini nuk u perditesua. Mund te jete arkivuar ose ndryshuar.'
+      );
       setSaving(false);
       return;
     }
@@ -358,9 +430,18 @@ export default function RegisterVisitScreen() {
 
     setSaving(false);
     if (pointsUpdateError) {
+      if (Platform.OS === 'web') {
+        window.alert(
+          `Vizita u regjistrua, por Fresh Points nuk u perditesuan: ${pointsUpdateError}`
+        );
+        finishSuccess();
+        return;
+      }
+
       Alert.alert(
         'Vizita u ruajt',
-        `Vizita u regjistrua, por Fresh Points nuk u perditesuan: ${pointsUpdateError}`
+        `Vizita u regjistrua, por Fresh Points nuk u perditesuan: ${pointsUpdateError}`,
+        [{ text: 'OK', onPress: finishSuccess }]
       );
       return;
     }
@@ -730,7 +811,7 @@ export default function RegisterVisitScreen() {
         </Pressable>
 
         <Pressable
-          onPress={() => router.replace('/(tabs)')}
+          onPress={() => router.replace((returnTo || '/(tabs)/upcoming') as Href)}
           style={[
             styles.backBtn,
             {

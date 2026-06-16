@@ -435,6 +435,21 @@ const excelSafePhone = (s?: string | null) =>
           📝 {item.visit_notes}
         </Text>
       ) : null}
+
+      <Pressable
+        onPress={() =>
+          router.push({
+            pathname: '/register-visit/[appointmentId]',
+            params: {
+              appointmentId: item.id,
+              returnTo: '/owner-stats',
+            },
+          })
+        }
+        style={[styles.editPaymentBtn, { backgroundColor: Colors.primary }]}
+      >
+        <Text style={styles.editPaymentText}>Edit Payment</Text>
+      </Pressable>
     </View>
   );
 const LocationButtons = useMemo(() => {
@@ -799,6 +814,13 @@ const styles = StyleSheet.create({
   },
   money: { fontSize: 13, fontWeight: '700' },
   notes: { marginTop: 8, fontSize: 12, fontWeight: '600' },
+  editPaymentBtn: {
+    marginTop: 12,
+    borderRadius: 12,
+    paddingVertical: 10,
+    alignItems: 'center',
+  },
+  editPaymentText: { color: '#fff', fontWeight: '800' },
 
   totalsBar: {
     position: 'absolute',

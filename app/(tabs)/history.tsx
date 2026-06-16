@@ -27,6 +27,7 @@ type Role = 'owner' | 'manager' | 'staff';
 
 type Appointment = {
   id: string;
+  user_id: string | null;
   client_name: string;
   service: string;
   appointment_date: string;
@@ -38,6 +39,7 @@ type Appointment = {
   archived: boolean;
   creator_name: string | null;
   payment_method: string | null;
+  total_amount: number | null;
 };
 
 const formatDate = (date: string) => {
@@ -79,6 +81,7 @@ export default function HistoryScreen() {
       .from('appointments')
       .select(`
         id,
+        user_id,
         client_name,
         service,
         appointment_date,
@@ -89,6 +92,7 @@ export default function HistoryScreen() {
         status,
         archived,
         payment_method,
+        total_amount,
         creator:profiles!appointments_created_by_fkey(full_name)
       `)
       .in('status', ['arrived', 'canceled'])
@@ -198,14 +202,47 @@ export default function HistoryScreen() {
     );
     if (!appointment) return;
 
+    const clearsRegisteredVisit = status !== 'arrived' && appointment.payment_method !== null;
+    const updatePayload =
+      status === 'arrived' || !clearsRegisteredVisit
+        ? { status }
+        : {
+            status,
+            payment_method: null,
+            paid_cash: null,
+            paid_bank: null,
+            visit_notes: null,
+            selected_treatments: null,
+            total_amount: null,
+          };
+
     const { error } = await supabase
       .from('appointments')
-      .update({ status })
+      .update(updatePayload)
       .eq('id', id);
 
     if (error) {
       Alert.alert('Error', error.message);
       return;
+    }
+
+    if (clearsRegisteredVisit && appointment.user_id) {
+      const previousPoints = Math.floor(Number(appointment.total_amount ?? 0) / 2);
+
+      if (previousPoints > 0) {
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('points')
+          .eq('id', appointment.user_id)
+          .single();
+
+        const currentPoints = Number(profile?.points ?? 0);
+
+        await supabase
+          .from('profiles')
+          .update({ points: Math.max(0, currentPoints - previousPoints) })
+          .eq('id', appointment.user_id);
+      }
     }
 
     await logStatusChange(appointment, status);
@@ -467,7 +504,13 @@ export default function HistoryScreen() {
                     <Pressable
                       onPress={() => {
                         setSelected(null);
-                        router.push(`../register-visit/${selected.id}`);
+                        router.push({
+                          pathname: '/register-visit/[appointmentId]',
+                          params: {
+                            appointmentId: selected.id,
+                            returnTo: '/(tabs)/history',
+                          },
+                        });
                       }}
                       style={[
                         styles.hideBtn,
