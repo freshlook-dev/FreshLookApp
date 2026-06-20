@@ -258,25 +258,6 @@ export default function RewardsScreen() {
         </PremiumCard>
       )}
 
-      <Pressable
-        style={[styles.adCard, { backgroundColor: Colors.card, borderColor: Colors.border }]}
-        onPress={() => notify('Coming soon', 'Video rewards are not active yet. In the future, watching a full ad will earn 10 Fresh Points.')}
-      >
-        <View style={[styles.adIcon, { backgroundColor: Colors.primarySoft }]}>
-          <Ionicons name="play" size={21} color={Colors.primary} />
-        </View>
-        <View style={styles.adCopy}>
-          <View style={styles.adTitleRow}>
-            <Text style={[styles.adTitle, { color: Colors.text }]}>Watch & earn</Text>
-            <View style={[styles.comingSoon, { backgroundColor: Colors.primarySoft }]}>
-              <Text style={[styles.comingSoonText, { color: Colors.primary }]}>Coming soon</Text>
-            </View>
-          </View>
-          <Text style={[styles.adSubtitle, { color: Colors.muted }]}>Watch a video and earn 10 Fresh Points</Text>
-        </View>
-        <Ionicons name="chevron-forward" size={19} color={Colors.muted} />
-      </Pressable>
-
       <Text style={[styles.eyebrow, styles.historyEyebrow, { color: Colors.primary }]}>History</Text>
       <PremiumCard>
         {redemptions.length === 0 ? (
@@ -398,14 +379,6 @@ const styles = StyleSheet.create({
   customInput: { borderWidth: 1, borderRadius: 13, paddingHorizontal: 13, paddingVertical: 13, fontSize: 16 },
   customButton: { minHeight: 50, borderRadius: 13, alignItems: 'center', justifyContent: 'center' },
   customButtonText: { fontSize: 14, fontWeight: '800' },
-  adCard: { minHeight: 82, borderWidth: 1, borderRadius: 19, paddingHorizontal: 15, flexDirection: 'row', alignItems: 'center', gap: 12, marginTop: 20 },
-  adIcon: { width: 46, height: 46, borderRadius: 15, alignItems: 'center', justifyContent: 'center' },
-  adCopy: { flex: 1 },
-  adTitleRow: { flexDirection: 'row', alignItems: 'center', gap: 8, flexWrap: 'wrap' },
-  adTitle: { fontSize: 15, fontWeight: '800' },
-  adSubtitle: { fontSize: 12, marginTop: 5 },
-  comingSoon: { borderRadius: 999, paddingHorizontal: 8, paddingVertical: 4 },
-  comingSoonText: { fontSize: 9, fontWeight: '900', textTransform: 'uppercase', letterSpacing: 0.5 },
   webHint: { fontSize: 12, lineHeight: 18, marginTop: 16, textAlign: 'center' },
   historyEyebrow: { marginTop: 28 },
   historyEmpty: { textAlign: 'center', paddingVertical: 8 },
