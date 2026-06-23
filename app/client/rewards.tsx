@@ -87,11 +87,11 @@ export default function RewardsScreen() {
   const createRedemption = async (points: number) => {
     if (!user?.id || creating) return;
     if (!Number.isInteger(points) || points < 10) {
-      notify('Invalid points', 'Enter at least 10 Fresh Points.');
+      notify('Pikë të pavlefshme', 'Vendosni të paktën 10 Fresh Points.');
       return;
     }
     if ((profile?.points ?? 0) < points) {
-      notify('Not enough points', `You need ${points} Fresh Points for this reward.`);
+      notify('Nuk ka mjaftueshëm pikë', `Ju duhen ${points} Fresh Points për këtë shpërblim.`);
       return;
     }
     setCreating(points);
@@ -112,7 +112,7 @@ export default function RewardsScreen() {
 
     setCreating(null);
     if (error) {
-      notify('Reward unavailable', error.message);
+      notify('Shpërblimi nuk është i disponueshëm', error.message);
       return;
     }
     if (data) {
@@ -135,7 +135,7 @@ export default function RewardsScreen() {
       setDeletingId(null);
 
       if (error) {
-        notify('Could not delete QR', error.message);
+        notify('QR nuk mund të fshihet', error.message);
         return;
       }
 
@@ -144,13 +144,13 @@ export default function RewardsScreen() {
     };
 
     if (Platform.OS === 'web' && typeof window !== 'undefined') {
-      if (window.confirm('Delete this unused QR code?')) await remove();
+      if (window.confirm('Fshi këtë kod QR të papërdorur?')) await remove();
       return;
     }
 
-    Alert.alert('Delete QR code?', 'This removes the unused reward pass from your list.', [
-      { text: 'Cancel', style: 'cancel' },
-      { text: 'Delete', style: 'destructive', onPress: () => void remove() },
+    Alert.alert('Fshi kodin QR?', 'Kjo heq kuponin e papërdorur të shpërblimit nga lista juaj.', [
+      { text: 'Anulo', style: 'cancel' },
+      { text: 'Fshi', style: 'destructive', onPress: () => void remove() },
     ]);
   };
 
@@ -163,15 +163,15 @@ export default function RewardsScreen() {
       }
     >
       <ScreenHeader
-        eyebrow="Loyalty"
-        title="Rewards"
-        subtitle="Turn your Fresh Points into a secure reward pass for your next salon visit."
+        eyebrow="Besnikëria"
+        title="Shpërblimet"
+        subtitle="Kthejini Fresh Points në një kupon shpërblimi për vizitën tuaj të ardhshme në sallon."
       />
 
       <View style={[styles.balanceCard, { backgroundColor: Colors.primary }]}>
         <View style={styles.balanceGlow} />
         <View>
-          <Text style={[styles.balanceLabel, { color: Colors.onPrimary }]}>Available balance</Text>
+          <Text style={[styles.balanceLabel, { color: Colors.onPrimary }]}>Bilanci i disponueshëm</Text>
           <View style={styles.balanceRow}>
             <Text style={[styles.balance, { color: Colors.onPrimary }]}>{profile?.points ?? 0}</Text>
             <Text style={[styles.pointsUnit, { color: Colors.onPrimary }]}>PTS</Text>
@@ -182,7 +182,7 @@ export default function RewardsScreen() {
         </View>
       </View>
 
-      <Text style={[styles.eyebrow, { color: Colors.primary }]}>Reward pass</Text>
+      <Text style={[styles.eyebrow, { color: Colors.primary }]}>Kuponi i shpërblimit</Text>
       <PremiumCard elevated style={styles.qrCard}>
         {loading ? (
           <ActivityIndicator color={Colors.primary} />
@@ -190,26 +190,26 @@ export default function RewardsScreen() {
           <>
             <View style={[styles.activeLabel, { backgroundColor: Colors.primarySoft }]}>
               <View style={[styles.activeDot, { backgroundColor: Colors.primary }]} />
-              <Text style={[styles.activeText, { color: Colors.primary }]}>Active reward</Text>
+              <Text style={[styles.activeText, { color: Colors.primary }]}>Shpërblim aktiv</Text>
             </View>
             <View style={[styles.qrWrap, { borderColor: Colors.border }]}>
               <QRCode value={qrValue} size={210} backgroundColor="#FFFFFF" />
             </View>
             <Text style={[styles.qrTitle, { color: Colors.text }]}>{activeRedemption.points} Fresh Points</Text>
-            <Text style={[styles.qrMeta, { color: Colors.muted }]}>Show this QR to staff to redeem</Text>
+            <Text style={[styles.qrMeta, { color: Colors.muted }]}>Tregojani këtë QR stafit për ta përdorur</Text>
           </>
         ) : (
           <EmptyState
             icon="qr-code-outline"
-            title="No active reward pass"
-            message="Choose an amount below when you are ready to redeem your points."
+            title="Nuk keni kupon shpërblimi aktiv"
+            message="Zgjidhni shumën më poshtë kur të jeni gati të përdorni pikët tuaja."
           />
         )}
       </PremiumCard>
 
       <View style={styles.sectionHeading}>
-        <Text style={[styles.sectionTitle, { color: Colors.text }]}>Create a reward</Text>
-        <Text style={[styles.sectionHint, { color: Colors.muted }]}>The QR remains active until it is used</Text>
+        <Text style={[styles.sectionTitle, { color: Colors.text }]}>Krijoni shpërblim</Text>
+        <Text style={[styles.sectionHint, { color: Colors.muted }]}>QR mbetet aktiv derisa të përdoret</Text>
       </View>
       <View style={styles.options}>
         {REWARD_OPTIONS.map((points) => (
@@ -223,7 +223,7 @@ export default function RewardsScreen() {
           />
         ))}
         <RewardButton
-          label="Custom"
+          label="Sipas dëshirës"
           disabled={!!creating}
           active={!customOpen}
           onPress={() => setCustomOpen((value) => !value)}
@@ -232,9 +232,9 @@ export default function RewardsScreen() {
 
       {customOpen && (
         <PremiumCard style={styles.customCard}>
-          <Text style={[styles.customLabel, { color: Colors.text }]}>Custom Fresh Points</Text>
+          <Text style={[styles.customLabel, { color: Colors.text }]}>Fresh Points sipas dëshirës</Text>
           <TextInput
-            placeholder="Enter points"
+            placeholder="Vendosni pikët"
             placeholderTextColor={Colors.muted}
             keyboardType="number-pad"
             value={customPoints}
@@ -252,16 +252,16 @@ export default function RewardsScreen() {
             {creating === Number(customPoints) ? (
               <ActivityIndicator color={Colors.onPrimary} />
             ) : (
-              <Text style={[styles.customButtonText, { color: Colors.onPrimary }]}>Create reward pass</Text>
+              <Text style={[styles.customButtonText, { color: Colors.onPrimary }]}>Krijo kupon shpërblimi</Text>
             )}
           </Pressable>
         </PremiumCard>
       )}
 
-      <Text style={[styles.eyebrow, styles.historyEyebrow, { color: Colors.primary }]}>History</Text>
+      <Text style={[styles.eyebrow, styles.historyEyebrow, { color: Colors.primary }]}>Historiku</Text>
       <PremiumCard>
         {redemptions.length === 0 ? (
-          <Text style={[styles.historyEmpty, { color: Colors.muted }]}>No reward activity yet.</Text>
+          <Text style={[styles.historyEmpty, { color: Colors.muted }]}>Ende nuk ka aktivitet shpërblimesh.</Text>
         ) : (
           redemptions.map((item) => (
             <View key={item.id} style={[styles.historyRow, { borderBottomColor: Colors.border }]}>
@@ -272,7 +272,7 @@ export default function RewardsScreen() {
               >
                 <Text style={[styles.historyPoints, { color: Colors.text }]}>{item.points} pts</Text>
                 <Text style={{ color: item.status === 'pending' ? Colors.primary : Colors.muted }}>
-                  {item.status === 'pending' ? 'Active' : 'Used'}
+                  {item.status === 'pending' ? 'Aktiv' : 'Përdorur'}
                 </Text>
               </Pressable>
               {item.status === 'pending' && (
@@ -292,7 +292,7 @@ export default function RewardsScreen() {
       </PremiumCard>
 
       {Platform.OS === 'web' && (
-        <Text style={[styles.webHint, { color: Colors.muted }]}>Tip: add FreshLook to your home screen for faster access to your reward pass.</Text>
+        <Text style={[styles.webHint, { color: Colors.muted }]}>Këshillë: shtoni FreshLook në ekranin kryesor për qasje më të shpejtë te kuponi i shpërblimit.</Text>
       )}
     </ScrollView>
   );

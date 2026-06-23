@@ -89,8 +89,8 @@ export default function SignUpScreen() {
 
       if (!signUpData.session) {
         Alert.alert(
-          'Account created',
-          'Automatic sign-in is unavailable. Please ask the owner to disable Confirm email in Supabase.'
+          'Confirm your email',
+          'We sent a confirmation link to your email address. Confirm your account, then return here to sign in.'
         );
         router.replace('/(auth)/login');
         return;
@@ -146,16 +146,16 @@ export default function SignUpScreen() {
               resizeMode="contain"
             />
             <Text style={[styles.title, { color: Colors.text }]}>
-              Create Account
+              Krijoni llogari
             </Text>
             <Text style={[styles.subtitle, { color: Colors.muted }]}>
-              Create a client account or enter a staff access code
+              Krijoni llogari klienti ose vendosni kodin e qasjes për staf
             </Text>
           </View>
 
           <View style={[styles.card, { backgroundColor: Colors.card }]}>
             <TextInput
-              placeholder="Full Name"
+              placeholder="Emri i plotë"
               placeholderTextColor={Colors.muted}
               value={fullName}
               onChangeText={setFullName}
@@ -171,7 +171,7 @@ export default function SignUpScreen() {
             />
 
             <TextInput
-              placeholder="Phone number"
+              placeholder="Numri i telefonit"
               placeholderTextColor={Colors.muted}
               keyboardType="phone-pad"
               value={phone}
@@ -188,7 +188,7 @@ export default function SignUpScreen() {
             />
 
             <TextInput
-              placeholder="Email address"
+              placeholder="Adresa e emailit"
               placeholderTextColor={Colors.muted}
               autoCapitalize="none"
               autoCorrect={false}
@@ -207,7 +207,7 @@ export default function SignUpScreen() {
             />
 
             <TextInput
-              placeholder="Password"
+              placeholder="Fjalëkalimi"
               placeholderTextColor={Colors.muted}
               secureTextEntry
               autoCorrect={false}
@@ -225,7 +225,7 @@ export default function SignUpScreen() {
             />
 
             <TextInput
-              placeholder="5-digit Staff Access Code (optional)"
+              placeholder="Kodi 5-shifror i stafit (opsional)"
               placeholderTextColor={Colors.muted}
               keyboardType="number-pad"
               maxLength={5}
@@ -250,7 +250,7 @@ export default function SignUpScreen() {
               {loading ? (
                 <ActivityIndicator color="#fff" />
               ) : (
-                <Text style={styles.buttonText}>Sign Up</Text>
+                <Text style={styles.buttonText}>Regjistrohu</Text>
               )}
             </Pressable>
 
@@ -258,7 +258,7 @@ export default function SignUpScreen() {
               onPress={() => router.replace('/(auth)/login')}
               style={styles.secondaryButton}
             >
-              <Text style={styles.secondaryButtonText}>Back to Login</Text>
+              <Text style={styles.secondaryButtonText}>Kthehu te hyrja</Text>
             </Pressable>
           </View>
         </View>

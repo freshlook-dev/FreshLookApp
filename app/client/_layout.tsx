@@ -14,10 +14,10 @@ import { useTheme } from '../../context/ThemeContext';
 import { DarkColors, LightColors } from '../../constants/colors';
 
 const CLIENT_TABS = [
-  { href: '/client', label: 'Home', icon: 'home-outline', activeIcon: 'home' },
-  { href: '/client/appointments', label: 'Visits', icon: 'calendar-outline', activeIcon: 'calendar' },
-  { href: '/client/rewards', label: 'Rewards', icon: 'gift-outline', activeIcon: 'gift' },
-  { href: '/client/profile', label: 'Profile', icon: 'person-outline', activeIcon: 'person' },
+  { href: '/client', label: 'Kryefaqja', icon: 'home-outline', activeIcon: 'home' },
+  { href: '/client/appointments', label: 'Vizitat', icon: 'calendar-outline', activeIcon: 'calendar' },
+  { href: '/client/rewards', label: 'Shpërblimet', icon: 'gift-outline', activeIcon: 'gift' },
+  { href: '/client/profile', label: 'Profili', icon: 'person-outline', activeIcon: 'person' },
 ] as const;
 
 export default function ClientLayout() {

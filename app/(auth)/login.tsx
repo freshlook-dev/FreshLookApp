@@ -99,17 +99,17 @@ export default function Login() {
             />
 
             <Text style={[styles.title, { color: Colors.text }]}>
-              Welcome Back
+              Mirë se vini përsëri
             </Text>
             <Text style={[styles.subtitle, { color: Colors.muted }]}>
-              Sign in to continue to Fresh Look
+              Hyni për të vazhduar në Fresh Look
             </Text>
           </View>
 
           {/* Form */}
           <View style={[styles.card, { backgroundColor: Colors.card }]}>
             <TextInput
-              placeholder="Email address"
+              placeholder="Adresa e emailit"
               placeholderTextColor={Colors.muted}
               autoCapitalize="none"
               keyboardType="email-address"
@@ -128,7 +128,7 @@ export default function Login() {
             />
 
             <TextInput
-              placeholder="Password"
+              placeholder="Fjalëkalimi"
               placeholderTextColor={Colors.muted}
               secureTextEntry
               autoCorrect={false}
@@ -149,7 +149,7 @@ export default function Login() {
               onPress={() => router.push('../(auth)/forgot-password')}
               style={{ marginBottom: 10 }}
             >
-              <Text style={styles.forgot}>Forgot password?</Text>
+              <Text style={styles.forgot}>Keni harruar fjalëkalimin?</Text>
             </Pressable>
 
             <Pressable
@@ -165,7 +165,11 @@ export default function Login() {
 
           {/* Footer */}
           <Pressable onPress={() => router.replace('/(auth)/signup')}>
-            <Text style={styles.link}>Create new account</Text>
+            <Text style={styles.link}>Krijoni llogari të re</Text>
+          </Pressable>
+
+          <Pressable onPress={() => router.replace('/treatments')}>
+            <Text style={styles.browseLink}>Shfletoni trajtimet pa llogari</Text>
           </Pressable>
         </View>
       </ScrollView>
@@ -255,6 +259,12 @@ const styles = StyleSheet.create({
     marginTop: 24,
     textAlign: 'center',
     color: '#C9A24D',
+    fontWeight: '600',
+  },
+  browseLink: {
+    marginTop: 14,
+    textAlign: 'center',
+    color: '#6B7280',
     fontWeight: '600',
   },
 });

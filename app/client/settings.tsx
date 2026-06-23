@@ -20,6 +20,7 @@ import { PremiumCard, ScreenHeader, useClientColors } from '../../components/Cli
 import { useAuth } from '../../context/AuthContext';
 import { useTheme } from '../../context/ThemeContext';
 import { supabase } from '../../context/supabase';
+import { deleteCurrentAccount } from '../../utils/deleteAccount';
 
 export default function ClientSettingsScreen() {
   const { user, profile, refreshProfile, logout } = useAuth();
@@ -29,6 +30,7 @@ export default function ClientSettingsScreen() {
   const [phone, setPhone] = useState('');
   const [saving, setSaving] = useState(false);
   const [uploading, setUploading] = useState(false);
+  const [deletingAccount, setDeletingAccount] = useState(false);
 
   useEffect(() => {
     setFullName(profile?.full_name ?? '');
@@ -106,6 +108,35 @@ export default function ClientSettingsScreen() {
     }
   };
 
+  const deleteAccount = async () => {
+    if (deletingAccount) return;
+
+    try {
+      setDeletingAccount(true);
+      await deleteCurrentAccount();
+      router.replace('/(auth)/login');
+    } catch (error: any) {
+      Alert.alert('Unable to delete account', error?.message ?? 'Please try again later.');
+    } finally {
+      setDeletingAccount(false);
+    }
+  };
+
+  const confirmDeleteAccount = () => {
+    const title = 'Delete account?';
+    const message = 'This permanently deletes your account and cannot be undone.';
+
+    if (typeof window !== 'undefined') {
+      if (window.confirm(`${title}\n\n${message}`)) void deleteAccount();
+      return;
+    }
+
+    Alert.alert(title, message, [
+      { text: 'Cancel', style: 'cancel' },
+      { text: 'Delete account', style: 'destructive', onPress: () => void deleteAccount() },
+    ]);
+  };
+
   return (
     <ScrollView style={{ backgroundColor: Colors.background }} contentContainerStyle={styles.content}>
       <Pressable style={styles.back} onPress={() => router.back()}>
@@ -175,6 +206,21 @@ export default function ClientSettingsScreen() {
         <Ionicons name="log-out-outline" size={20} color={Colors.danger} />
         <Text style={[styles.signOutText, { color: Colors.danger }]}>Sign out</Text>
       </Pressable>
+
+      <Pressable
+        style={[styles.deleteAccount, { borderColor: Colors.danger, opacity: deletingAccount ? 0.65 : 1 }]}
+        onPress={confirmDeleteAccount}
+        disabled={deletingAccount}
+      >
+        {deletingAccount ? (
+          <ActivityIndicator color={Colors.danger} />
+        ) : (
+          <>
+            <Ionicons name="trash-outline" size={20} color={Colors.danger} />
+            <Text style={[styles.signOutText, { color: Colors.danger }]}>Delete account</Text>
+          </>
+        )}
+      </Pressable>
     </ScrollView>
   );
 }
@@ -199,5 +245,6 @@ const styles = StyleSheet.create({
   settingText: { flex: 1, fontSize: 15, fontWeight: '700' },
   divider: { height: 1 },
   signOut: { borderWidth: 1, borderRadius: 16, minHeight: 56, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 9 },
+  deleteAccount: { borderWidth: 1, borderRadius: 16, minHeight: 56, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 9, marginTop: 12 },
   signOutText: { fontSize: 15, fontWeight: '800' },
 });

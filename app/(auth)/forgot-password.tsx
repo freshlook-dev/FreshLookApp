@@ -64,7 +64,7 @@ export default function ForgotPasswordScreen() {
       ]}
     >
       <Text style={[styles.title, { color: Colors.text }]}>
-        Forgot Password
+        Keni harruar fjalëkalimin?
       </Text>
 
       <TextInput
@@ -98,7 +98,7 @@ export default function ForgotPasswordScreen() {
           <ActivityIndicator color="#fff" />
         ) : (
           <Text style={styles.buttonText}>
-            Send reset link
+            Dërgo lidhjen e rivendosjes
           </Text>
         )}
       </Pressable>

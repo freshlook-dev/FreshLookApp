@@ -22,6 +22,7 @@ import { useAuth } from '../../context/AuthContext';
 import { supabase } from '../../context/supabase';
 import { useTheme } from '../../context/ThemeContext';
 import { LightColors, DarkColors } from '../../constants/colors';
+import { deleteCurrentAccount } from '../../utils/deleteAccount';
 
 type Role = 'owner' | 'manager' | 'staff';
 
@@ -170,6 +171,7 @@ export default function ProfileTab() {
   const [profile, setProfile] = useState<Profile | null>(null);
   const [loading, setLoading] = useState(true);
   const [uploading, setUploading] = useState(false);
+  const [deletingAccount, setDeletingAccount] = useState(false);
   const [generatedCode, setGeneratedCode] = useState<{
     code: string;
     role: Role;
@@ -517,6 +519,35 @@ export default function ProfileTab() {
     }
   };
 
+  const deleteAccount = async () => {
+    if (deletingAccount) return;
+
+    try {
+      setDeletingAccount(true);
+      await deleteCurrentAccount();
+      router.replace('/(auth)/login');
+    } catch (error: any) {
+      Alert.alert('Unable to delete account', error?.message ?? 'Please try again later.');
+    } finally {
+      setDeletingAccount(false);
+    }
+  };
+
+  const confirmDeleteAccount = () => {
+    const title = 'Delete account?';
+    const message = 'This permanently deletes your account and cannot be undone.';
+
+    if (Platform.OS === 'web') {
+      if (window.confirm(`${title}\n\n${message}`)) void deleteAccount();
+      return;
+    }
+
+    Alert.alert(title, message, [
+      { text: 'Cancel', style: 'cancel' },
+      { text: 'Delete account', style: 'destructive', onPress: () => void deleteAccount() },
+    ]);
+  };
+
   if (authLoading || loading) {
     return (
       <View style={[styles.center, { backgroundColor: Colors.background }]}>
@@ -623,7 +654,7 @@ export default function ProfileTab() {
           onPress={() => router.push('../(tabs)/scan-discount')}
           style={[styles.primaryButton, { marginTop: 12 }]}
         >
-          <Text style={styles.primaryButtonText}>Skano QR Discount</Text>
+          <Text style={styles.primaryButtonText}>Redeem QR Reward</Text>
         </Pressable>
 
         {canViewStats && (
@@ -730,6 +761,18 @@ export default function ProfileTab() {
 
       <Pressable onPress={handleLogout} style={styles.logoutButton}>
         <Text style={styles.logoutText}>Dil</Text>
+      </Pressable>
+
+      <Pressable
+        onPress={confirmDeleteAccount}
+        disabled={deletingAccount}
+        style={[styles.logoutButton, { marginTop: 12, opacity: deletingAccount ? 0.65 : 1 }]}
+      >
+        {deletingAccount ? (
+          <ActivityIndicator color="#fff" />
+        ) : (
+          <Text style={styles.logoutText}>Delete account</Text>
+        )}
       </Pressable>
 
       {avatarPreviewVisible && Platform.OS === 'web' && (
@@ -1077,9 +1120,9 @@ const styles = StyleSheet.create({
     backgroundColor: '#000',
     borderWidth: 2,
     borderColor: '#C9A24D',
-    touchAction: 'none' as any,
-    userSelect: 'none' as any,
-  },
+    touchAction: 'none',
+    userSelect: 'none',
+  } as any,
   webCropImage: {
     position: 'absolute',
   },

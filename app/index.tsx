@@ -18,10 +18,10 @@ export default function Index() {
 
         router.replace('/(tabs)');
       } else {
-        router.replace('/(auth)/login');
+        router.replace('/treatments');
       }
     }
   }, [user, profile?.role, loading]);
 
-  return <Text>Loading...</Text>;
+  return <Text>Duke u ngarkuar...</Text>;
 }

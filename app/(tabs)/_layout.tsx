@@ -277,7 +277,7 @@ export default function TabsLayout() {
         name="scan-discount"
         options={{
           href: null,
-          title: 'Skano QR Discount',
+          title: 'Redeem QR Reward',
         }}
       />
 

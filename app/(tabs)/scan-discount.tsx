@@ -159,10 +159,6 @@ export default function ScanDiscountScreen() {
 
   const startCamera = async () => {
     if (Platform.OS !== 'web') {
-      Alert.alert(
-        'Kamera',
-        'Skanimi me kamere eshte i aktivizuar per web/PWA.'
-      );
       return;
     }
 
@@ -363,7 +359,7 @@ export default function ScanDiscountScreen() {
       const missingFunction = error?.message?.includes('redeem_points_qr');
       setMessage(
         missingFunction
-          ? 'Mungon funksioni i databazes per QR. Duhet aplikuar SQL update.'
+          ? 'Reward redemption is temporarily unavailable. Please try again later.'
           : error?.message ?? 'QR nuk mund te perdoret me.'
       );
       setSaving(false);
@@ -462,7 +458,7 @@ export default function ScanDiscountScreen() {
       keyboardShouldPersistTaps="handled"
       showsVerticalScrollIndicator
     >
-      <Text style={[styles.title, { color: Colors.text }]}>Skano QR Discount</Text>
+      <Text style={[styles.title, { color: Colors.text }]}>Redeem reward</Text>
 
       <View style={[styles.card, { backgroundColor: Colors.card }]}>
         {Platform.OS === 'web' ? (
@@ -489,7 +485,7 @@ export default function ScanDiscountScreen() {
             {!cameraActive && (
               <View style={[styles.cameraPlaceholder, { borderColor: Colors.primary }]}>
                 <Text style={[styles.placeholderText, { color: Colors.muted }]}>
-                  Hape kameren dhe afro QR kodin e klientit.
+                  Open the camera and scan the client’s QR code.
                 </Text>
               </View>
             )}
@@ -503,23 +499,23 @@ export default function ScanDiscountScreen() {
               ]}
             >
               <Text style={styles.primaryText}>
-                {cameraActive ? 'Mbyll kameren' : 'Hap kameren'}
+                {cameraActive ? 'Close camera' : 'Open camera'}
               </Text>
             </Pressable>
           </>
         ) : (
           <Text style={[styles.placeholderText, { color: Colors.muted }]}>
-            Skanimi me kamere eshte i aktivizuar per web/PWA.
+            Enter the reward code shown by the client to redeem it.
           </Text>
         )}
 
         <View style={styles.manualBox}>
-          <Text style={[styles.label, { color: Colors.text }]}>Kodi manual</Text>
+          <Text style={[styles.label, { color: Colors.text }]}>Reward code</Text>
           <TextInput
             value={manualCode}
             onChangeText={setManualCode}
             autoCapitalize="none"
-            placeholder="Vendos id ose linkun e QR"
+            placeholder="Enter the QR code or link"
             placeholderTextColor={Colors.muted}
             style={[
               styles.input,
@@ -543,7 +539,7 @@ export default function ScanDiscountScreen() {
             ]}
           >
             <Text style={styles.primaryText}>
-              {saving ? 'Duke kontrolluar...' : 'Kontrollo zbritjen'}
+              {saving ? 'Checking...' : 'Check reward'}
             </Text>
           </Pressable>
         </View>
