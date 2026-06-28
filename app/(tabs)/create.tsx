@@ -20,6 +20,7 @@ import AppointmentCardModal, {
 
 import { supabase } from '../../context/supabase';
 import { useAuth } from '../../context/AuthContext';
+import { notifyStaffAppointmentChange } from '../../utils/appointmentStaffNotifications';
 
 import { useTheme } from '../../context/ThemeContext';
 import { LightColors, DarkColors } from '../../constants/colors';
@@ -81,6 +82,8 @@ export default function CreateAppointmentScreen() {
   const formatDate = (d: Date) => d.toISOString().split('T')[0];
 
   const handleCreate = async () => {
+    if (loading) return;
+
     const clientName = fullName.trim();
     const clientPhone = phone.trim();
     const selectedService = treatment;
@@ -102,7 +105,7 @@ export default function CreateAppointmentScreen() {
     setLoading(true);
 
     try {
-      const { data: apptRows, error: apptErr } = await supabase
+      const { data: createdAppointment, error: apptErr } = await supabase
         .from('appointments')
         .insert({
           client_name: clientName,
@@ -114,16 +117,22 @@ export default function CreateAppointmentScreen() {
           comment: comment.trim() || null,
           created_by: user.id,
         })
-        .select('id')
-        .limit(1);
+        .select('id, client_name, service, appointment_date, appointment_time, location, status')
+        .single();
 
       if (apptErr) {
         Alert.alert('Gabim', apptErr.message);
         return;
       }
 
-      const apptId =
-        Array.isArray(apptRows) && apptRows[0]?.id ? apptRows[0].id : null;
+      void notifyStaffAppointmentChange('created', createdAppointment ?? {
+        client_name: clientName,
+        service: selectedService,
+        appointment_date: formatDate(date),
+        appointment_time: selectedTime,
+        location: selectedLocation,
+        status: 'upcoming',
+      });
 
       setReceiptData({
         client_name: clientName,
@@ -136,13 +145,15 @@ export default function CreateAppointmentScreen() {
 
       setReceiptVisible(true);
 
-      try {
-        await supabase.from('audit_logs').insert({
+      void supabase
+        .from('audit_logs')
+        .insert({
           actor_id: user.id,
           action: 'CREATE_APPOINTMENT',
-          target_id: apptId,
-        });
-      } catch {}
+          target_id: null,
+        })
+        .then(() => undefined)
+        .catch(() => undefined);
     } catch {
       Alert.alert('Gabim', 'Diçka shkoi keq');
     } finally {

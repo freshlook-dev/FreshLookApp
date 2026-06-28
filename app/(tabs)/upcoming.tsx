@@ -16,6 +16,7 @@ import { router } from 'expo-router';
 
 import { supabase } from '../../context/supabase';
 import { useAuth } from '../../context/AuthContext';
+import { notifyStaffAppointmentChange } from '../../utils/appointmentStaffNotifications';
 
 import { Spacing } from '../../constants/theme';
 import { Card } from '../../components/Card';
@@ -228,6 +229,11 @@ export default function UpcomingAppointments() {
             },
           },
         },
+      });
+
+      void notifyStaffAppointmentChange(status === 'canceled' ? 'canceled' : 'status_changed', {
+        ...appointment,
+        status,
       });
     }
 

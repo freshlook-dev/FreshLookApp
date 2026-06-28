@@ -1,4 +1,4 @@
-import { Image, Pressable, ScrollView, StyleSheet, Switch, Text, View } from 'react-native';
+import { Alert, Image, Platform, Pressable, ScrollView, StyleSheet, Switch, Text, View } from 'react-native';
 import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../../context/AuthContext';
@@ -13,7 +13,19 @@ export default function ProfileScreen() {
   const { profile, logout } = useAuth();
   const { theme, toggleTheme } = useTheme();
   const Colors = useClientColors();
-  const displayName = profile?.full_name || 'FreshLook Client';
+  const displayName = profile?.full_name || 'Klient FreshLook';
+
+  const confirmLogout = () => {
+    if (Platform.OS === 'web') {
+      if (window.confirm('A jeni të sigurt që doni të dilni?')) void logout();
+      return;
+    }
+
+    Alert.alert('Dil nga llogaria', 'A jeni të sigurt që doni të dilni?', [
+      { text: 'Kthehu mbrapa', style: 'cancel' },
+      { text: 'Dil', style: 'destructive', onPress: logout },
+    ]);
+  };
 
   return (
     <ScrollView
@@ -43,40 +55,40 @@ export default function ProfileScreen() {
           <View style={styles.heroDivider} />
           <View style={styles.heroStat}>
             <Ionicons name="checkmark-circle" size={23} color={Colors.onPrimary} />
-            <Text style={[styles.heroLabel, { color: Colors.onPrimary }]}>Active member</Text>
+            <Text style={[styles.heroLabel, { color: Colors.onPrimary }]}>Anëtar aktiv</Text>
           </View>
         </View>
       </View>
 
       <View style={styles.quickActions}>
-        <QuickAction icon="calendar-outline" label="Book" onPress={() => router.push('/client/book')} />
-        <QuickAction icon="gift-outline" label="Rewards" onPress={() => router.push('/client/rewards')} />
-        <QuickAction icon="create-outline" label="Edit profile" onPress={() => router.push('/client/settings')} />
+        <QuickAction icon="calendar-outline" label="Rezervo" onPress={() => router.push('/client/book')} />
+        <QuickAction icon="gift-outline" label="Shpërblimet" onPress={() => router.push('/client/rewards')} />
+        <QuickAction icon="bag-outline" label="Produktet" onPress={() => router.push('/client/shop')} />
       </View>
 
-      <Text style={[styles.sectionLabel, { color: Colors.primary }]}>Account details</Text>
+      <Text style={[styles.sectionLabel, { color: Colors.primary }]}>Të dhënat e llogarisë</Text>
       <PremiumCard style={styles.detailsCard}>
         <ProfileRow
           icon="call-outline"
-          label="Phone"
-          value={profile?.phone || 'Not added'}
+          label="Telefoni"
+          value={profile?.phone || 'Nuk është shtuar'}
         />
         <ProfileRow
           icon="shield-checkmark-outline"
-          label="Account status"
-          value={profile?.is_active === false ? 'Inactive' : 'Active'}
+          label="Statusi i llogarisë"
+          value={profile?.is_active === false ? 'Joaktive' : 'Aktive'}
         />
       </PremiumCard>
 
-      <Text style={[styles.sectionLabel, { color: Colors.primary }]}>Preferences</Text>
+      <Text style={[styles.sectionLabel, { color: Colors.primary }]}>Preferencat</Text>
       <PremiumCard style={styles.settingsCard}>
         <View style={styles.settingRow}>
           <View style={[styles.settingIcon, { backgroundColor: Colors.primarySoft }]}>
             <Ionicons name={theme === 'dark' ? 'moon-outline' : 'sunny-outline'} size={20} color={Colors.primary} />
           </View>
           <View style={styles.settingCopy}>
-            <Text style={[styles.settingTitle, { color: Colors.text }]}>Dark mode</Text>
-            <Text style={[styles.settingSubtitle, { color: Colors.muted }]}>Adjust the app appearance</Text>
+            <Text style={[styles.settingTitle, { color: Colors.text }]}>Pamje e errët</Text>
+            <Text style={[styles.settingSubtitle, { color: Colors.muted }]}>Përshtatni pamjen e aplikacionit</Text>
           </View>
           <Switch
             value={theme === 'dark'}
@@ -92,18 +104,45 @@ export default function ProfileScreen() {
         onPress={() => router.push('/client/settings')}
       >
         <Ionicons name="settings-outline" size={20} color={Colors.primary} />
-        <Text style={[styles.settingsLinkText, { color: Colors.text }]}>Account settings</Text>
+        <Text style={[styles.settingsLinkText, { color: Colors.text }]}>Menaxho profilin</Text>
+        <Ionicons name="chevron-forward" size={18} color={Colors.muted} />
+      </Pressable>
+
+      <Pressable
+        style={[styles.settingsLink, { borderColor: Colors.border, backgroundColor: Colors.card }]}
+        onPress={() => router.push('/client/change-password')}
+      >
+        <Ionicons name="lock-closed-outline" size={20} color={Colors.primary} />
+        <Text style={[styles.settingsLinkText, { color: Colors.text }]}>Fjalëkalimi dhe siguria</Text>
+        <Ionicons name="chevron-forward" size={18} color={Colors.muted} />
+      </Pressable>
+
+      <Pressable
+        style={[styles.settingsLink, { borderColor: Colors.border, backgroundColor: Colors.card }]}
+        onPress={() => router.push('/client/help-center')}
+      >
+        <Ionicons name="help-circle-outline" size={20} color={Colors.primary} />
+        <Text style={[styles.settingsLinkText, { color: Colors.text }]}>Qendra e ndihmës</Text>
+        <Ionicons name="chevron-forward" size={18} color={Colors.muted} />
+      </Pressable>
+
+      <Pressable
+        style={[styles.settingsLink, { borderColor: Colors.border, backgroundColor: Colors.card }]}
+        onPress={() => router.push('/client/about-us')}
+      >
+        <Ionicons name="information-circle-outline" size={20} color={Colors.primary} />
+        <Text style={[styles.settingsLinkText, { color: Colors.text }]}>Rreth nesh</Text>
         <Ionicons name="chevron-forward" size={18} color={Colors.muted} />
       </Pressable>
 
       <Pressable
         style={[styles.logout, { borderColor: Colors.border, backgroundColor: Colors.card }]}
-        onPress={logout}
+        onPress={confirmLogout}
       >
         <View style={[styles.logoutIcon, { backgroundColor: `${Colors.danger}18` }]}>
           <Ionicons name="log-out-outline" size={19} color={Colors.danger} />
         </View>
-        <Text style={[styles.logoutText, { color: Colors.danger }]}>Sign out</Text>
+        <Text style={[styles.logoutText, { color: Colors.danger }]}>Dil nga llogaria</Text>
         <Ionicons name="chevron-forward" size={18} color={Colors.danger} />
       </Pressable>
     </ScrollView>

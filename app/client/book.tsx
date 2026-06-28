@@ -20,6 +20,8 @@ import { Ionicons } from '@expo/vector-icons';
 import { supabase } from '../../context/supabase';
 import { useAuth } from '../../context/AuthContext';
 import { PremiumCard, ScreenHeader, useClientColors } from '../../components/ClientUI';
+import { notifyStaffAppointmentChange } from '../../utils/appointmentStaffNotifications';
+import { syncClientAppointmentReminders } from '../../utils/appointmentReminders';
 
 type Service = {
   id: string;
@@ -79,7 +81,7 @@ export default function BookAppointmentScreen() {
         .select('id, name, price, duration, is_on_sale, sale_price')
         .eq('is_active', true);
 
-      if (error) Alert.alert('Services unavailable', error.message);
+      if (error) Alert.alert('Shërbimet nuk u ngarkuan', error.message);
       setServices((data as Service[] | null) ?? []);
       setLoadingServices(false);
     };
@@ -133,12 +135,12 @@ export default function BookAppointmentScreen() {
 
   const submit = async () => {
     if (!service || !location || !time || !name.trim() || !phone.trim()) {
-      Alert.alert('Missing information', 'Select a service, location, date and time, then check your contact details.');
+      Alert.alert('Mungojnë të dhëna', 'Zgjidhni shërbimin, lokacionin, datën dhe orën, pastaj kontrolloni të dhënat e kontaktit.');
       return;
     }
 
     if (date.getDay() === 0) {
-      Alert.alert('Closed on Sunday', 'Please choose another date.');
+      Alert.alert('Mbyllur të dielën', 'Ju lutemi zgjidhni një datë tjetër.');
       return;
     }
 
@@ -157,12 +159,12 @@ export default function BookAppointmentScreen() {
 
       if (occupiedRows?.length) {
         setTime('');
-        throw new Error('That time was just booked by someone else. Please choose another time.');
+        throw new Error('Kjo orë sapo u rezervua nga dikush tjetër. Ju lutemi zgjidhni një orë tjetër.');
       }
 
       const { data: sessionData } = await supabase.auth.getSession();
       const accessToken = sessionData.session?.access_token;
-      if (!accessToken) throw new Error('Your session has expired. Please sign in again.');
+      if (!accessToken) throw new Error('Seanca juaj ka skaduar. Ju lutemi hyni përsëri.');
 
       const response = await fetch(BOOKING_URL, {
         method: 'POST',
@@ -183,7 +185,17 @@ export default function BookAppointmentScreen() {
       });
 
       const result = (await response.json()) as { error?: string };
-      if (!response.ok) throw new Error(result.error || 'The appointment could not be created.');
+      if (!response.ok) throw new Error(result.error || 'Termini nuk mund të krijohej.');
+
+      void notifyStaffAppointmentChange('created', {
+        service: service.name,
+        client_name: name.trim(),
+        appointment_date: selectedDate,
+        appointment_time: time,
+        location,
+        status: 'upcoming',
+      });
+      if (user?.id) void syncClientAppointmentReminders(user.id);
 
       setBookingComplete(true);
       Animated.parallel([
@@ -206,7 +218,7 @@ export default function BookAppointmentScreen() {
         router.replace('/client' as any);
       }, 1150);
     } catch (error) {
-      Alert.alert('Booking failed', error instanceof Error ? error.message : 'Please try again.');
+      Alert.alert('Rezervimi dështoi', error instanceof Error ? error.message : 'Ju lutemi provoni përsëri.');
     } finally {
       setSubmitting(false);
     }
@@ -221,16 +233,16 @@ export default function BookAppointmentScreen() {
       >
         <Pressable style={styles.back} onPress={() => router.back()}>
           <Ionicons name="arrow-back" size={19} color={Colors.primary} />
-          <Text style={[styles.backText, { color: Colors.primary }]}>Back</Text>
+          <Text style={[styles.backText, { color: Colors.primary }]}>Kthehu</Text>
         </Pressable>
 
         <ScreenHeader
-          eyebrow="Appointments"
-          title="Book a Visit"
-          subtitle="Choose from the same live services and available times shown on Fresh Look web."
+          eyebrow="Terminet"
+          title="Rezervo vizitën"
+          subtitle="Zgjidhni shërbimin, lokacionin dhe orën e lirë për vizitën tuaj në Fresh Look."
         />
 
-      <SectionTitle title="1. Choose a service" />
+      <SectionTitle title="1. Zgjidhni shërbimin" />
       {loadingServices ? (
         <ActivityIndicator color={Colors.primary} style={styles.loader} />
       ) : (
@@ -258,14 +270,14 @@ export default function BookAppointmentScreen() {
         </View>
       )}
 
-      <SectionTitle title="2. Choose a location" />
+      <SectionTitle title="2. Zgjidhni lokacionin" />
       <View style={styles.row}>
         {LOCATIONS.map((item) => (
           <ChoicePill key={item} label={item} selected={location === item} onPress={() => setLocation(item)} />
         ))}
       </View>
 
-      <SectionTitle title="3. Choose date and time" />
+      <SectionTitle title="3. Zgjidhni datën dhe orën" />
       <PremiumCard style={styles.cardGap}>
         <Pressable
           style={[styles.dateButton, { borderColor: Colors.border }]}
@@ -304,19 +316,19 @@ export default function BookAppointmentScreen() {
                 ]}
               >
                 <Text style={{ color: time === slot ? Colors.onPrimary : Colors.text, fontWeight: '700' }}>{slot}</Text>
-                {booked && <Text style={[styles.takenText, { color: Colors.muted }]}>Taken</Text>}
+                {booked && <Text style={[styles.takenText, { color: Colors.muted }]}>E zënë</Text>}
               </Pressable>
             );
           })}
         </View>
       </PremiumCard>
 
-      <SectionTitle title="4. Your information" />
+      <SectionTitle title="4. Të dhënat tuaja" />
       <PremiumCard style={styles.cardGap}>
         <TextInput
           value={name}
           onChangeText={setName}
-          placeholder="Full name"
+          placeholder="Emri dhe mbiemri"
           placeholderTextColor={Colors.muted}
           style={[styles.input, { color: Colors.text, borderColor: Colors.border, backgroundColor: Colors.surface }]}
         />
@@ -324,7 +336,7 @@ export default function BookAppointmentScreen() {
           value={phone}
           onChangeText={setPhone}
           keyboardType="phone-pad"
-          placeholder="Phone number"
+          placeholder="Numri i telefonit"
           placeholderTextColor={Colors.muted}
           style={[styles.input, { color: Colors.text, borderColor: Colors.border, backgroundColor: Colors.surface }]}
         />
@@ -335,7 +347,7 @@ export default function BookAppointmentScreen() {
         onPress={submit}
         style={[styles.submit, { backgroundColor: Colors.primary, opacity: submitting || bookingComplete ? 0.65 : 1 }]}
       >
-        {submitting ? <ActivityIndicator color={Colors.onPrimary} /> : <Text style={[styles.submitText, { color: Colors.onPrimary }]}>Confirm booking</Text>}
+        {submitting ? <ActivityIndicator color={Colors.onPrimary} /> : <Text style={[styles.submitText, { color: Colors.onPrimary }]}>Konfirmo rezervimin</Text>}
       </Pressable>
 
       </ScrollView>
@@ -360,8 +372,8 @@ export default function BookAppointmentScreen() {
             <View style={[styles.successIcon, { backgroundColor: Colors.primary }]}>
               <Ionicons name="checkmark" size={38} color={Colors.onPrimary} />
             </View>
-            <Text style={[styles.successTitle, { color: Colors.text }]}>Booking made</Text>
-            <Text style={[styles.successText, { color: Colors.muted }]}>Taking you back home.</Text>
+            <Text style={[styles.successTitle, { color: Colors.text }]}>Termini u rezervua</Text>
+            <Text style={[styles.successText, { color: Colors.muted }]}>Po ju kthejmë në kryefaqe.</Text>
           </Animated.View>
         </Animated.View>
       </Modal>

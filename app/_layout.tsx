@@ -57,7 +57,11 @@ function AppLayout() {
               : styles.nativeInner
           }
         >
-          <Stack screenOptions={{ headerShown: false }} />
+          <Stack screenOptions={{ headerShown: false }}>
+            <Stack.Screen name="(auth)" options={{ gestureEnabled: false }} />
+            <Stack.Screen name="(tabs)" options={{ gestureEnabled: false }} />
+            <Stack.Screen name="client" options={{ gestureEnabled: false }} />
+          </Stack>
         </View>
       </SafeAreaView>
     </>

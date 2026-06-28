@@ -17,6 +17,7 @@ import { router } from 'expo-router';
 
 import { supabase } from '../../context/supabase';
 import { useAuth } from '../../context/AuthContext';
+import { notifyStaffAppointmentChange } from '../../utils/appointmentStaffNotifications';
 import { useTheme } from '../../context/ThemeContext';
 import { LightColors, DarkColors } from '../../constants/colors';
 import { useAutoRefresh } from '../../hooks/useAutoRefresh';
@@ -121,13 +122,13 @@ export default function ManageAppointmentsScreen() {
     ]);
 
     if (appointmentsRes.error) {
-      Alert.alert('Error', appointmentsRes.error.message);
+      Alert.alert('Gabim', appointmentsRes.error.message);
       setLoading(false);
       return;
     }
 
     if (staffRes.error) {
-      Alert.alert('Error', staffRes.error.message);
+      Alert.alert('Gabim', staffRes.error.message);
       setLoading(false);
       return;
     }
@@ -186,7 +187,7 @@ export default function ManageAppointmentsScreen() {
       .eq('id', appointment.id);
 
     if (error) {
-      Alert.alert('Error', error.message);
+      Alert.alert('Gabim', error.message);
       setSavingId(null);
       return;
     }
@@ -212,6 +213,8 @@ export default function ManageAppointmentsScreen() {
         },
       },
     });
+
+    void notifyStaffAppointmentChange('updated', appointment);
 
     setAppointments((prev) =>
       prev.map((item) =>
@@ -275,7 +278,7 @@ export default function ManageAppointmentsScreen() {
               </Text>
 
               <Text style={[styles.meta, { color: Colors.muted }]}>
-                Staff: {item.creator_name ?? 'Pa staff'} · {item.status}
+                Stafi: {item.creator_name ?? 'Pa staf'} · {item.status}
                 {item.archived ? ' · Arkivuar' : ''}
               </Text>
             </View>

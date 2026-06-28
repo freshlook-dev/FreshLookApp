@@ -15,11 +15,11 @@ declare
   v_redemption public.point_redemptions%rowtype;
 begin
   if v_user_id is null then
-    raise exception 'Not authenticated' using errcode = '28000';
+    raise exception 'Nuk jeni të kyçur' using errcode = '28000';
   end if;
 
   if p_points is null or p_points < 10 then
-    raise exception 'Minimum redemption is 10 Fresh Points' using errcode = '22023';
+    raise exception 'Minimumi për shpërblim është 10 Fresh Points' using errcode = '22023';
   end if;
 
   select role, is_active, coalesce(points, 0)
@@ -28,15 +28,15 @@ begin
   where id = v_user_id;
 
   if not found then
-    raise exception 'Client profile not found' using errcode = 'P0002';
+    raise exception 'Profili i klientit nuk u gjet' using errcode = 'P0002';
   end if;
 
   if coalesce(v_active, true) = false or v_role <> 'client' then
-    raise exception 'Only active clients can create reward QR codes' using errcode = '42501';
+    raise exception 'Vetëm klientët aktivë mund të krijojnë kode QR shpërblimi' using errcode = '42501';
   end if;
 
   if v_balance < p_points then
-    raise exception 'Not enough Fresh Points' using errcode = 'P0001';
+    raise exception 'Nuk keni mjaftueshëm Fresh Points' using errcode = 'P0001';
   end if;
 
   insert into public.point_redemptions (user_id, points, status, expires_at)

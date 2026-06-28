@@ -21,7 +21,7 @@ import { useTheme } from '../../context/ThemeContext';
 import { LightColors, DarkColors } from '../../constants/colors';
 import { useAutoRefresh } from '../../hooks/useAutoRefresh';
 
-type Role = 'owner' | 'manager' | 'staff';
+type Role = 'owner' | 'manager' | 'staff' | 'client';
 
 type UserRow = {
   id: string;
@@ -107,7 +107,7 @@ export default function ManageUsersScreen() {
       .eq('id', u.id);
 
     if (error) {
-      Alert.alert('Error', error.message);
+      Alert.alert('Gabim', error.message);
       return;
     }
 
@@ -167,7 +167,7 @@ export default function ManageUsersScreen() {
       .eq('id', u.id);
 
     if (error) {
-      Alert.alert('Error', error.message);
+      Alert.alert('Gabim', error.message);
       return;
     }
 
@@ -239,7 +239,7 @@ export default function ManageUsersScreen() {
               }}
               style={styles.changeBtn}
             >
-              <Text style={styles.changeBtnText}>Veprime</Text>
+              <Text style={styles.changeBtnText}>Ndrysho rolin</Text>
             </Pressable>
           </View>
         )}
@@ -261,7 +261,7 @@ export default function ManageUsersScreen() {
                   {selectedUser.is_active === false ? 'Jo aktiv' : 'Aktiv'}
                 </Text>
 
-                {(['staff', 'manager', 'owner'] as Role[]).map((r) => (
+                {(['client', 'staff', 'manager', 'owner'] as Role[]).map((r) => (
                   <Pressable
                     key={r}
                     onPress={() => requestChangeRole(selectedUser, r)}

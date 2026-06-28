@@ -19,6 +19,7 @@ import { supabase } from '../../context/supabase';
 import { useAuth } from '../../context/AuthContext';
 import { useTheme } from '../../context/ThemeContext';
 import { LightColors, DarkColors } from '../../constants/colors';
+import { notifyStaffAppointmentChange } from '../../utils/appointmentStaffNotifications';
 
 type PaymentMethod = 'cash' | 'bank' | 'mixed';
 
@@ -426,6 +427,15 @@ export default function RegisterVisitScreen() {
           error: pointsUpdateError,
         },
       },
+    });
+
+    void notifyStaffAppointmentChange('status_changed', {
+      id: appointmentId,
+      client_name: clientName,
+      service: serviceName,
+      appointment_date: appointmentDate,
+      appointment_time: appointmentTime,
+      status: 'arrived',
     });
 
     setSaving(false);

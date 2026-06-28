@@ -82,7 +82,7 @@ export default function CalendarTab() {
       setAppointments(
         data.map((a: any) => ({
           ...a,
-          creator_name: a.profiles?.full_name ?? 'Unknown',
+          creator_name: a.profiles?.full_name ?? 'I panjohur',
         }))
       );
     }
@@ -127,7 +127,7 @@ export default function CalendarTab() {
         { backgroundColor: Colors.background },
       ]}
     >
-      <SectionTitle>Calendar</SectionTitle>
+      <SectionTitle>Kalendari</SectionTitle>
 
       <Calendar
         style={[styles.calendar, { backgroundColor: Colors.card, borderColor: Colors.border }]}
@@ -173,7 +173,7 @@ export default function CalendarTab() {
 
       {selectedDate && dailyAppointments.length === 0 && (
         <Text style={[styles.empty, { color: Colors.muted }]}>
-          No appointments for this day
+          Nuk ka termine për këtë ditë
         </Text>
       )}
 

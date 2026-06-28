@@ -38,16 +38,16 @@ const formatDateTime = (iso: string) => {
 
 const actionLabel = (action: string, metadata: any) => {
   if (metadata?.changed?.status) {
-    return 'Status Change';
+    return 'Ndryshim statusi';
   }
 
   switch (action) {
     case 'UPDATE_APPOINTMENT':
-      return 'Appointment Updated';
+      return 'Termini u ndryshua';
     case 'CREATE_APPOINTMENT':
-      return 'Create Appointment';
+      return 'Termin i krijuar';
     case 'USE_ACCESS_CODE':
-      return 'Use Access Code';
+      return 'Kod qasjeje i përdorur';
     default:
       return action.replaceAll('_', ' ');
   }
@@ -56,13 +56,13 @@ const actionLabel = (action: string, metadata: any) => {
 const prettyField = (field: string) => {
   switch (field) {
     case 'status':
-      return 'Status';
+      return 'Statusi';
     case 'archived':
-      return 'Archived';
+      return 'Arkivuar';
     case 'date':
-      return 'Date';
+      return 'Data';
     case 'time':
-      return 'Time';
+      return 'Ora';
     default:
       return field;
   }
@@ -109,7 +109,7 @@ export default function AuditLogsScreen() {
 
     const map: Record<string, string> = {};
     data?.forEach((u: any) => {
-      map[u.id] = u.full_name || 'Unknown';
+      map[u.id] = u.full_name || 'I panjohur';
     });
 
     setUsers(map);
@@ -141,7 +141,7 @@ export default function AuditLogsScreen() {
   return (
     <View style={[styles.container, { backgroundColor: Colors.background }]}>
       <Text style={[styles.pageTitle, { color: Colors.text }]}>
-        Audit Logs
+        Log-et e auditimit
       </Text>
 
       <FlatList
@@ -152,7 +152,7 @@ export default function AuditLogsScreen() {
           const actor =
             item.actor_id && users[item.actor_id]
               ? users[item.actor_id]
-              : 'System';
+              : 'Sistemi';
 
           const clientName =
             item.metadata?.appointment?.client_name ?? null;
@@ -201,7 +201,7 @@ export default function AuditLogsScreen() {
                       { color: Colors.text },
                     ]}
                   >
-                    Changes
+                    Ndryshimet
                   </Text>
 
                   {Object.entries(changes).map(([field, value]: any) => (
@@ -236,7 +236,7 @@ export default function AuditLogsScreen() {
                 </View>
               ) : (
                 <Text style={[styles.noChanges, { color: Colors.muted }]}>
-                  No detailed field changes recorded
+                  Nuk ka ndryshime të detajuara të regjistruara
                 </Text>
               )}
             </View>

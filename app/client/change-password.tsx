@@ -17,15 +17,15 @@ export default function ClientChangePasswordScreen() {
 
   const updatePassword = async () => {
     if (!currentPassword || !newPassword || !confirmPassword) {
-      Alert.alert('Missing information', 'Complete all password fields.');
+      Alert.alert('Mungojnë të dhëna', 'Plotësoni të gjitha fushat e fjalëkalimit.');
       return;
     }
     if (newPassword.length < 8) {
-      Alert.alert('Password too short', 'Use at least 8 characters.');
+      Alert.alert('Fjalëkalimi është i shkurtër', 'Përdorni të paktën 8 karaktere.');
       return;
     }
     if (newPassword !== confirmPassword) {
-      Alert.alert('Passwords do not match', 'Confirm the same new password.');
+      Alert.alert('Fjalëkalimet nuk përputhen', 'Konfirmoni të njëjtin fjalëkalim të ri.');
       return;
     }
 
@@ -37,34 +37,34 @@ export default function ClientChangePasswordScreen() {
 
     if (signInError) {
       setLoading(false);
-      Alert.alert('Incorrect password', 'Your current password is incorrect.');
+      Alert.alert('Fjalëkalimi nuk është i saktë', 'Fjalëkalimi aktual është i gabuar.');
       return;
     }
 
     const { error } = await supabase.auth.updateUser({ password: newPassword });
     setLoading(false);
     if (error) {
-      Alert.alert('Unable to update password', error.message);
+      Alert.alert('Fjalëkalimi nuk u përditësua', error.message);
       return;
     }
 
-    Alert.alert('Password updated', 'Your password was changed successfully.', [
-      { text: 'OK', onPress: () => router.replace('/client/settings') },
+    Alert.alert('Fjalëkalimi u ndryshua', 'Fjalëkalimi juaj u përditësua me sukses.', [
+      { text: 'Në rregull', onPress: () => router.replace('/client/profile') },
     ]);
   };
 
   return (
     <ScrollView style={{ backgroundColor: Colors.background }} contentContainerStyle={styles.content}>
-      <Pressable style={styles.back} onPress={() => router.back()}>
+      <Pressable style={styles.back} onPress={() => router.replace('/client/profile')}>
         <Ionicons name="chevron-back" size={22} color={Colors.text} />
-        <Text style={[styles.backText, { color: Colors.text }]}>Settings</Text>
+        <Text style={[styles.backText, { color: Colors.text }]}>Kthehu mbrapa</Text>
       </Pressable>
-      <ScreenHeader title="Change password" subtitle="Confirm your current password, then choose a new one." />
+      <ScreenHeader title="Ndrysho fjalëkalimin" subtitle="Konfirmoni fjalëkalimin aktual, pastaj zgjidhni një të ri." />
       <PremiumCard style={styles.card}>
         {[
-          ['Current password', currentPassword, setCurrentPassword],
-          ['New password', newPassword, setNewPassword],
-          ['Confirm new password', confirmPassword, setConfirmPassword],
+          ['Fjalëkalimi aktual', currentPassword, setCurrentPassword],
+          ['Fjalëkalimi i ri', newPassword, setNewPassword],
+          ['Konfirmo fjalëkalimin e ri', confirmPassword, setConfirmPassword],
         ].map(([placeholder, value, setter]) => (
           <TextInput
             key={placeholder as string}
@@ -77,7 +77,7 @@ export default function ClientChangePasswordScreen() {
           />
         ))}
         <Pressable style={[styles.button, { backgroundColor: Colors.primary }]} onPress={updatePassword} disabled={loading}>
-          {loading ? <ActivityIndicator color="#fff" /> : <Text style={styles.buttonText}>Update password</Text>}
+          {loading ? <ActivityIndicator color="#fff" /> : <Text style={styles.buttonText}>Përditëso fjalëkalimin</Text>}
         </Pressable>
       </PremiumCard>
     </ScrollView>

@@ -99,7 +99,7 @@ export default function SignUpScreen() {
           .maybeSingle();
 
         if (codeError || !data) {
-          Alert.alert('Invalid code', 'Access code is invalid or already used');
+          Alert.alert('Kodi nuk vlen', 'Kodi i qasjes nuk është i saktë ose është përdorur tashmë.');
           return;
         }
 
@@ -126,14 +126,14 @@ export default function SignUpScreen() {
 
       if (signUpError || !signUpData.user) {
         setLoading(false);
-        Alert.alert('Signup failed', signUpError?.message || 'Unknown error');
+        Alert.alert('Regjistrimi dështoi', signUpError?.message || 'Gabim i panjohur');
         return;
       }
 
       if (!signUpData.session) {
         Alert.alert(
-          'Confirm your email',
-          'We sent a confirmation link to your email address. Confirm your account, then return here to sign in.'
+          'Konfirmoni emailin',
+          'Ju dërguam një lidhje konfirmimi në email. Konfirmoni llogarinë, pastaj kthehuni këtu për të hyrë.'
         );
         router.replace('/(auth)/login');
         return;
@@ -147,7 +147,7 @@ export default function SignUpScreen() {
           .eq('used', false);
 
         if (codeUpdateError) {
-          Alert.alert('Access code error', codeUpdateError.message);
+          Alert.alert('Gabim me kodin e qasjes', codeUpdateError.message);
           return;
         }
 
@@ -159,11 +159,11 @@ export default function SignUpScreen() {
       }
 
       void sendWelcomeEmail(signUpData.session.access_token);
-      Alert.alert('Success', `Account created successfully as ${nextRole}`);
+      Alert.alert('Sukses', nextRole === 'client' ? 'Llogaria e klientit u krijua me sukses.' : 'Llogaria e stafit u krijua me sukses.');
       router.replace(nextRole === 'client' ? '/client' : '/(tabs)');
     } catch (err) {
       console.error(err);
-      Alert.alert('Error', 'Something went wrong');
+      Alert.alert('Gabim', 'Diçka shkoi keq. Ju lutemi provoni përsëri.');
     } finally {
       setLoading(false);
     }

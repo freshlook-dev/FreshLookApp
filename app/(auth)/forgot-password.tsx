@@ -27,7 +27,7 @@ export default function ForgotPasswordScreen() {
 
   const handleReset = async () => {
     if (!email.trim()) {
-      Alert.alert('Error', 'Please enter your email');
+      Alert.alert('Gabim', 'Ju lutemi shkruani emailin tuaj.');
       return;
     }
 
@@ -44,13 +44,13 @@ export default function ForgotPasswordScreen() {
     setLoading(false);
 
     if (error) {
-      Alert.alert('Error', error.message);
+      Alert.alert('Gabim', error.message);
       return;
     }
 
     Alert.alert(
-      'Check your email',
-      'We sent you a password reset link. It will open the secure reset page on www.freshlook-ks.com.'
+      'Kontrolloni emailin',
+      'Ju dërguam një lidhje për rivendosjen e fjalëkalimit. Ajo hap faqen e sigurt në www.freshlook-ks.com.'
     );
 
     router.back();

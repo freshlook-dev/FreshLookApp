@@ -199,7 +199,7 @@ const excelSafePhone = (s?: string | null) =>
     const { data, error, count } = await query;
 
     if (error) {
-      Alert.alert('Error', error.message);
+      Alert.alert('Gabim', error.message);
       setRows([]);
       setTotalCount(0);
       setLoading(false);
@@ -327,27 +327,27 @@ const excelSafePhone = (s?: string | null) =>
     const data = await fetchAllFiltered();
 
     const rowsForExcel = data.map((r) => ({
-      Date: formatDate(r.appointment_date),
-      'Client Name': r.client_name,
-      Phone: r.phone ? `'${r.phone}` : '',
-      Location: r.location ?? '',
-      Notes: (r.visit_notes ?? '').replace(/\r?\n|\r/g, ' • '),
-      'Payment Method': r.payment_method ?? '',
-      'Cash (€)': Number(r.paid_cash ?? 0),
-      'Bank (€)': Number(r.paid_bank ?? 0),
+      Data: formatDate(r.appointment_date),
+      'Emri i klientit': r.client_name,
+      Telefoni: r.phone ? `'${r.phone}` : '',
+      Lokacioni: r.location ?? '',
+      Shënime: (r.visit_notes ?? '').replace(/\r?\n|\r/g, ' • '),
+      'Mënyra e pagesës': r.payment_method ?? '',
+      'Kesh (€)': Number(r.paid_cash ?? 0),
+      'Bankë (€)': Number(r.paid_bank ?? 0),
     }));
 
     const summarySheet = [
-      { Label: 'Total Cash (€)', Value: totalCash },
-      { Label: 'Total Bank (€)', Value: totalBank },
-      { Label: 'Grand Total (€)', Value: totalCash + totalBank },
+      { Përshkrimi: 'Totali kesh (€)', Vlera: totalCash },
+      { Përshkrimi: 'Totali bankë (€)', Vlera: totalBank },
+      { Përshkrimi: 'Totali i përgjithshëm (€)', Vlera: totalCash + totalBank },
     ];
 
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(
       wb,
       XLSX.utils.json_to_sheet(rowsForExcel),
-      'Appointments'
+      'Terminet'
     );
     XLSX.utils.book_append_sheet(
       wb,
@@ -393,8 +393,8 @@ const excelSafePhone = (s?: string | null) =>
     }
   } catch (e: any) {
     Alert.alert(
-      'Export Error',
-      e?.message ?? 'Excel export failed.'
+      'Gabim gjatë eksportimit',
+      e?.message ?? 'Eksportimi në Excel dështoi.'
     );
   }
 
@@ -448,7 +448,7 @@ const excelSafePhone = (s?: string | null) =>
         }
         style={[styles.editPaymentBtn, { backgroundColor: Colors.primary }]}
       >
-        <Text style={styles.editPaymentText}>Edit Payment</Text>
+        <Text style={styles.editPaymentText}>Ndrysho pagesën</Text>
       </Pressable>
     </View>
   );
@@ -472,7 +472,7 @@ const LocationButtons = useMemo(() => {
             ]}
           >
             <Text style={{ color: active ? '#fff' : Colors.text }}>
-              {opt === 'ALL' ? 'All' : opt}
+              {opt === 'ALL' ? 'Të gjitha' : opt}
             </Text>
           </Pressable>
         );
@@ -483,10 +483,10 @@ const LocationButtons = useMemo(() => {
 
   const DatePresetButtons = useMemo(() => {
     const opts: { key: DatePreset; label: string }[] = [
-      { key: 'TODAY', label: 'Today' },
-      { key: 'MONTH', label: 'This month' },
-      { key: 'LAST_MONTH', label: 'Last month' },
-      { key: 'CUSTOM', label: 'Custom' },
+      { key: 'TODAY', label: 'Sot' },
+      { key: 'MONTH', label: 'Ky muaj' },
+      { key: 'LAST_MONTH', label: 'Muaji i kaluar' },
+      { key: 'CUSTOM', label: 'Sipas datës' },
     ];
     return (
       <View style={styles.btnRow}>
@@ -533,20 +533,20 @@ const LocationButtons = useMemo(() => {
   }
 
   const headers = [
-  'Date',
-  'Client Name',
-  'Phone',
-  'Location',
-  'Notes',
-  'Payment Method',
-  'Cash (€)',
-  'Bank (€)',
+  'Data',
+  'Emri i klientit',
+  'Telefoni',
+  'Lokacioni',
+  'Shënime',
+  'Mënyra e pagesës',
+  'Kesh (€)',
+  'Bankë (€)',
 ];
 
   return (
     <View style={[styles.container, { backgroundColor: Colors.background }]}>
       <View style={styles.headerRow}>
-        <Text style={[styles.title, { color: Colors.text }]}>Owner Stats</Text>
+        <Text style={[styles.title, { color: Colors.text }]}>Statistikat e owner-it</Text>
 
         <Pressable
           onPress={exportExcel}
@@ -554,7 +554,7 @@ const LocationButtons = useMemo(() => {
           style={[styles.exportBtn, { backgroundColor: Colors.primary }]}
         >
           <Text style={styles.exportText}>
-            {exporting ? 'Exporting…' : 'Export Excel'}
+            {exporting ? 'Duke eksportuar...' : 'Eksporto Excel'}
           </Text>
 
         </Pressable>
@@ -563,7 +563,7 @@ const LocationButtons = useMemo(() => {
       <TextInput
         value={search}
         onChangeText={setSearch}
-        placeholder="Search: name, phone, notes…"
+        placeholder="Kërko: emër, telefon, shënime..."
         placeholderTextColor={Colors.muted}
         style={[
           styles.search,
@@ -573,13 +573,13 @@ const LocationButtons = useMemo(() => {
 
         
        <Text style={[styles.sectionTitle, { color: Colors.muted }]}>
-  Location
+  Lokacioni
 </Text>
 {LocationButtons}
 
 
 
-      <Text style={[styles.sectionTitle, { color: Colors.muted }]}>Date range</Text>
+      <Text style={[styles.sectionTitle, { color: Colors.muted }]}>Periudha</Text>
       {DatePresetButtons}
 
       {datePreset === 'CUSTOM' && (
@@ -621,7 +621,7 @@ const LocationButtons = useMemo(() => {
           style={[styles.customInput, { backgroundColor: Colors.card }]}
         >
           <Text style={{ color: Colors.text }}>
-            Start: {formatDate(startDate)}
+            Fillimi: {formatDate(startDate)}
           </Text>
         </Pressable>
 
@@ -630,7 +630,7 @@ const LocationButtons = useMemo(() => {
           style={[styles.customInput, { backgroundColor: Colors.card }]}
         >
           <Text style={{ color: Colors.text }}>
-            End: {formatDate(endDate)}
+            Fundi: {formatDate(endDate)}
           </Text>
         </Pressable>
       </>
@@ -672,11 +672,11 @@ const LocationButtons = useMemo(() => {
             { backgroundColor: page <= 1 ? Colors.card : Colors.primary },
           ]}
         >
-          <Text style={{ color: page <= 1 ? Colors.muted : '#fff' }}>Prev</Text>
+          <Text style={{ color: page <= 1 ? Colors.muted : '#fff' }}>Prapa</Text>
         </Pressable>
 
         <Text style={[styles.pageInfo, { color: Colors.text }]}>
-          Page {page} / {totalPages} • {totalCount} records
+          Faqja {page} / {totalPages} • {totalCount} regjistrime
         </Text>
 
         <Pressable
@@ -687,7 +687,7 @@ const LocationButtons = useMemo(() => {
             { backgroundColor: page >= totalPages ? Colors.card : Colors.primary },
           ]}
         >
-          <Text style={{ color: page >= totalPages ? Colors.muted : '#fff' }}>Next</Text>
+          <Text style={{ color: page >= totalPages ? Colors.muted : '#fff' }}>Para</Text>
         </Pressable>
       </View>
 
@@ -709,7 +709,7 @@ const LocationButtons = useMemo(() => {
       <View style={[styles.totalsBar, { backgroundColor: Colors.card }]}>
         <View style={styles.totalsCol}>
           <Text style={[styles.totalsLabel, { color: Colors.muted }]}>
-            Total Cash
+            Totali kesh
           </Text>
           <Text style={[styles.totalsValue, { color: Colors.text }]}>
             €{Number(totalCash ?? 0).toFixed(2)}
@@ -718,7 +718,7 @@ const LocationButtons = useMemo(() => {
 
         <View style={styles.totalsCol}>
           <Text style={[styles.totalsLabel, { color: Colors.muted }]}>
-            Total Bank
+            Totali bankë
           </Text>
           <Text style={[styles.totalsValue, { color: Colors.text }]}>
             €{Number(totalBank ?? 0).toFixed(2)}
@@ -729,7 +729,7 @@ const LocationButtons = useMemo(() => {
           onPress={() => router.replace('/(tabs)')}
           style={[styles.homeBtn, { backgroundColor: Colors.primary }]}
         >
-          <Text style={styles.homeText}>Home</Text>
+          <Text style={styles.homeText}>Kryefaqja</Text>
         </Pressable>
       </View>
     </View>

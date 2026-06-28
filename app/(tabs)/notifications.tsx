@@ -21,7 +21,7 @@ export default function NotificationsScreen() {
 
   const sendNotification = async () => {
     if (!title.trim() || !message.trim()) {
-      Alert.alert('Missing information', 'Add a title and message.');
+      Alert.alert('Mungojnë të dhëna', 'Shtoni titullin dhe mesazhin.');
       return;
     }
 
@@ -32,11 +32,11 @@ export default function NotificationsScreen() {
     setSending(false);
 
     if (error) {
-      Alert.alert('Unable to send', error.message);
+      Alert.alert('Njoftimi nuk u dërgua', error.message);
       return;
     }
 
-    Alert.alert('Notification sent', `Delivered to ${data?.sent ?? 0} registered devices.`);
+    Alert.alert('Njoftimi u dërgua', `U dërgua në ${data?.sent ?? 0} pajisje të regjistruara.`);
     setTitle('');
     setMessage('');
   };
@@ -45,15 +45,15 @@ export default function NotificationsScreen() {
     <ScrollView style={{ backgroundColor: Colors.background }} contentContainerStyle={styles.content}>
       <Pressable style={styles.back} onPress={() => router.back()}>
         <Ionicons name="chevron-back" size={22} color={Colors.text} />
-        <Text style={[styles.backText, { color: Colors.text }]}>Profile</Text>
+        <Text style={[styles.backText, { color: Colors.text }]}>Profili</Text>
       </Pressable>
-      <Text style={[styles.title, { color: Colors.text }]}>Send notification</Text>
-      <Text style={[styles.subtitle, { color: Colors.muted }]}>Broadcast a message to registered iOS and Android devices.</Text>
+      <Text style={[styles.title, { color: Colors.text }]}>Dërgo njoftim</Text>
+      <Text style={[styles.subtitle, { color: Colors.muted }]}>Dërgoni një mesazh te pajisjet e regjistruara iOS dhe Android.</Text>
 
       <View style={[styles.card, { backgroundColor: Colors.card, borderColor: Colors.border }]}> 
         <TextInput
           style={[styles.input, { backgroundColor: Colors.background, borderColor: Colors.border, color: Colors.text }]}
-          placeholder="Notification title"
+          placeholder="Titulli i njoftimit"
           placeholderTextColor={Colors.muted}
           maxLength={80}
           value={title}
@@ -61,7 +61,7 @@ export default function NotificationsScreen() {
         />
         <TextInput
           style={[styles.input, styles.message, { backgroundColor: Colors.background, borderColor: Colors.border, color: Colors.text }]}
-          placeholder="Message"
+          placeholder="Mesazhi"
           placeholderTextColor={Colors.muted}
           maxLength={500}
           multiline
@@ -69,7 +69,7 @@ export default function NotificationsScreen() {
           onChangeText={setMessage}
         />
         <Pressable style={[styles.button, { backgroundColor: Colors.primary }]} onPress={sendNotification} disabled={sending}>
-          {sending ? <ActivityIndicator color="#fff" /> : <Text style={styles.buttonText}>Send to everyone</Text>}
+          {sending ? <ActivityIndicator color="#fff" /> : <Text style={styles.buttonText}>Dërgo te të gjithë</Text>}
         </Pressable>
       </View>
     </ScrollView>

@@ -47,7 +47,7 @@ export default function Login() {
 
     if (!user) {
       setLoading(false);
-      alert('User not found');
+      alert('Përdoruesi nuk u gjet');
       return;
     }
 
@@ -61,7 +61,7 @@ export default function Login() {
     if (profileError || !profile) {
       await supabase.auth.signOut();
       setLoading(false);
-      alert('Failed to fetch user role');
+      alert('Roli i përdoruesit nuk u ngarkua');
       return;
     }
 
@@ -158,7 +158,7 @@ export default function Login() {
               disabled={loading}
             >
               <Text style={styles.buttonText}>
-                {loading ? 'Signing in…' : 'Log In'}
+                {loading ? 'Duke hyr�...' : 'Hyr'}
               </Text>
             </Pressable>
           </View>

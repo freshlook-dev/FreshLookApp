@@ -5,6 +5,7 @@ import { AppState, Platform } from 'react-native';
 import { AuthChangeEvent, Session, User } from '@supabase/supabase-js';
 import { supabase } from './supabase';
 import { registerPushToken } from '../utils/pushNotifications';
+import { syncClientAppointmentReminders } from '../utils/appointmentReminders';
 
 export type Profile = {
   id: string;
@@ -137,6 +138,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       console.warn('Push notification registration failed', error);
     });
 
+    if (profile?.role === 'client') {
+      syncClientAppointmentReminders(user.id).catch((error: unknown) => {
+        console.warn('Appointment reminder sync failed', error);
+      });
+    }
+
     const channel = supabase
       .channel(`profile-access-${user.id}`)
       .on(
@@ -153,6 +160,27 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       )
       .subscribe();
 
+    const appointmentChannel =
+      profile?.role === 'client'
+        ? supabase
+            .channel(`client-reminders-${user.id}`)
+            .on(
+              'postgres_changes',
+              {
+                event: '*',
+                schema: 'public',
+                table: 'appointments',
+                filter: `user_id=eq.${user.id}`,
+              },
+              () => {
+                syncClientAppointmentReminders(user.id).catch((error: unknown) => {
+                  console.warn('Appointment reminder sync failed', error);
+                });
+              }
+            )
+            .subscribe()
+        : null;
+
     if (Platform.OS === 'web' && typeof window !== 'undefined') {
       const onVisible = () => {
         if (document.visibilityState === 'visible') refreshProfile();
@@ -165,6 +193,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         window.removeEventListener('focus', refreshProfile);
         document.removeEventListener('visibilitychange', onVisible);
         supabase.removeChannel(channel);
+        if (appointmentChannel) supabase.removeChannel(appointmentChannel);
       };
     }
 
@@ -175,8 +204,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return () => {
       subscription.remove();
       supabase.removeChannel(channel);
+      if (appointmentChannel) supabase.removeChannel(appointmentChannel);
     };
-  }, [user?.id]);
+  }, [user?.id, profile?.role]);
 
   const logout = async () => {
     try {

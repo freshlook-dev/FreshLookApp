@@ -25,6 +25,8 @@ type StatRow = {
   total: number;
 };
 
+const STAFF_ROLES = ['owner', 'manager', 'staff'];
+
 const MONTHS_SQ: Record<string, string> = {
   '01': 'Janar',
   '02': 'Shkurt',
@@ -86,7 +88,29 @@ export default function StatsScreen() {
       return;
     }
 
-    setStats(data ?? []);
+    const rows = data ?? [];
+    const profileIds = Array.from(new Set(rows.map((row: StatRow) => row.user_id)));
+
+    if (profileIds.length === 0) {
+      setStats([]);
+      setLoading(false);
+      return;
+    }
+
+    const { data: staffProfiles, error: staffError } = await supabase
+      .from('profiles')
+      .select('id')
+      .in('id', profileIds)
+      .in('role', STAFF_ROLES);
+
+    if (staffError) {
+      console.error(staffError);
+      setLoading(false);
+      return;
+    }
+
+    const staffIds = new Set((staffProfiles ?? []).map((item: { id: string }) => item.id));
+    setStats(rows.filter((row: StatRow) => staffIds.has(row.user_id)));
     setLoading(false);
   };
 

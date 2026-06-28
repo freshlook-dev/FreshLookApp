@@ -1,9 +1,14 @@
-import { Image, Pressable, Animated, Easing, Platform } from 'react-native';
+import {
+  Image,
+  Pressable,
+  Animated,
+  Easing,
+  Platform,
+  DeviceEventEmitter,
+} from 'react-native';
 import {
   Tabs,
   Redirect,
-  useRouter,
-  usePathname,
 } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -35,9 +40,6 @@ export default function TabsLayout() {
   const { theme } = useTheme();
   const Colors = theme === 'dark' ? DarkColors : LightColors;
 
-  const router = useRouter();
-  const pathname = usePathname();
-
   const [refreshing, setRefreshing] = useState(false);
 
   /* 🔄 ANIMATION */
@@ -62,7 +64,7 @@ export default function TabsLayout() {
         return;
       }
 
-      router.replace(pathname as any);
+      DeviceEventEmitter.emit('freshlook-refresh');
       setRefreshing(false);
     });
   };
@@ -122,6 +124,7 @@ export default function TabsLayout() {
         /* ✅ TAB BAR THEME */
         tabBarActiveTintColor: Colors.primary,
         tabBarInactiveTintColor: Colors.muted,
+        tabBarHideOnKeyboard: true,
 
         tabBarStyle: {
           backgroundColor: Colors.card,
@@ -237,7 +240,7 @@ export default function TabsLayout() {
         name="notifications"
         options={{
           href: null,
-          title: 'Send Notifications',
+          title: 'Dërgo njoftime',
         }}
       />
 
@@ -245,7 +248,7 @@ export default function TabsLayout() {
         name="edit"
         options={{
           href: null,
-          title: 'Edit Appointment',
+          title: 'Ndrysho terminin',
         }}
       />
 
@@ -253,7 +256,31 @@ export default function TabsLayout() {
         name="change-password"
         options={{
           href: null,
-          title: 'Change Password',
+          title: 'Ndrysho fjalëkalimin',
+        }}
+      />
+
+      <Tabs.Screen
+        name="manage-profile"
+        options={{
+          href: null,
+          title: 'Menaxho profilin',
+        }}
+      />
+
+      <Tabs.Screen
+        name="about-us"
+        options={{
+          href: null,
+          title: 'Rreth nesh',
+        }}
+      />
+
+      <Tabs.Screen
+        name="help-center"
+        options={{
+          href: null,
+          title: 'Qendra e ndihmës',
         }}
       />
 
@@ -261,7 +288,7 @@ export default function TabsLayout() {
         name="manage-users"
         options={{
           href: null,
-          title: 'Manage Users',
+          title: 'Menaxho përdoruesit',
         }}
       />
 
@@ -277,7 +304,7 @@ export default function TabsLayout() {
         name="scan-discount"
         options={{
           href: null,
-          title: 'Redeem QR Reward',
+          title: 'Përdor shpërblim QR',
         }}
       />
 
@@ -285,7 +312,7 @@ export default function TabsLayout() {
         name="qr-redemptions"
         options={{
           href: null,
-          title: 'QR Discounts',
+          title: 'Zbritjet QR',
         }}
       />
 
@@ -293,7 +320,7 @@ export default function TabsLayout() {
         name="audit-log"
         options={{
           href: null,
-          title: 'Audit Logs',
+          title: 'Log-et e auditimit',
         }}
       />
 
@@ -301,7 +328,7 @@ export default function TabsLayout() {
         name="archived"
         options={{
           href: null,
-          title: 'Archived Appointments',
+          title: 'Terminet e arkivuara',
         }}
       />
 
@@ -309,7 +336,7 @@ export default function TabsLayout() {
         name="stats"
         options={{
           href: null,
-          title: 'Staff Statistics',
+          title: 'Statistikat e stafit',
         }}
       />
     </Tabs>

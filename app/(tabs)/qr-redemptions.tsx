@@ -59,6 +59,19 @@ type RedemptionRow = Redemption & {
   scanned_at: string | null;
 };
 
+const translateStatus = (status: string) => {
+  switch (status) {
+    case 'pending':
+      return 'Në pritje';
+    case 'used':
+      return 'I përdorur';
+    case 'expired':
+      return 'Ka skaduar';
+    default:
+      return status;
+  }
+};
+
 const getLogRedemptionId = (log: AuditLog) =>
   log.target_id ??
   log.metadata?.redemption?.id ??
@@ -124,7 +137,7 @@ export default function QrRedemptionsScreen() {
       .limit(300);
 
     if (error) {
-      Alert.alert('Error', error.message);
+      Alert.alert('Gabim', error.message);
       setLoading(false);
       return;
     }
@@ -236,12 +249,12 @@ export default function QrRedemptionsScreen() {
 
   return (
     <View style={[styles.container, { backgroundColor: Colors.background }]}>
-      <Text style={[styles.title, { color: Colors.text }]}>QR Discounts</Text>
+      <Text style={[styles.title, { color: Colors.text }]}>Zbritjet QR</Text>
 
       <TextInput
         value={search}
         onChangeText={setSearch}
-        placeholder="Kerko klient, staff, status..."
+        placeholder="Kërko klient, staf, status..."
         placeholderTextColor={Colors.muted}
         style={[
           styles.searchInput,
@@ -267,7 +280,7 @@ export default function QrRedemptionsScreen() {
               ]}
             >
               <Text style={{ color: active ? '#fff' : Colors.text }}>
-                {item === 'all' ? 'Te gjitha' : item}
+                {item === 'all' ? 'Të gjitha' : translateStatus(item)}
               </Text>
             </Pressable>
           );
@@ -303,13 +316,13 @@ export default function QrRedemptionsScreen() {
                   },
                 ]}
               >
-                <Text style={styles.badgeText}>{item.status}</Text>
+                <Text style={styles.badgeText}>{translateStatus(item.status)}</Text>
               </View>
             </View>
 
             <View style={styles.detailRow}>
               <Text style={[styles.detailLabel, { color: Colors.muted }]}>
-                Points
+                Pikë
               </Text>
               <Text style={[styles.detailValue, { color: Colors.text }]}>
                 {item.points}
@@ -318,7 +331,7 @@ export default function QrRedemptionsScreen() {
 
             <View style={styles.detailRow}>
               <Text style={[styles.detailLabel, { color: Colors.muted }]}>
-                Created
+                Krijuar më
               </Text>
               <Text style={[styles.detailValue, { color: Colors.text }]}>
                 {formatKosovoDateTime(item.created_at)}
@@ -327,7 +340,7 @@ export default function QrRedemptionsScreen() {
 
             <View style={styles.detailRow}>
               <Text style={[styles.detailLabel, { color: Colors.muted }]}>
-                Expires
+                Skadon më
               </Text>
               <Text style={[styles.detailValue, { color: Colors.text }]}>
                 {formatKosovoDateTime(item.expires_at)}
@@ -336,7 +349,7 @@ export default function QrRedemptionsScreen() {
 
             <View style={styles.detailRow}>
               <Text style={[styles.detailLabel, { color: Colors.muted }]}>
-                Scanned by
+                Skanuar nga
               </Text>
               <Text style={[styles.detailValue, { color: Colors.text }]}>
                 {item.scanned_by ?? '-'}
@@ -345,7 +358,7 @@ export default function QrRedemptionsScreen() {
 
             <View style={styles.detailRow}>
               <Text style={[styles.detailLabel, { color: Colors.muted }]}>
-                Scanned at
+                Skanuar më
               </Text>
               <Text style={[styles.detailValue, { color: Colors.text }]}>
                 {formatKosovoDateTime(item.scanned_at)}

@@ -3,6 +3,7 @@ import {
   ActivityIndicator,
   Alert,
   Image,
+  Modal,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -23,7 +24,7 @@ import { supabase } from '../../context/supabase';
 import { deleteCurrentAccount } from '../../utils/deleteAccount';
 
 export default function ClientSettingsScreen() {
-  const { user, profile, refreshProfile, logout } = useAuth();
+  const { user, profile, refreshProfile } = useAuth();
   const { theme, toggleTheme } = useTheme();
   const Colors = useClientColors();
   const [fullName, setFullName] = useState('');
@@ -31,6 +32,9 @@ export default function ClientSettingsScreen() {
   const [saving, setSaving] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [deletingAccount, setDeletingAccount] = useState(false);
+  const [deleteModalVisible, setDeleteModalVisible] = useState(false);
+  const [deleteEmail, setDeleteEmail] = useState('');
+  const canDeleteAccount = !!profile?.email && deleteEmail.trim() === profile.email;
 
   useEffect(() => {
     setFullName(profile?.full_name ?? '');
@@ -39,7 +43,7 @@ export default function ClientSettingsScreen() {
 
   const saveProfile = async () => {
     if (!user?.id || !fullName.trim() || !phone.trim()) {
-      Alert.alert('Missing information', 'Name and phone number are required.');
+      Alert.alert('Mungojnë të dhëna', 'Emri dhe numri i telefonit janë të detyrueshëm.');
       return;
     }
 
@@ -51,12 +55,12 @@ export default function ClientSettingsScreen() {
     setSaving(false);
 
     if (error) {
-      Alert.alert('Unable to save', error.message);
+      Alert.alert('Nuk u ruajt', error.message);
       return;
     }
 
     await refreshProfile();
-    Alert.alert('Saved', 'Your account information was updated.');
+    Alert.alert('U ruajt', 'Të dhënat e llogarisë u përditësuan.');
   };
 
   const changePhoto = async () => {
@@ -64,7 +68,7 @@ export default function ClientSettingsScreen() {
 
     const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (!permission.granted) {
-      Alert.alert('Permission required', 'Allow photo library access to choose a profile photo.');
+      Alert.alert('Kërkohet leje', 'Lejoni qasjen te fotot për të zgjedhur një foto profili.');
       return;
     }
 
@@ -102,7 +106,7 @@ export default function ClientSettingsScreen() {
       if (profileError) throw profileError;
       await refreshProfile();
     } catch (error: any) {
-      Alert.alert('Photo upload failed', error?.message ?? 'Please try again.');
+      Alert.alert('Fotoja nuk u ngarkua', error?.message ?? 'Ju lutemi provoni përsëri.');
     } finally {
       setUploading(false);
     }
@@ -114,37 +118,28 @@ export default function ClientSettingsScreen() {
     try {
       setDeletingAccount(true);
       await deleteCurrentAccount();
+      setDeleteModalVisible(false);
       router.replace('/(auth)/login');
     } catch (error: any) {
-      Alert.alert('Unable to delete account', error?.message ?? 'Please try again later.');
+      Alert.alert('Llogaria nuk u fshi', error?.message ?? 'Ju lutemi provoni përsëri më vonë.');
     } finally {
       setDeletingAccount(false);
     }
   };
 
-  const confirmDeleteAccount = () => {
-    const title = 'Delete account?';
-    const message = 'This permanently deletes your account and cannot be undone.';
-
-    if (typeof window !== 'undefined') {
-      if (window.confirm(`${title}\n\n${message}`)) void deleteAccount();
-      return;
-    }
-
-    Alert.alert(title, message, [
-      { text: 'Cancel', style: 'cancel' },
-      { text: 'Delete account', style: 'destructive', onPress: () => void deleteAccount() },
-    ]);
+  const openDeleteModal = () => {
+    setDeleteEmail('');
+    setDeleteModalVisible(true);
   };
 
   return (
     <ScrollView style={{ backgroundColor: Colors.background }} contentContainerStyle={styles.content}>
-      <Pressable style={styles.back} onPress={() => router.back()}>
+      <Pressable style={styles.back} onPress={() => router.replace('/client/profile')}>
         <Ionicons name="chevron-back" size={22} color={Colors.text} />
-        <Text style={[styles.backText, { color: Colors.text }]}>Profile</Text>
+        <Text style={[styles.backText, { color: Colors.text }]}>Kthehu mbrapa</Text>
       </Pressable>
 
-      <ScreenHeader title="Settings" subtitle="Manage your account and app preferences." />
+      <ScreenHeader title="Cilësimet" subtitle="Menaxhoni llogarinë dhe preferencat e aplikacionit." />
 
       <PremiumCard elevated style={styles.photoCard}>
         <Image
@@ -157,22 +152,22 @@ export default function ClientSettingsScreen() {
         />
         <Pressable style={[styles.photoButton, { backgroundColor: Colors.primary }]} onPress={changePhoto}>
           {uploading ? <ActivityIndicator color="#fff" /> : <Ionicons name="camera-outline" size={18} color="#fff" />}
-          <Text style={styles.photoButtonText}>{uploading ? 'Uploading...' : 'Change photo'}</Text>
+          <Text style={styles.photoButtonText}>{uploading ? 'Duke u ngarkuar...' : 'Ndrysho foton'}</Text>
         </Pressable>
       </PremiumCard>
 
-      <Text style={[styles.label, { color: Colors.primary }]}>Account information</Text>
+      <Text style={[styles.label, { color: Colors.primary }]}>Të dhënat e llogarisë</Text>
       <PremiumCard style={styles.card}>
         <TextInput
           style={[styles.input, { borderColor: Colors.border, color: Colors.text, backgroundColor: Colors.surface }]}
-          placeholder="Full name"
+          placeholder="Emri dhe mbiemri"
           placeholderTextColor={Colors.muted}
           value={fullName}
           onChangeText={setFullName}
         />
         <TextInput
           style={[styles.input, { borderColor: Colors.border, color: Colors.text, backgroundColor: Colors.surface }]}
-          placeholder="Phone number"
+          placeholder="Numri i telefonit"
           placeholderTextColor={Colors.muted}
           keyboardType="phone-pad"
           value={phone}
@@ -183,33 +178,28 @@ export default function ClientSettingsScreen() {
           <Text style={[styles.readOnlyValue, { color: Colors.text }]}>{profile?.email}</Text>
         </View>
         <Pressable style={[styles.primaryButton, { backgroundColor: Colors.primary }]} onPress={saveProfile} disabled={saving}>
-          {saving ? <ActivityIndicator color="#fff" /> : <Text style={styles.primaryButtonText}>Save changes</Text>}
+          {saving ? <ActivityIndicator color="#fff" /> : <Text style={styles.primaryButtonText}>Ruaj ndryshimet</Text>}
         </Pressable>
       </PremiumCard>
 
-      <Text style={[styles.label, { color: Colors.primary }]}>Security and preferences</Text>
+      <Text style={[styles.label, { color: Colors.primary }]}>Siguria dhe preferencat</Text>
       <PremiumCard style={styles.card}>
         <Pressable style={styles.settingRow} onPress={() => router.push('/client/change-password')}>
           <Ionicons name="lock-closed-outline" size={21} color={Colors.primary} />
-          <Text style={[styles.settingText, { color: Colors.text }]}>Change password</Text>
+          <Text style={[styles.settingText, { color: Colors.text }]}>Ndrysho fjalëkalimin</Text>
           <Ionicons name="chevron-forward" size={18} color={Colors.muted} />
         </Pressable>
         <View style={[styles.divider, { backgroundColor: Colors.border }]} />
         <View style={styles.settingRow}>
           <Ionicons name={theme === 'dark' ? 'moon-outline' : 'sunny-outline'} size={21} color={Colors.primary} />
-          <Text style={[styles.settingText, { color: Colors.text }]}>Dark mode</Text>
+          <Text style={[styles.settingText, { color: Colors.text }]}>Pamje e errët</Text>
           <Switch value={theme === 'dark'} onValueChange={toggleTheme} />
         </View>
       </PremiumCard>
 
-      <Pressable style={[styles.signOut, { borderColor: Colors.danger }]} onPress={logout}>
-        <Ionicons name="log-out-outline" size={20} color={Colors.danger} />
-        <Text style={[styles.signOutText, { color: Colors.danger }]}>Sign out</Text>
-      </Pressable>
-
       <Pressable
         style={[styles.deleteAccount, { borderColor: Colors.danger, opacity: deletingAccount ? 0.65 : 1 }]}
-        onPress={confirmDeleteAccount}
+        onPress={openDeleteModal}
         disabled={deletingAccount}
       >
         {deletingAccount ? (
@@ -217,10 +207,69 @@ export default function ClientSettingsScreen() {
         ) : (
           <>
             <Ionicons name="trash-outline" size={20} color={Colors.danger} />
-            <Text style={[styles.signOutText, { color: Colors.danger }]}>Delete account</Text>
+            <Text style={[styles.signOutText, { color: Colors.danger }]}>Fshi llogarinë</Text>
           </>
         )}
       </Pressable>
+
+      <Modal
+        visible={deleteModalVisible}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setDeleteModalVisible(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={[styles.modalCard, { backgroundColor: Colors.card, borderColor: Colors.border }]}>
+            <Text style={[styles.modalTitle, { color: Colors.danger }]}>Fshi llogarinë?</Text>
+            <Text style={[styles.modalText, { color: Colors.muted }]}>
+              Për ta konfirmuar, shkruani email-in tuaj saktësisht si më poshtë.
+            </Text>
+            <Text style={[styles.emailHint, { color: Colors.text }]}>{profile?.email}</Text>
+            <TextInput
+              value={deleteEmail}
+              onChangeText={setDeleteEmail}
+              autoCapitalize="none"
+              autoCorrect={false}
+              keyboardType="email-address"
+              placeholder="Shkruani email-in"
+              placeholderTextColor={Colors.muted}
+              style={[
+                styles.emailInput,
+                {
+                  borderColor: canDeleteAccount ? Colors.danger : Colors.border,
+                  backgroundColor: Colors.surface,
+                  color: Colors.text,
+                },
+              ]}
+            />
+            <View style={styles.modalActions}>
+              <Pressable
+                onPress={() => setDeleteModalVisible(false)}
+                style={[styles.modalButton, { backgroundColor: Colors.surface }]}
+              >
+                <Text style={[styles.modalCancelText, { color: Colors.text }]}>Anulo</Text>
+              </Pressable>
+              <Pressable
+                onPress={() => void deleteAccount()}
+                disabled={!canDeleteAccount || deletingAccount}
+                style={[
+                  styles.modalButton,
+                  {
+                    backgroundColor: Colors.danger,
+                    opacity: canDeleteAccount && !deletingAccount ? 1 : 0.45,
+                  },
+                ]}
+              >
+                {deletingAccount ? (
+                  <ActivityIndicator color="#fff" />
+                ) : (
+                  <Text style={styles.modalDeleteText}>Fshi</Text>
+                )}
+              </Pressable>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </ScrollView>
   );
 }
@@ -247,4 +296,39 @@ const styles = StyleSheet.create({
   signOut: { borderWidth: 1, borderRadius: 16, minHeight: 56, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 9 },
   deleteAccount: { borderWidth: 1, borderRadius: 16, minHeight: 56, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 9, marginTop: 12 },
   signOutText: { fontSize: 15, fontWeight: '800' },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.62)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 20,
+  },
+  modalCard: {
+    width: '100%',
+    maxWidth: 430,
+    borderWidth: 1,
+    borderRadius: 20,
+    padding: 18,
+  },
+  modalTitle: { fontSize: 20, fontWeight: '800', marginBottom: 8 },
+  modalText: { fontSize: 14, lineHeight: 20, marginBottom: 10 },
+  emailHint: { fontSize: 14, fontWeight: '800', marginBottom: 10 },
+  emailInput: {
+    minHeight: 52,
+    borderWidth: 1,
+    borderRadius: 14,
+    paddingHorizontal: 14,
+    fontSize: 15,
+    marginBottom: 14,
+  },
+  modalActions: { flexDirection: 'row', gap: 10 },
+  modalButton: {
+    flex: 1,
+    minHeight: 50,
+    borderRadius: 14,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  modalCancelText: { fontSize: 14, fontWeight: '800' },
+  modalDeleteText: { color: '#fff', fontSize: 14, fontWeight: '800' },
 });

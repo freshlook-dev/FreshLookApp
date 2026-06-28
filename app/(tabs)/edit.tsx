@@ -17,6 +17,7 @@ import { useLocalSearchParams, router } from 'expo-router';
 
 import { supabase } from '../../context/supabase';
 import { useAuth } from '../../context/AuthContext';
+import { notifyStaffAppointmentChange } from '../../utils/appointmentStaffNotifications';
 
 import { useTheme } from '../../context/ThemeContext';
 import { LightColors, DarkColors } from '../../constants/colors';
@@ -86,7 +87,7 @@ export default function EditAppointment() {
       .single();
 
     if (!profile || (profile.role as Role) === 'staff') {
-      Alert.alert('Access denied', 'You cannot edit appointments');
+      Alert.alert('Qasja u refuzua', 'Nuk mund të ndryshoni termine.');
       router.replace('/(tabs)/upcoming');
       return;
     }
@@ -98,7 +99,7 @@ export default function EditAppointment() {
       .single();
 
     if (error || !data) {
-      Alert.alert('Error', 'Appointment not found');
+      Alert.alert('Gabim', 'Termini nuk u gjet.');
       router.replace('/(tabs)/upcoming');
       return;
     }
@@ -133,13 +134,13 @@ export default function EditAppointment() {
       if (oldVal !== newVal) changes[label] = { old: oldVal, new: newVal };
     };
 
-    compare('Name', originalData.client_name, fullName);
-    compare('Phone', originalData.phone, phone);
-    compare('Treatment', originalData.service, treatment);
-    compare('Date', originalData.appointment_date, formatDate(date));
-    compare('Time', originalData.appointment_time, time);
-    compare('Location', originalData.location, location);
-    compare('Comment', originalData.comment, comment);
+    compare('Emri', originalData.client_name, fullName);
+    compare('Telefoni', originalData.phone, phone);
+    compare('Trajtimi', originalData.service, treatment);
+    compare('Data', originalData.appointment_date, formatDate(date));
+    compare('Ora', originalData.appointment_time, time);
+    compare('Lokacioni', originalData.location, location);
+    compare('Komenti', originalData.comment, comment);
 
     return Object.keys(changes).length > 0 ? changes : null;
   };
@@ -159,7 +160,7 @@ export default function EditAppointment() {
 
   const handleSave = async () => {
     if (!appointmentId) {
-      Alert.alert('Error', 'Missing appointment ID');
+      Alert.alert('Gabim', 'Mungon ID e terminit.');
       return;
     }
 
@@ -173,7 +174,7 @@ export default function EditAppointment() {
 
     setLoading(true);
 
-    const { error } = await supabase
+    const { data: updatedRows, error } = await supabase
       .from('appointments')
       .update({
         client_name: fullName,
@@ -204,6 +205,15 @@ export default function EditAppointment() {
         },
       });
     } catch {}
+
+    void notifyStaffAppointmentChange('updated', updatedRows?.[0] ?? {
+      id: appointmentId,
+      client_name: fullName,
+      service: treatment,
+      appointment_date: formatDate(date),
+      appointment_time: time,
+      location,
+    });
 
     Alert.alert('Sukses', 'Termini u përditësua');
     router.replace('/(tabs)/upcoming');

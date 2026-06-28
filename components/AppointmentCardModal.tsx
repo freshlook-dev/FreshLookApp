@@ -2,18 +2,18 @@
 
 import React from 'react';
 import {
-  Modal,
-  View,
-  Text,
-  StyleSheet,
-  Pressable,
   Image,
+  Modal,
   Platform,
+  Pressable,
+  StyleSheet,
+  Text,
+  View,
 } from 'react-native';
 
-import { useTheme } from '../context/ThemeContext';
-import { LightColors, DarkColors } from '../constants/colors';
+import { DarkColors, LightColors } from '../constants/colors';
 import { Radius, Spacing } from '../constants/theme';
+import { useTheme } from '../context/ThemeContext';
 
 export type AppointmentReceiptData = {
   client_name: string;
@@ -114,6 +114,14 @@ export default function AppointmentCardModal({ visible, onClose, data }: Props) 
               Ju mirëpresim në terminin tuaj.
             </Text>
           </View>
+
+          <Pressable
+            accessibilityRole="button"
+            onPress={onClose}
+            style={[styles.doneButton, { backgroundColor: Colors.primary }]}
+          >
+            <Text style={styles.doneText}>Në rregull</Text>
+          </Pressable>
         </View>
       </View>
     </Modal>

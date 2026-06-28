@@ -13,6 +13,11 @@ import {
   TextInput,
 } from 'react-native';
 import { router } from 'expo-router';
+import {
+  BarcodeScanningResult,
+  CameraView,
+  useCameraPermissions,
+} from 'expo-camera';
 import jsQR from 'jsqr';
 
 import { supabase } from '../../context/supabase';
@@ -95,6 +100,7 @@ export default function ScanDiscountScreen() {
   const { user } = useAuth();
   const { theme } = useTheme();
   const Colors = theme === 'dark' ? DarkColors : LightColors;
+  const [cameraPermission, requestCameraPermission] = useCameraPermissions();
 
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
@@ -147,18 +153,34 @@ export default function ScanDiscountScreen() {
   const stopCamera = () => {
     scanningRef.current = false;
 
-    if (scannerRef.current) {
+    if (Platform.OS === 'web' && scannerRef.current) {
       window.cancelAnimationFrame(scannerRef.current);
       scannerRef.current = null;
     }
 
-    streamRef.current?.getTracks().forEach((track) => track.stop());
+    if (Platform.OS === 'web') {
+      streamRef.current?.getTracks().forEach((track) => track.stop());
+    }
     streamRef.current = null;
     setCameraActive(false);
   };
 
   const startCamera = async () => {
     if (Platform.OS !== 'web') {
+      const permission = cameraPermission?.granted
+        ? cameraPermission
+        : await requestCameraPermission();
+
+      if (!permission.granted) {
+        setMessage('Leja për kamerën u refuzua. Mund ta shkruani kodin manualisht.');
+        return;
+      }
+
+      setMessage('');
+      setPendingRedemption(null);
+      setLastRedemption(null);
+      scanningRef.current = true;
+      setCameraActive(true);
       return;
     }
 
@@ -221,6 +243,13 @@ export default function ScanDiscountScreen() {
     };
 
     scannerRef.current = window.requestAnimationFrame(tick);
+  };
+
+  const handleNativeBarcodeScanned = async (result: BarcodeScanningResult) => {
+    if (!cameraActive || saving || !scanningRef.current) return;
+
+    scanningRef.current = false;
+    await prepareScannedValue(result.data);
   };
 
   const scanWithCanvas = () => {
@@ -359,8 +388,8 @@ export default function ScanDiscountScreen() {
       const missingFunction = error?.message?.includes('redeem_points_qr');
       setMessage(
         missingFunction
-          ? 'Reward redemption is temporarily unavailable. Please try again later.'
-          : error?.message ?? 'QR nuk mund te perdoret me.'
+          ? 'Përdorimi i shpërblimit nuk është përkohësisht i disponueshëm. Ju lutemi provoni përsëri më vonë.'
+          : error?.message ?? 'QR nuk mund të përdoret më.'
       );
       setSaving(false);
       return;
@@ -458,7 +487,7 @@ export default function ScanDiscountScreen() {
       keyboardShouldPersistTaps="handled"
       showsVerticalScrollIndicator
     >
-      <Text style={[styles.title, { color: Colors.text }]}>Redeem reward</Text>
+      <Text style={[styles.title, { color: Colors.text }]}>Përdor shpërblimin</Text>
 
       <View style={[styles.card, { backgroundColor: Colors.card }]}>
         {Platform.OS === 'web' ? (
@@ -485,7 +514,7 @@ export default function ScanDiscountScreen() {
             {!cameraActive && (
               <View style={[styles.cameraPlaceholder, { borderColor: Colors.primary }]}>
                 <Text style={[styles.placeholderText, { color: Colors.muted }]}>
-                  Open the camera and scan the client’s QR code.
+                  Hapni kamerën dhe skanoni kodin QR të klientit.
                 </Text>
               </View>
             )}
@@ -499,23 +528,54 @@ export default function ScanDiscountScreen() {
               ]}
             >
               <Text style={styles.primaryText}>
-                {cameraActive ? 'Close camera' : 'Open camera'}
+                {cameraActive ? 'Mbyll kamerën' : 'Hap kamerën'}
               </Text>
+            </Pressable>
+          </>
+        ) : cameraActive ? (
+          <>
+            <View style={styles.nativeCameraWrap}>
+              <CameraView
+                style={styles.nativeCamera}
+                facing="back"
+                active={cameraActive}
+                barcodeScannerSettings={{ barcodeTypes: ['qr'] }}
+                onBarcodeScanned={handleNativeBarcodeScanned}
+              />
+              <View style={[styles.scanFrame, { borderColor: Colors.primary }]} />
+            </View>
+
+            <Pressable
+              onPress={stopCamera}
+              disabled={saving}
+              style={[styles.primaryBtn, { backgroundColor: '#D64545' }]}
+            >
+              <Text style={styles.primaryText}>Mbyll kamerën</Text>
             </Pressable>
           </>
         ) : (
           <Text style={[styles.placeholderText, { color: Colors.muted }]}>
-            Enter the reward code shown by the client to redeem it.
+            Shkruani kodin e shpërblimit që klienti ju tregon.
           </Text>
         )}
 
+        {Platform.OS !== 'web' && !cameraActive && (
+          <Pressable
+            onPress={startCamera}
+            disabled={saving}
+            style={[styles.primaryBtn, { backgroundColor: Colors.primary }]}
+          >
+            <Text style={styles.primaryText}>Hap kamerën</Text>
+          </Pressable>
+        )}
+
         <View style={styles.manualBox}>
-          <Text style={[styles.label, { color: Colors.text }]}>Reward code</Text>
+          <Text style={[styles.label, { color: Colors.text }]}>Kodi i shpërblimit</Text>
           <TextInput
             value={manualCode}
             onChangeText={setManualCode}
             autoCapitalize="none"
-            placeholder="Enter the QR code or link"
+            placeholder="Shkruani kodin QR ose linkun"
             placeholderTextColor={Colors.muted}
             style={[
               styles.input,
@@ -539,7 +599,7 @@ export default function ScanDiscountScreen() {
             ]}
           >
             <Text style={styles.primaryText}>
-              {saving ? 'Checking...' : 'Check reward'}
+              {saving ? 'Duke kontrolluar...' : 'Kontrollo shpërblimin'}
             </Text>
           </Pressable>
         </View>
@@ -588,7 +648,7 @@ export default function ScanDiscountScreen() {
 
           {lastRedemption && (
             <Text style={[styles.resultMeta, { color: Colors.muted }]}>
-              Points: {lastRedemption.points} · Status: {lastRedemption.status}
+              Pikë: {lastRedemption.points} · Statusi: {lastRedemption.status}
             </Text>
           )}
         </View>
@@ -631,6 +691,26 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     padding: 20,
+  },
+  nativeCameraWrap: {
+    aspectRatio: 1,
+    borderRadius: 18,
+    overflow: 'hidden',
+    backgroundColor: '#000',
+    position: 'relative',
+  },
+  nativeCamera: {
+    flex: 1,
+  },
+  scanFrame: {
+    position: 'absolute',
+    left: '18%',
+    right: '18%',
+    top: '18%',
+    bottom: '18%',
+    borderWidth: 2,
+    borderRadius: 18,
+    backgroundColor: 'transparent',
   },
   placeholderText: {
     fontSize: 14,

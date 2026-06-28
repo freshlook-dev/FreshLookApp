@@ -17,6 +17,7 @@ import { router } from 'expo-router';
 
 import { supabase } from '../../context/supabase';
 import { useAuth } from '../../context/AuthContext';
+import { notifyStaffAppointmentChange } from '../../utils/appointmentStaffNotifications';
 import { useTheme } from '../../context/ThemeContext';
 import { LightColors, DarkColors } from '../../constants/colors';
 import { useAutoRefresh } from '../../hooks/useAutoRefresh';
@@ -99,7 +100,7 @@ export default function HistoryScreen() {
       .order('appointment_date', { ascending: false });
 
     if (error) {
-      Alert.alert('Error', error.message);
+      Alert.alert('Gabim', error.message);
       setLoading(false);
       return;
     }
@@ -222,7 +223,7 @@ export default function HistoryScreen() {
       .eq('id', id);
 
     if (error) {
-      Alert.alert('Error', error.message);
+      Alert.alert('Gabim', error.message);
       return;
     }
 
@@ -246,6 +247,11 @@ export default function HistoryScreen() {
     }
 
     await logStatusChange(appointment, status);
+
+    void notifyStaffAppointmentChange(status === 'canceled' ? 'canceled' : 'status_changed', {
+      ...appointment,
+      status,
+    });
 
     setSelected(null);
     loadData();

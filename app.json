@@ -20,12 +20,16 @@
       "infoPlist": {
         "CFBundleDisplayName": "My Fresh Look",
         "CFBundleName": "My Fresh Look",
-        "NSPhotoLibraryUsageDescription": "My Fresh Look uses your photo library so you can choose and upload a profile picture.",
+        "NSCameraUsageDescription": "My Fresh Look përdor kamerën për të skanuar kodet QR të shpërblimeve në sallon.",
+        "NSPhotoLibraryUsageDescription": "My Fresh Look përdor fotot tuaja që të zgjidhni dhe ngarkoni një foto profili.",
         "ITSAppUsesNonExemptEncryption": false
       }
     },
     "android": {
       "package": "com.freshlook.staff",
+      "permissions": [
+        "CAMERA"
+      ],
       "adaptiveIcon": {
         "foregroundImage": "./assets/images/adaptive-icon.png",
         "backgroundColor": "#C9A24D"
@@ -55,6 +59,12 @@
         }
       ],
       "@react-native-community/datetimepicker",
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "My Fresh Look përdor kamerën për të skanuar kodet QR të shpërblimeve në sallon."
+        }
+      ],
       "expo-font",
       "expo-web-browser"
     ],

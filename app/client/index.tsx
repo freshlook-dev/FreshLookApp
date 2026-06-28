@@ -89,9 +89,9 @@ export default function HomeScreen() {
       }
     >
       <ScreenHeader
-        eyebrow="FreshLook Membership"
-        title={`Welcome${firstName ? `, ${firstName}` : ''}`}
-        subtitle="Everything for your next salon visit, thoughtfully kept in one place."
+        eyebrow="Anëtarësia FreshLook"
+        title={`Mirë se vini${firstName ? `, ${firstName}` : ''}`}
+        subtitle="Çdo gjë për vizitën tuaj të ardhshme në sallon, e organizuar në një vend."
       />
 
       <Pressable
@@ -99,7 +99,7 @@ export default function HomeScreen() {
         onPress={() => router.push('/client/book' as any)}
       >
         <Ionicons name="calendar-outline" size={20} color={Colors.onPrimary} />
-        <Text style={[styles.bookButtonText, { color: Colors.onPrimary }]}>Book a new appointment</Text>
+        <Text style={[styles.bookButtonText, { color: Colors.onPrimary }]}>Rezervo termin të ri</Text>
       </Pressable>
 
       <Pressable onPress={() => router.push('/client/rewards' as any)}>
@@ -118,9 +118,9 @@ export default function HomeScreen() {
           </View>
           <View style={[styles.pointsDivider, { backgroundColor: Colors.onPrimary }]} />
           <View style={styles.pointsFooter}>
-            <Text style={[styles.pointsFooterText, { color: Colors.onPrimary }]}>Member balance</Text>
+            <Text style={[styles.pointsFooterText, { color: Colors.onPrimary }]}>Bilanci i anëtarësisë</Text>
             <View style={styles.pointsLink}>
-              <Text style={[styles.pointsFooterText, { color: Colors.onPrimary }]}>View rewards</Text>
+              <Text style={[styles.pointsFooterText, { color: Colors.onPrimary }]}>Shiko shpërblimet</Text>
               <Ionicons name="arrow-forward" size={15} color={Colors.onPrimary} />
             </View>
           </View>
@@ -129,14 +129,14 @@ export default function HomeScreen() {
 
       <View style={styles.sectionHeader}>
         <View>
-          <Text style={[styles.sectionEyebrow, { color: Colors.primary }]}>Your schedule</Text>
-          <Text style={[styles.sectionTitle, { color: Colors.text }]}>Next Visit</Text>
+          <Text style={[styles.sectionEyebrow, { color: Colors.primary }]}>Orari juaj</Text>
+          <Text style={[styles.sectionTitle, { color: Colors.text }]}>Vizita e radhës</Text>
         </View>
         <Pressable
           style={[styles.viewAll, { backgroundColor: Colors.primarySoft }]}
           onPress={() => router.push('/client/appointments' as any)}
         >
-          <Text style={[styles.viewAllText, { color: Colors.primary }]}>View all</Text>
+          <Text style={[styles.viewAllText, { color: Colors.primary }]}>Shiko të gjitha</Text>
           <Ionicons name="chevron-forward" size={15} color={Colors.primary} />
         </Pressable>
       </View>
@@ -152,7 +152,7 @@ export default function HomeScreen() {
               </View>
               <View style={styles.visitHeading}>
                 <Text style={[styles.appointmentTitle, { color: Colors.text }]}>
-                  {nextAppointment.service || 'Appointment'}
+                  {nextAppointment.service || 'Termin'}
                 </Text>
                 <StatusBadge label={nextAppointment.status || 'scheduled'} />
               </View>
@@ -173,8 +173,8 @@ export default function HomeScreen() {
         ) : (
           <EmptyState
             icon="calendar-outline"
-            title="Your calendar is clear"
-            message="Your next FreshLook appointment will appear here as soon as it is booked."
+            title="Kalendari juaj është i lirë"
+            message="Termini juaj i ardhshëm te Fresh Look do të shfaqet këtu sapo të rezervohet."
           />
         )}
       </PremiumCard>

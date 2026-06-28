@@ -92,7 +92,7 @@ export default function ArchivedScreen() {
       .order('appointment_date', { ascending: false });
 
     if (error) {
-      Alert.alert('Error', error.message);
+      Alert.alert('Gabim', error.message);
       setLoading(false);
       return;
     }
@@ -176,7 +176,7 @@ export default function ArchivedScreen() {
       .eq('id', id);
 
     if (error) {
-      Alert.alert('Error', error.message);
+      Alert.alert('Gabim', error.message);
       return;
     }
 

@@ -22,7 +22,7 @@ import { useAuth } from '../../context/AuthContext';
 import { supabase } from '../../context/supabase';
 import { useTheme } from '../../context/ThemeContext';
 import { LightColors, DarkColors } from '../../constants/colors';
-import { deleteCurrentAccount } from '../../utils/deleteAccount';
+import { useAutoRefresh } from '../../hooks/useAutoRefresh';
 
 type Role = 'owner' | 'manager' | 'staff';
 
@@ -38,6 +38,12 @@ const WEB_CROP_SIZE = 300;
 
 const clamp = (value: number, min: number, max: number) =>
   Math.min(Math.max(value, min), max);
+
+const roleLabel = (role: Role) => {
+  if (role === 'owner') return 'Pronar';
+  if (role === 'manager') return 'Menaxher';
+  return 'Staf';
+};
 
 /* ================= WEB HELPERS ================= */
 const pickImageWebFile = async (): Promise<File | null> => {
@@ -171,11 +177,11 @@ export default function ProfileTab() {
   const [profile, setProfile] = useState<Profile | null>(null);
   const [loading, setLoading] = useState(true);
   const [uploading, setUploading] = useState(false);
-  const [deletingAccount, setDeletingAccount] = useState(false);
   const [generatedCode, setGeneratedCode] = useState<{
     code: string;
     role: Role;
   } | null>(null);
+  const [codeConfirmVisible, setCodeConfirmVisible] = useState(false);
 
   /* 🟢 CROP STATES (WEB) */
   const [webPreviewUrl, setWebPreviewUrl] = useState<string | null>(null);
@@ -220,6 +226,12 @@ export default function ProfileTab() {
     setLoading(false);
   };
 
+  useAutoRefresh(loadProfile, {
+    enabled: !!user,
+    tables: ['profiles'],
+    channelName: 'staff-profile',
+  });
+
   const generateAccessCode = async (role: Role) => {
     if (!user) return;
 
@@ -233,16 +245,29 @@ export default function ProfileTab() {
     });
 
     if (error) {
-      Alert.alert('Error', error.message);
+      Alert.alert('Gabim', error.message);
       return;
     }
 
     setGeneratedCode({ code, role });
+    setCodeConfirmVisible(false);
 
     Alert.alert(
-      'Access Code Created',
-      `Code: ${code}\nRole: ${role.toUpperCase()}`
+      'Kodi i qasjes u krijua',
+      `Kodi: ${code}\nRoli: ${role.toUpperCase()}`
     );
+  };
+
+  const confirmLogout = () => {
+    if (Platform.OS === 'web') {
+      if (window.confirm('A jeni të sigurt që doni të dilni?')) logout();
+      return;
+    }
+
+    Alert.alert('Dil nga llogaria', 'A jeni të sigurt që doni të dilni?', [
+      { text: 'Kthehu mbrapa', style: 'cancel' },
+      { text: 'Dil', style: 'destructive', onPress: logout },
+    ]);
   };
 
   /* ================= PICK IMAGE ================= */
@@ -271,14 +296,14 @@ export default function ProfileTab() {
         setShowCropper(true);
       } catch (err: any) {
         console.error('Web image picker error:', err);
-        Alert.alert('Error', err?.message || 'Failed to select photo');
+        Alert.alert('Gabim', err?.message || 'Fotoja nuk u zgjodh');
       }
       return;
     }
 
     const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (!permission.granted) {
-      Alert.alert('Permission required', 'Please allow photo library access.');
+      Alert.alert('Kërkohet leje', 'Ju lutemi lejoni qasjen te fotot.');
       return;
     }
 
@@ -334,7 +359,7 @@ export default function ProfileTab() {
       setProfile((p) => (p ? { ...p, avatar_url: avatarUrl } : p));
     } catch (err: any) {
       console.error('Native avatar upload error:', err);
-      Alert.alert('Error', err?.message || 'Failed to upload photo');
+      Alert.alert('Gabim', err?.message || 'Fotoja nuk u ngarkua');
     } finally {
       setUploading(false);
     }
@@ -370,7 +395,7 @@ export default function ProfileTab() {
       setProfile((p) => (p ? { ...p, avatar_url: avatarUrl } : p));
     } catch (err: any) {
       console.error('Web avatar upload error:', err);
-      Alert.alert('Error', err?.message || 'Failed to upload photo');
+      Alert.alert('Gabim', err?.message || 'Fotoja nuk u ngarkua');
     } finally {
       setUploading(false);
     }
@@ -503,49 +528,8 @@ export default function ProfileTab() {
       await uploadWebBlob(blob);
     } catch (err: any) {
       console.error('Crop/upload error:', err);
-      Alert.alert('Error', err?.message || 'Failed to crop/upload photo');
+      Alert.alert('Gabim', err?.message || 'Fotoja nuk u pre ose nuk u ngarkua');
     }
-  };
-
-  /* ================= LOGOUT ================= */
-  const handleLogout = () => {
-    if (Platform.OS === 'web') {
-      if (window.confirm('A jeni të sigurt që doni të dilni?')) logout();
-    } else {
-      Alert.alert('Logout', 'A jeni të sigurt që doni të dilni?', [
-        { text: 'Kthehu mbrapa', style: 'cancel' },
-        { text: 'Dil', style: 'destructive', onPress: logout },
-      ]);
-    }
-  };
-
-  const deleteAccount = async () => {
-    if (deletingAccount) return;
-
-    try {
-      setDeletingAccount(true);
-      await deleteCurrentAccount();
-      router.replace('/(auth)/login');
-    } catch (error: any) {
-      Alert.alert('Unable to delete account', error?.message ?? 'Please try again later.');
-    } finally {
-      setDeletingAccount(false);
-    }
-  };
-
-  const confirmDeleteAccount = () => {
-    const title = 'Delete account?';
-    const message = 'This permanently deletes your account and cannot be undone.';
-
-    if (Platform.OS === 'web') {
-      if (window.confirm(`${title}\n\n${message}`)) void deleteAccount();
-      return;
-    }
-
-    Alert.alert(title, message, [
-      { text: 'Cancel', style: 'cancel' },
-      { text: 'Delete account', style: 'destructive', onPress: () => void deleteAccount() },
-    ]);
   };
 
   if (authLoading || loading) {
@@ -553,7 +537,7 @@ export default function ProfileTab() {
       <View style={[styles.center, { backgroundColor: Colors.background }]}>
         <ActivityIndicator size="large" color={Colors.primary} />
         <Text style={[styles.loadingText, { color: Colors.muted }]}>
-          Loading profile…
+          Duke ngarkuar profilin...
         </Text>
       </View>
     );
@@ -562,7 +546,7 @@ export default function ProfileTab() {
   if (!profile) {
     return (
       <View style={[styles.center, { backgroundColor: Colors.background }]}>
-        <Text style={{ color: Colors.text }}>Profile not found</Text>
+        <Text style={{ color: Colors.text }}>Profili nuk u gjet</Text>
       </View>
     );
   }
@@ -579,9 +563,9 @@ export default function ProfileTab() {
         { backgroundColor: Colors.background },
       ]}
     >
-      <Text style={[styles.pageTitle, { color: Colors.text }]}>Profili im </Text>
+      <Text style={[styles.pageTitle, { color: Colors.text }]}>Profili im</Text>
 
-      <View style={styles.avatarSection}>
+      <View style={[styles.profileHero, { backgroundColor: Colors.card, borderColor: Colors.border }]}>
         <View style={styles.avatarWrap}>
           <Pressable onPress={() => setAvatarPreviewVisible(true)}>
             <Image
@@ -591,7 +575,7 @@ export default function ProfileTab() {
                   ? { uri: profile.avatar_url }
                   : require('../../assets/images/avatar-placeholder.png')
               }
-              style={styles.avatar}
+              style={[styles.avatar, { borderColor: Colors.primary }]}
             />
           </Pressable>
 
@@ -602,44 +586,87 @@ export default function ProfileTab() {
               styles.avatarEditButton,
               {
                 backgroundColor: uploading ? Colors.muted : Colors.primary,
-                borderColor: Colors.background,
+                borderColor: Colors.card,
               },
             ]}
           >
             <Ionicons name={uploading ? 'hourglass' : 'camera'} size={16} color="#fff" />
           </Pressable>
         </View>
+
+        <View style={styles.heroCopy}>
+          <Text style={[styles.heroEyebrow, { color: Colors.primary }]}>
+            {roleLabel(profile.role)}
+          </Text>
+          <Text style={[styles.heroName, { color: Colors.text }]} numberOfLines={2}>
+            {profile.full_name || 'Emri nuk është vendosur'}
+          </Text>
+          <Text style={[styles.heroEmail, { color: Colors.muted }]} numberOfLines={1}>
+            {profile.email}
+          </Text>
+          <Pressable
+            onPress={pickAndUploadAvatar}
+            disabled={uploading}
+            style={[styles.photoPill, { backgroundColor: Colors.background, borderColor: Colors.border }]}
+          >
+            <Text style={[styles.photoPillText, { color: Colors.text }]}>
+              {uploading ? 'Duke ngarkuar...' : 'Ndrysho foton'}
+            </Text>
+          </Pressable>
+        </View>
       </View>
 
-      <View style={[styles.card, { backgroundColor: Colors.card }]}>
-        <Text style={[styles.label, { color: Colors.muted }]}>Email</Text>
-        <Text style={[styles.value, { color: Colors.text }]}>
-          {profile.email}
-        </Text>
+      <View style={[styles.sectionCard, { backgroundColor: Colors.card, borderColor: Colors.border }]}>
+        <Text style={[styles.sectionTitle, { color: Colors.muted }]}>Veprime të shpejta</Text>
+        <ProfileRow
+          title="Përdor shpërblim QR"
+          subtitle="Skano ose shkruaj kodin e klientit."
+          colors={Colors}
+          onPress={() => router.push('../(tabs)/scan-discount')}
+        />
+        {canViewStats && (
+          <ProfileRow
+            title="Statistika mujore e stafit"
+            subtitle="Shiko performancën dhe terminet mujore."
+            colors={Colors}
+            onPress={() => router.push('../(tabs)/stats')}
+          />
+        )}
+        {canViewStats && (
+          <ProfileRow
+            title="Zbritjet QR"
+            subtitle="Historiku i shpërblimeve të përdorura."
+            colors={Colors}
+            onPress={() => router.push('../(tabs)/qr-redemptions')}
+          />
+        )}
+      </View>
 
-        <Text style={[styles.label, { marginTop: 12, color: Colors.muted }]}>
-          Emri i përdoruesit
-        </Text>
-        <Text style={[styles.value, { color: Colors.text }]}>
-          {profile.full_name || 'Not set'}
-        </Text>
+      <View style={[styles.sectionCard, { backgroundColor: Colors.card, borderColor: Colors.border }]}>
+        <Text style={[styles.sectionTitle, { color: Colors.muted }]}>Profili dhe siguria</Text>
+        <ProfileRow
+          title="Menaxho profilin"
+          subtitle="Të dhënat e llogarisë, dalja dhe veprimet e llogarisë."
+          colors={Colors}
+          onPress={() => router.push('../(tabs)/manage-profile')}
+        />
+        <ProfileRow
+          title="Fjalëkalimi dhe siguria"
+          subtitle="Ndrysho fjalëkalimin dhe mbro llogarinë."
+          colors={Colors}
+          onPress={() => router.push('../(tabs)/change-password')}
+        />
+      </View>
 
-        <Text style={[styles.label, { marginTop: 12, color: Colors.muted }]}>
-          Roli
-        </Text>
-        <Text
-          style={[
-            styles.value,
-            { color: isOwner ? Colors.primary : Colors.text },
-          ]}
-        >
-          {profile.role.toUpperCase()}
-        </Text>
-
-        <View style={styles.themeRow}>
-          <Text style={{ color: Colors.text, fontWeight: '600' }}>
-            Dark Mode
-          </Text>
+      <View style={[styles.sectionCard, { backgroundColor: Colors.card, borderColor: Colors.border }]}>
+        <Text style={[styles.sectionTitle, { color: Colors.muted }]}>Preferencat</Text>
+        <View style={styles.rowItem}>
+          <View style={styles.rowCopy}>
+            <Text style={[styles.rowTitle, { color: Colors.text }]}>Pamja e aplikacionit</Text>
+            <Text style={[styles.rowSubtitle, { color: Colors.muted }]}>
+              {theme === 'dark' ? 'Pamje e errët aktive' : 'Pamje e çelët aktive'}
+            </Text>
+          </View>
           <Switch
             value={theme === 'dark'}
             onValueChange={toggleTheme}
@@ -649,131 +676,112 @@ export default function ProfileTab() {
         </View>
       </View>
 
-      <View style={[styles.card, { backgroundColor: Colors.card }]}>
-        <Pressable
-          onPress={() => router.push('../(tabs)/scan-discount')}
-          style={[styles.primaryButton, { marginTop: 12 }]}
-        >
-          <Text style={styles.primaryButtonText}>Redeem QR Reward</Text>
-        </Pressable>
+      {isOwner && (
+        <View style={[styles.sectionCard, { backgroundColor: Colors.card, borderColor: Colors.border }]}>
+          <Text style={[styles.sectionTitle, { color: Colors.muted }]}>Vegla për pronarin</Text>
+          <ProfileRow
+            title="Statistikat financiare"
+            subtitle="Përmbledhje e pagesave dhe raportimit."
+            colors={Colors}
+            onPress={() => router.push('../owner-stats')}
+          />
+          <ProfileRow
+            title="Menaxho përdoruesit"
+            subtitle="Shto, ndrysho ose blloko qasjet e stafit."
+            colors={Colors}
+            onPress={() => router.push('../(tabs)/manage-users')}
+          />
+          <ProfileRow
+            title="Menaxho terminet"
+            subtitle="Kontrollo dhe përditëso terminet e ekipit."
+            colors={Colors}
+            onPress={() => router.push('../(tabs)/manage-appointments')}
+          />
+          <ProfileRow
+            title="Log-et e auditimit"
+            subtitle="Shiko ndryshimet e rëndësishme në sistem."
+            colors={Colors}
+            onPress={() => router.push('../(tabs)/audit-log')}
+          />
+          <ProfileRow
+            title="Dërgo njoftime"
+            subtitle="Njofto klientët në iOS dhe Android."
+            colors={Colors}
+            onPress={() => router.push('../(tabs)/notifications')}
+          />
+          <ProfileRow
+            title="Gjenero kod për staf"
+            subtitle="Krijo një kod të ri qasjeje për staf."
+            colors={Colors}
+            onPress={() => setCodeConfirmVisible(true)}
+          />
 
-        {canViewStats && (
-          <Pressable
-            onPress={() => router.push('../(tabs)/stats')}
-            style={[styles.primaryButton, { marginTop: 12 }]}
-          >
-            <Text style={styles.primaryButtonText}>
-              📊Statistika mujore e stafit
-            </Text>
-          </Pressable>
-        )}
-
-        {canViewStats && (
-          <Pressable
-            onPress={() => router.push('../(tabs)/qr-redemptions')}
-            style={[styles.primaryButton, { marginTop: 12 }]}
-          >
-            <Text style={styles.primaryButtonText}>QR Discounts</Text>
-          </Pressable>
-        )}
-
-        {isOwner && (
-          <>
-            <Pressable
-              onPress={() => router.push('../owner-stats')}
-              style={[styles.primaryButton, { marginTop: 12 }]}
-            >
-              <Text style={styles.primaryButtonText}>
-                📊Statistikat financiare
+          {generatedCode && (
+            <View style={[styles.codeCard, { backgroundColor: Colors.background, borderColor: Colors.border }]}>
+              <Text style={[styles.codeLabel, { color: Colors.muted }]}>Kodi i qasjes</Text>
+              <Text style={[styles.codeValue, { color: Colors.text }]}>{generatedCode.code}</Text>
+              <Text style={[styles.codeHint, { color: Colors.muted }]}>
+                Roli: {roleLabel(generatedCode.role)}
               </Text>
-            </Pressable>
+            </View>
+          )}
+        </View>
+      )}
 
-            <Pressable
-              onPress={() => router.push('../(tabs)/manage-users')}
-              style={[styles.primaryButton, { marginTop: 12 }]}
-            >
-              <Text style={styles.primaryButtonText}>Menaxho Përdoruesit</Text>
-            </Pressable>
-
-            <Pressable
-              onPress={() => router.push('../(tabs)/manage-appointments')}
-              style={[styles.primaryButton, { marginTop: 12 }]}
-            >
-              <Text style={styles.primaryButtonText}>Menaxho terminet</Text>
-            </Pressable>
-
-            <Pressable
-              onPress={() => router.push('../(tabs)/audit-log')}
-              style={[styles.primaryButton, { marginTop: 12 }]}
-            >
-              <Text style={styles.primaryButtonText}>Audit Logs</Text>
-            </Pressable>
-
-            <Pressable
-              onPress={() => router.push('../(tabs)/notifications')}
-              style={[styles.primaryButton, { marginTop: 12 }]}
-            >
-              <Text style={styles.primaryButtonText}>Send Notifications</Text>
-            </Pressable>
-
-            <Pressable
-              onPress={() => generateAccessCode('staff')}
-              style={[styles.primaryButton, { marginTop: 12 }]}
-            >
-              <Text style={styles.primaryButtonText}>Gjenero Staff Code</Text>
-            </Pressable>
-
-            {generatedCode && (
-              <View
-                style={[
-                  styles.card,
-                  { marginTop: 12, backgroundColor: Colors.background },
-                ]}
-              >
-                <Text style={[styles.label, { color: Colors.muted }]}>
-                  Generated Access Code
-                </Text>
-                <Text
-                  style={{
-                    fontSize: 28,
-                    fontWeight: '800',
-                    letterSpacing: 3,
-                    color: Colors.text,
-                  }}
-                >
-                  {generatedCode.code}
-                </Text>
-                <Text style={{ marginTop: 6, color: Colors.text }}>
-                  Role: {generatedCode.role.toUpperCase()}
-                </Text>
-              </View>
-            )}
-          </>
-        )}
+      <View style={[styles.sectionCard, { backgroundColor: Colors.card, borderColor: Colors.border }]}>
+        <Text style={[styles.sectionTitle, { color: Colors.muted }]}>Ndihmë dhe informacion</Text>
+        <ProfileRow
+          title="Qendra e ndihmës"
+          subtitle="Përgjigje të shpejta për punën e përditshme."
+          colors={Colors}
+          onPress={() => router.push('../(tabs)/help-center')}
+        />
+        <ProfileRow
+          title="Rreth nesh"
+          subtitle="Më shumë për Fresh Look dhe aplikacionin."
+          colors={Colors}
+          onPress={() => router.push('../(tabs)/about-us')}
+        />
       </View>
 
       <Pressable
-        onPress={() => router.push('../(tabs)/change-password')}
-        style={styles.primaryButton}
+        onPress={confirmLogout}
+        style={[styles.logoutButton, { backgroundColor: Colors.danger }]}
       >
-        <Text style={styles.primaryButtonText}>Ndrysho Fjalëkalimin</Text>
+        <Text style={styles.logoutText}>Dil nga llogaria</Text>
       </Pressable>
 
-      <Pressable onPress={handleLogout} style={styles.logoutButton}>
-        <Text style={styles.logoutText}>Dil</Text>
-      </Pressable>
-
-      <Pressable
-        onPress={confirmDeleteAccount}
-        disabled={deletingAccount}
-        style={[styles.logoutButton, { marginTop: 12, opacity: deletingAccount ? 0.65 : 1 }]}
+      <Modal
+        visible={codeConfirmVisible}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setCodeConfirmVisible(false)}
       >
-        {deletingAccount ? (
-          <ActivityIndicator color="#fff" />
-        ) : (
-          <Text style={styles.logoutText}>Delete account</Text>
-        )}
-      </Pressable>
+        <View style={styles.avatarOverlay}>
+          <View style={[styles.confirmCard, { backgroundColor: Colors.card, borderColor: Colors.border }]}>
+            <Text style={[styles.confirmTitle, { color: Colors.text }]}>
+              Gjenero kod për staf?
+            </Text>
+            <Text style={[styles.confirmMessage, { color: Colors.muted }]}>
+              Ky kod do të krijojë qasje për një anëtar të stafit. Vazhdoni vetëm nëse ju duhet një kod i ri.
+            </Text>
+            <View style={styles.confirmActions}>
+              <Pressable
+                onPress={() => setCodeConfirmVisible(false)}
+                style={[styles.confirmButton, { backgroundColor: Colors.background }]}
+              >
+                <Text style={[styles.confirmCancelText, { color: Colors.text }]}>Anulo</Text>
+              </Pressable>
+              <Pressable
+                onPress={() => generateAccessCode('staff')}
+                style={[styles.confirmButton, { backgroundColor: Colors.primary }]}
+              >
+                <Text style={styles.confirmCreateText}>Gjenero</Text>
+              </Pressable>
+            </View>
+          </View>
+        </View>
+      </Modal>
 
       {avatarPreviewVisible && Platform.OS === 'web' && (
         <View
@@ -956,6 +964,34 @@ export default function ProfileTab() {
   );
 }
 
+type ProfileRowProps = {
+  title: string;
+  subtitle: string;
+  colors: typeof LightColors;
+  onPress: () => void;
+};
+
+function ProfileRow({ title, subtitle, colors, onPress }: ProfileRowProps) {
+  return (
+    <Pressable
+      onPress={onPress}
+      style={({ pressed }) => [
+        styles.rowItem,
+        {
+          backgroundColor: pressed ? colors.background : 'transparent',
+          opacity: pressed ? 0.82 : 1,
+        },
+      ]}
+    >
+      <View style={styles.rowCopy}>
+        <Text style={[styles.rowTitle, { color: colors.text }]}>{title}</Text>
+        <Text style={[styles.rowSubtitle, { color: colors.muted }]}>{subtitle}</Text>
+      </View>
+      <Text style={[styles.rowArrow, { color: colors.muted }]}>›</Text>
+    </Pressable>
+  );
+}
+
 /* ================= STYLES ================= */
 const styles = StyleSheet.create({
   container: {
@@ -969,6 +1005,153 @@ const styles = StyleSheet.create({
     fontWeight: '800',
     letterSpacing: -0.8,
     marginBottom: 22,
+  },
+  profileHero: {
+    borderRadius: 22,
+    borderWidth: 1,
+    padding: 18,
+    marginBottom: 16,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 16,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.04,
+    shadowRadius: 14,
+    elevation: 2,
+  },
+  heroCopy: {
+    flex: 1,
+    minWidth: 0,
+  },
+  heroEyebrow: {
+    fontSize: 12,
+    fontWeight: '800',
+    textTransform: 'uppercase',
+    marginBottom: 5,
+  },
+  heroName: {
+    fontSize: 21,
+    fontWeight: '800',
+    lineHeight: 26,
+  },
+  heroEmail: {
+    fontSize: 13,
+    marginTop: 4,
+  },
+  photoPill: {
+    alignSelf: 'flex-start',
+    borderWidth: 1,
+    borderRadius: 999,
+    paddingHorizontal: 13,
+    paddingVertical: 8,
+    marginTop: 12,
+  },
+  photoPillText: {
+    fontSize: 12,
+    fontWeight: '800',
+  },
+  sectionCard: {
+    borderRadius: 18,
+    borderWidth: 1,
+    padding: 8,
+    marginBottom: 14,
+  },
+  sectionTitle: {
+    fontSize: 12,
+    fontWeight: '800',
+    letterSpacing: 0.4,
+    textTransform: 'uppercase',
+    paddingHorizontal: 10,
+    paddingTop: 8,
+    paddingBottom: 4,
+  },
+  rowItem: {
+    minHeight: 66,
+    borderRadius: 14,
+    paddingHorizontal: 12,
+    paddingVertical: 11,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  rowCopy: {
+    flex: 1,
+    minWidth: 0,
+  },
+  rowTitle: {
+    fontSize: 15,
+    fontWeight: '800',
+  },
+  rowSubtitle: {
+    fontSize: 12,
+    lineHeight: 17,
+    marginTop: 3,
+  },
+  rowArrow: {
+    fontSize: 25,
+    fontWeight: '300',
+    lineHeight: 28,
+  },
+  codeCard: {
+    borderWidth: 1,
+    borderRadius: 16,
+    padding: 14,
+    margin: 8,
+    marginTop: 10,
+  },
+  codeLabel: {
+    fontSize: 12,
+    fontWeight: '800',
+    textTransform: 'uppercase',
+  },
+  codeValue: {
+    fontSize: 28,
+    fontWeight: '800',
+    letterSpacing: 3,
+    marginTop: 5,
+  },
+  codeHint: {
+    marginTop: 4,
+    fontSize: 13,
+    fontWeight: '600',
+  },
+  confirmCard: {
+    width: '88%',
+    maxWidth: 420,
+    borderWidth: 1,
+    borderRadius: 20,
+    padding: 18,
+  },
+  confirmTitle: {
+    fontSize: 19,
+    fontWeight: '800',
+    marginBottom: 8,
+  },
+  confirmMessage: {
+    fontSize: 14,
+    lineHeight: 20,
+    marginBottom: 18,
+  },
+  confirmActions: {
+    flexDirection: 'row',
+    gap: 10,
+  },
+  confirmButton: {
+    flex: 1,
+    minHeight: 48,
+    borderRadius: 14,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  confirmCancelText: {
+    fontSize: 14,
+    fontWeight: '800',
+  },
+  confirmCreateText: {
+    color: '#fff',
+    fontSize: 14,
+    fontWeight: '800',
   },
   card: {
     borderRadius: 20,

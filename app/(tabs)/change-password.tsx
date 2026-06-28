@@ -34,21 +34,21 @@ export default function ChangePasswordScreen() {
     if (!oldPassword || !newPassword || !confirmPassword) {
       Platform.OS === 'web'
         ? window.alert('Të gjitha fushat duhet të plotësohen')
-        : Alert.alert('Error', 'Të gjitha fushat duhet të plotësohen');
+        : Alert.alert('Gabim', 'Të gjitha fushat duhet të plotësohen');
       return;
     }
 
     if (newPassword.length < 6) {
       Platform.OS === 'web'
         ? window.alert('Fjalëkalimi duhet të ketë të paktën 6 shkronja ose numra')
-        : Alert.alert('Error', 'Fjalëkalimi duhet të ketë të paktën 6 shkronja ose numra');
+        : Alert.alert('Gabim', 'Fjalëkalimi duhet të ketë të paktën 6 shkronja ose numra');
       return;
     }
 
     if (newPassword !== confirmPassword) {
       Platform.OS === 'web'
-        ? window.alert('Passwords do not match')
-        : Alert.alert('Error', 'Passwords do not match');
+        ? window.alert('Fjalëkalimet nuk përputhen')
+        : Alert.alert('Gabim', 'Fjalëkalimet nuk përputhen');
       return;
     }
 
@@ -64,7 +64,7 @@ export default function ChangePasswordScreen() {
       if (signInError) {
         Platform.OS === 'web'
           ? window.alert('Fjalëkalimi i vjetër është shkruar gabim')
-          : Alert.alert('Error', 'Fjalëkalimi i vjetër është shkruar gabim');
+          : Alert.alert('Gabim', 'Fjalëkalimi i vjetër është shkruar gabim');
         return;
       }
 
@@ -75,7 +75,7 @@ export default function ChangePasswordScreen() {
       if (error) {
         Platform.OS === 'web'
           ? window.alert(error.message)
-          : Alert.alert('Error', error.message);
+          : Alert.alert('Gabim', error.message);
         return;
       }
 
@@ -85,7 +85,7 @@ export default function ChangePasswordScreen() {
       } else {
         Alert.alert('Sukses', 'Fjalëkalimi u ndryshua me sukses!', [
           {
-            text: 'OK',
+            text: 'Në rregull',
             onPress: () => router.replace('/(tabs)/profile'),
           },
         ]);

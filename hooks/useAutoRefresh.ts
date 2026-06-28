@@ -1,6 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef } from 'react';
-import { AppState, Platform } from 'react-native';
-import { useFocusEffect } from '@react-navigation/native';
+import { AppState, DeviceEventEmitter, Platform } from 'react-native';
 
 import { supabase } from '../context/supabase';
 
@@ -60,18 +59,6 @@ export function useAutoRefresh(
     }, debounceMs);
   }, [debounceMs, enabled]);
 
-  useFocusEffect(
-    useCallback(() => {
-      scheduleRefresh();
-
-      return () => {
-        if (timeoutRef.current) {
-          clearTimeout(timeoutRef.current);
-        }
-      };
-    }, [scheduleRefresh])
-  );
-
   useEffect(() => {
     if (!enabled) return;
 
@@ -91,11 +78,19 @@ export function useAutoRefresh(
       };
     }
 
-    const subscription = AppState.addEventListener('change', (state) => {
+    const refreshSubscription = DeviceEventEmitter.addListener(
+      'freshlook-refresh',
+      scheduleRefresh
+    );
+
+    const appStateSubscription = AppState.addEventListener('change', (state) => {
       if (state === 'active') scheduleRefresh();
     });
 
-    return () => subscription.remove();
+    return () => {
+      refreshSubscription.remove();
+      appStateSubscription.remove();
+    };
   }, [enabled, scheduleRefresh]);
 
   useEffect(() => {

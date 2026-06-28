@@ -34,6 +34,7 @@ type StaffStat = {
 };
 
 const avatarPlaceholder = require('../../assets/images/avatar-placeholder.png');
+const STAFF_ROLES = ['owner', 'manager', 'staff'];
 
 /* ---------- SCREEN ---------- */
 
@@ -125,9 +126,22 @@ export default function HomeTab() {
     );
 
     if (staffMonthly) {
+      const profileIds = Array.from(
+        new Set(staffMonthly.map((r: any) => r.user_id))
+      );
+      const { data: staffProfiles } = await supabase
+        .from('profiles')
+        .select('id')
+        .in('id', profileIds)
+        .in('role', STAFF_ROLES);
+      const staffIds = new Set(
+        (staffProfiles ?? []).map((item: { id: string }) => item.id)
+      );
+
       setStaffStats(
         staffMonthly
           .filter((r: any) => r.month === currentMonth)
+          .filter((r: any) => staffIds.has(r.user_id))
           .map((r: any) => ({
             user_id: r.user_id,
             full_name: r.full_name,

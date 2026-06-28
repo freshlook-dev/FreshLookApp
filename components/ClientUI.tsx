@@ -70,11 +70,24 @@ export function IconTile({ icon }: { icon: IconName }) {
 
 export function StatusBadge({ label }: { label: string }) {
   const Colors = useClientColors();
+  const statusLabels: Record<string, string> = {
+    upcoming: 'Në ardhje',
+    scheduled: 'I planifikuar',
+    pending: 'Në pritje',
+    arrived: 'Ka ardhur',
+    completed: 'E përfunduar',
+    canceled: 'E anuluar',
+    cancelled: 'E anuluar',
+    archived: 'Arkivuar',
+    used: 'I përdorur',
+    expired: 'Ka skaduar',
+  };
+  const translatedLabel = statusLabels[label.toLowerCase()] ?? label;
 
   return (
     <View style={[styles.badge, { backgroundColor: Colors.primarySoft }]}>
       <View style={[styles.badgeDot, { backgroundColor: Colors.primary }]} />
-      <Text style={[styles.badgeText, { color: Colors.primary }]}>{label}</Text>
+      <Text style={[styles.badgeText, { color: Colors.primary }]}>{translatedLabel}</Text>
     </View>
   );
 }
