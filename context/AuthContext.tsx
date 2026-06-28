@@ -78,6 +78,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         return;
       }
 
+      setLoading(true);
+
       const { data } = await supabase
         .from('profiles')
         .select(PROFILE_SELECT)

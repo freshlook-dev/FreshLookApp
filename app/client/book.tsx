@@ -32,9 +32,28 @@ type Service = {
   sale_price?: number | null;
 };
 
+type ServiceOrderContent = {
+  orderedIds?: string[];
+};
+
 const LOCATIONS = ['Prishtinë', 'Fushë Kosovë'];
-const TIME_SLOTS = ['09:00', '10:00', '11:00', '12:00', '13:00', '14:00', '15:00', '16:00', '17:00'];
+const TIME_SLOTS = ['09:00', '10:00', '11:00', '12:00', '13:00', '14:00', '15:00', '16:00', '17:00', '18:00', '19:00', '20:00'];
 const BOOKING_URL = 'https://www.freshlook-ks.com/api/appointments';
+
+function orderByIdList<T extends { id: string }>(items: T[], orderedIds: string[]) {
+  if (!orderedIds.length) return items;
+  const positionMap = new Map(orderedIds.map((id, index) => [id, index]));
+
+  return [...items].sort((a, b) => {
+    const aPosition = positionMap.get(a.id);
+    const bPosition = positionMap.get(b.id);
+
+    if (aPosition == null && bPosition == null) return 0;
+    if (aPosition == null) return 1;
+    if (bPosition == null) return -1;
+    return aPosition - bPosition;
+  });
+}
 
 function dateValue(value: Date) {
   const year = value.getFullYear();
@@ -43,13 +62,31 @@ function dateValue(value: Date) {
   return `${year}-${month}-${day}`;
 }
 
+function startOfDay(value: Date) {
+  const next = new Date(value);
+  next.setHours(0, 0, 0, 0);
+  return next;
+}
+
+function isTooSoonToBook(selectedDate: string, slot: string, now: Date) {
+  const today = dateValue(now);
+  if (selectedDate < today) return true;
+  if (selectedDate > today) return false;
+
+  const [hours, minutes] = slot.split(':').map(Number);
+  const slotMinutes = hours * 60 + minutes;
+  const minimumMinutes = now.getHours() * 60 + now.getMinutes() + 30;
+  return slotMinutes < minimumMinutes;
+}
+
 export default function BookAppointmentScreen() {
   const { user, profile } = useAuth();
   const Colors = useClientColors();
   const [services, setServices] = useState<Service[]>([]);
-  const [service, setService] = useState<Service | null>(null);
+  const [selectedServices, setSelectedServices] = useState<Service[]>([]);
   const [location, setLocation] = useState('');
   const [date, setDate] = useState(new Date());
+  const [currentTime, setCurrentTime] = useState(new Date());
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [time, setTime] = useState('');
   const [bookedTimes, setBookedTimes] = useState<string[]>([]);
@@ -75,14 +112,24 @@ export default function BookAppointmentScreen() {
   }, []);
 
   useEffect(() => {
+    const interval = setInterval(() => setCurrentTime(new Date()), 60_000);
+    return () => clearInterval(interval);
+  }, []);
+
+  useEffect(() => {
     const loadServices = async () => {
-      const { data, error } = await supabase
-        .from('services')
-        .select('id, name, price, duration, is_on_sale, sale_price')
-        .eq('is_active', true);
+      const [{ data, error }, { data: orderData }] = await Promise.all([
+        supabase
+          .from('services')
+          .select('id, name, price, duration, is_on_sale, sale_price')
+          .eq('is_active', true)
+          .order('created_at', { ascending: true }),
+        supabase.from('content').select('value').eq('key', 'service_order').maybeSingle(),
+      ]);
 
       if (error) Alert.alert('Shërbimet nuk u ngarkuan', error.message);
-      setServices((data as Service[] | null) ?? []);
+      const orderedIds = ((orderData?.value as ServiceOrderContent | null)?.orderedIds || []).filter(Boolean);
+      setServices(orderByIdList((data as Service[] | null) ?? [], orderedIds));
       setLoadingServices(false);
     };
 
@@ -90,6 +137,7 @@ export default function BookAppointmentScreen() {
   }, []);
 
   const selectedDate = useMemo(() => dateValue(date), [date]);
+  const minimumDate = useMemo(() => startOfDay(currentTime), [currentTime]);
 
   const loadBookedTimes = useCallback(async () => {
     if (!location) {
@@ -120,6 +168,12 @@ export default function BookAppointmentScreen() {
   }, [loadBookedTimes]);
 
   useEffect(() => {
+    if (time && isTooSoonToBook(selectedDate, time, currentTime)) {
+      setTime('');
+    }
+  }, [currentTime, selectedDate, time]);
+
+  useEffect(() => {
     if (!location) return;
     const channel = supabase
       .channel(`client-booking-${location}-${selectedDate}`)
@@ -133,14 +187,47 @@ export default function BookAppointmentScreen() {
     };
   }, [loadBookedTimes, location, selectedDate]);
 
+  const toggleService = (item: Service) => {
+    setSelectedServices((current) => {
+      const exists = current.some((service) => service.id === item.id);
+      if (exists) return current.filter((service) => service.id !== item.id);
+      return [...current, item];
+    });
+  };
+
+  const selectedServiceName = selectedServices.map((item) => item.name).join(', ');
+  const selectedTreatmentPayload = selectedServices.map((item) => {
+    const price = item.is_on_sale && item.sale_price ? item.sale_price : item.price;
+    return {
+      id: item.id,
+      name: item.name,
+      price,
+      qty: 1,
+      total: price,
+    };
+  });
+  const selectedTotal = selectedTreatmentPayload.reduce((sum, item) => sum + Number(item.total || 0), 0);
+  const selectedDuration = selectedServices.reduce((sum, item) => sum + Number(item.duration || 0), 0);
+
   const submit = async () => {
-    if (!service || !location || !time || !name.trim() || !phone.trim()) {
+    if (!selectedServices.length || !location || !time || !name.trim() || !phone.trim()) {
       Alert.alert('Mungojnë të dhëna', 'Zgjidhni shërbimin, lokacionin, datën dhe orën, pastaj kontrolloni të dhënat e kontaktit.');
       return;
     }
 
     if (date.getDay() === 0) {
       Alert.alert('Mbyllur të dielën', 'Ju lutemi zgjidhni një datë tjetër.');
+      return;
+    }
+
+    if (selectedDate < dateValue(currentTime)) {
+      Alert.alert('Datë e pavlefshme', 'Ju lutemi zgjidhni një datë nga sot e tutje.');
+      return;
+    }
+
+    if (isTooSoonToBook(selectedDate, time, currentTime)) {
+      Alert.alert('Ora nuk është e disponueshme', 'Zgjidhni një orë të paktën 30 minuta pas kohës aktuale.');
+      setTime('');
       return;
     }
 
@@ -173,7 +260,7 @@ export default function BookAppointmentScreen() {
           Authorization: `Bearer ${accessToken}`,
         },
         body: JSON.stringify({
-          service: service.name,
+          service: selectedServiceName,
           location,
           appointment_date: selectedDate,
           appointment_time: time,
@@ -184,11 +271,20 @@ export default function BookAppointmentScreen() {
         }),
       });
 
-      const result = (await response.json()) as { error?: string };
+      const result = (await response.json()) as { appointmentId?: string | null; error?: string };
       if (!response.ok) throw new Error(result.error || 'Termini nuk mund të krijohej.');
 
+      if (result.appointmentId) {
+        await supabase
+          .from('appointments')
+          .update({ selected_treatments: selectedTreatmentPayload })
+          .eq('id', result.appointmentId)
+          .eq('user_id', user?.id ?? '');
+      }
+
       void notifyStaffAppointmentChange('created', {
-        service: service.name,
+        id: result.appointmentId,
+        service: selectedServiceName,
         client_name: name.trim(),
         appointment_date: selectedDate,
         appointment_time: time,
@@ -242,18 +338,18 @@ export default function BookAppointmentScreen() {
           subtitle="Zgjidhni shërbimin, lokacionin dhe orën e lirë për vizitën tuaj në Fresh Look."
         />
 
-      <SectionTitle title="1. Zgjidhni shërbimin" />
+      <SectionTitle title="1. Zgjidhni shërbimet" />
       {loadingServices ? (
         <ActivityIndicator color={Colors.primary} style={styles.loader} />
       ) : (
         <View style={styles.grid}>
           {services.map((item) => {
-            const selected = service?.id === item.id;
+            const selected = selectedServices.some((service) => service.id === item.id);
             const price = item.is_on_sale && item.sale_price ? item.sale_price : item.price;
             return (
               <Pressable
                 key={item.id}
-                onPress={() => setService(item)}
+                onPress={() => toggleService(item)}
                 style={[
                   styles.choice,
                   {
@@ -262,12 +358,34 @@ export default function BookAppointmentScreen() {
                   },
                 ]}
               >
-                <Text style={[styles.choiceTitle, { color: Colors.text }]}>{item.name}</Text>
+                <View style={styles.choiceTop}>
+                  <Text style={[styles.choiceTitle, { color: Colors.text }]}>{item.name}</Text>
+                  <View
+                    style={[
+                      styles.checkCircle,
+                      {
+                        backgroundColor: selected ? Colors.primary : Colors.surface,
+                        borderColor: selected ? Colors.primary : Colors.border,
+                      },
+                    ]}
+                  >
+                    {selected && <Ionicons name="checkmark" size={15} color={Colors.onPrimary} />}
+                  </View>
+                </View>
                 <Text style={[styles.choiceMeta, { color: Colors.muted }]}>{item.duration} min · {price} EUR</Text>
               </Pressable>
             );
           })}
         </View>
+      )}
+      {!!selectedServices.length && (
+        <PremiumCard style={styles.summaryCard}>
+          <Text style={[styles.summaryLabel, { color: Colors.primary }]}>Të zgjedhura</Text>
+          <Text style={[styles.summaryText, { color: Colors.text }]}>{selectedServiceName}</Text>
+          <Text style={[styles.summaryMeta, { color: Colors.muted }]}>
+            {selectedDuration} min gjithsej · {selectedTotal.toFixed(2)} EUR
+          </Text>
+        </PremiumCard>
       )}
 
       <SectionTitle title="2. Zgjidhni lokacionin" />
@@ -290,10 +408,13 @@ export default function BookAppointmentScreen() {
           <DateTimePicker
             value={date}
             mode="date"
-            minimumDate={new Date()}
+            minimumDate={minimumDate}
             onChange={(_, value) => {
               if (Platform.OS !== 'ios') setShowDatePicker(false);
-              if (value) setDate(value);
+              if (value) {
+                setDate(value < minimumDate ? minimumDate : value);
+                setTime('');
+              }
             }}
           />
         )}
@@ -301,22 +422,25 @@ export default function BookAppointmentScreen() {
           {loadingTimes && <ActivityIndicator color={Colors.primary} style={styles.timeLoader} />}
           {TIME_SLOTS.map((slot) => {
             const booked = bookedTimes.includes(slot);
+            const tooSoon = isTooSoonToBook(selectedDate, slot, currentTime);
+            const disabled = booked || tooSoon || !location;
             return (
               <Pressable
                 key={slot}
-                disabled={booked || !location}
+                disabled={disabled}
                 onPress={() => setTime(slot)}
                 style={[
                   styles.time,
                   {
                     backgroundColor: time === slot ? Colors.primary : Colors.surface,
                     borderColor: time === slot ? Colors.primary : Colors.border,
-                    opacity: booked || !location ? 0.4 : 1,
+                    opacity: disabled ? 0.4 : 1,
                   },
                 ]}
               >
                 <Text style={{ color: time === slot ? Colors.onPrimary : Colors.text, fontWeight: '700' }}>{slot}</Text>
                 {booked && <Text style={[styles.takenText, { color: Colors.muted }]}>E zënë</Text>}
+                {!booked && tooSoon && <Text style={[styles.takenText, { color: Colors.muted }]}>E kaluar</Text>}
               </Pressable>
             );
           })}
@@ -406,8 +530,14 @@ const styles = StyleSheet.create({
   loader: { marginVertical: 24 },
   grid: { gap: 10 },
   choice: { borderWidth: 1, borderRadius: 16, padding: 16 },
+  choiceTop: { flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12 },
   choiceTitle: { fontSize: 15, fontWeight: '800' },
   choiceMeta: { fontSize: 12, marginTop: 5 },
+  checkCircle: { width: 26, height: 26, borderRadius: 13, borderWidth: 1, alignItems: 'center', justifyContent: 'center' },
+  summaryCard: { marginTop: 12, gap: 6 },
+  summaryLabel: { fontSize: 12, fontWeight: '800', textTransform: 'uppercase', letterSpacing: 1 },
+  summaryText: { fontSize: 15, lineHeight: 21, fontWeight: '800' },
+  summaryMeta: { fontSize: 13, lineHeight: 19 },
   row: { flexDirection: 'row', gap: 10 },
   pill: { flex: 1, borderWidth: 1, minHeight: 50, borderRadius: 14, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 8 },
   cardGap: { gap: 12 },

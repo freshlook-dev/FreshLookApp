@@ -74,7 +74,7 @@ export default function Login() {
 
     // ✅ Allow staff/admin
     setLoading(false);
-    router.replace('/');
+    router.replace('/(tabs)' as any);
   };
 
   return (

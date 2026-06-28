@@ -116,6 +116,95 @@ Deno.serve(async (request) => {
 
     const body = await request.json();
 
+    if (body.mode === 'list_recipients') {
+      if (!STAFF_ROLES.includes(profile?.role ?? '')) {
+        return Response.json({ error: 'Nuk keni qasje për listën e përdoruesve' }, { status: 403, headers: corsHeaders });
+      }
+
+      const search = String(body.search ?? '').trim();
+      let query = adminClient
+        .from('profiles')
+        .select('id, email, full_name, role, is_active')
+        .neq('is_active', false)
+        .order('full_name', { ascending: true, nullsFirst: false })
+        .limit(80);
+
+      if (search) {
+        query = query.or(`full_name.ilike.%${search}%,email.ilike.%${search}%`);
+      }
+
+      const { data: recipients, error: recipientsError } = await query;
+      if (recipientsError) throw recipientsError;
+
+      return Response.json(
+        {
+          recipients: (recipients ?? []).map((item) => ({
+            id: item.id,
+            email: item.email,
+            full_name: item.full_name,
+            role: item.role,
+          })),
+        },
+        { headers: corsHeaders }
+      );
+    }
+
+    if (body.mode === 'direct_notification') {
+      if (!STAFF_ROLES.includes(profile?.role ?? '')) {
+        return Response.json({ error: 'Nuk keni qasje për të dërguar njoftime individuale' }, { status: 403, headers: corsHeaders });
+      }
+
+      const recipientId = String(body.recipient_id ?? '').trim();
+      const title = String(body.title ?? '').trim();
+      const message = String(body.message ?? '').trim();
+
+      if (!recipientId) {
+        return Response.json({ error: 'Zgjidhni përdoruesin' }, { status: 400, headers: corsHeaders });
+      }
+
+      if (!title || title.length > 80 || !message || message.length > 500) {
+        return Response.json({ error: 'Përmbajtja e njoftimit nuk është valide' }, { status: 400, headers: corsHeaders });
+      }
+
+      const { data: recipient, error: recipientError } = await adminClient
+        .from('profiles')
+        .select('id, is_active')
+        .eq('id', recipientId)
+        .maybeSingle();
+
+      if (recipientError) throw recipientError;
+      if (!recipient || recipient.is_active === false) {
+        return Response.json({ error: 'Përdoruesi nuk u gjet ose nuk është aktiv' }, { status: 404, headers: corsHeaders });
+      }
+
+      const { data: tokenRows, error: tokenError } = await adminClient
+        .from('push_tokens')
+        .select('expo_push_token')
+        .eq('user_id', recipientId);
+
+      if (tokenError) throw tokenError;
+
+      const sent = await sendExpoPush(
+        (tokenRows ?? []).map((row) => row.expo_push_token),
+        title,
+        message,
+        {
+          type: 'direct_notification',
+          recipientId,
+          sentBy: userData.user.id,
+        }
+      );
+
+      await adminClient.from('push_notification_history').insert({
+        sent_by: userData.user.id,
+        title,
+        message,
+        recipient_count: sent,
+      });
+
+      return Response.json({ sent }, { headers: corsHeaders });
+    }
+
     if (body.mode === 'appointment_event') {
       const event = String(body.event ?? 'updated') as AppointmentEvent;
       if (!['created', 'updated', 'status_changed', 'canceled'].includes(event)) {

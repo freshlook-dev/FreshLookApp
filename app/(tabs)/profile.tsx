@@ -640,6 +640,12 @@ export default function ProfileTab() {
             onPress={() => router.push('../(tabs)/qr-redemptions')}
           />
         )}
+        <ProfileRow
+          title="Dergo njoftime"
+          subtitle="Dergo njoftim te nje perdorues i vetem."
+          colors={Colors}
+          onPress={() => router.push('../(tabs)/notifications')}
+        />
       </View>
 
       <View style={[styles.sectionCard, { backgroundColor: Colors.card, borderColor: Colors.border }]}>

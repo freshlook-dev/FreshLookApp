@@ -11,6 +11,8 @@ export default function Index() {
   useEffect(() => {
     if (!loading) {
       if (user) {
+        if (!profile?.role) return;
+
         if (profile?.role === 'client') {
           router.replace('/client' as any);
           return;
