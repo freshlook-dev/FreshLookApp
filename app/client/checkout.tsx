@@ -385,6 +385,7 @@ export default function ClientCheckoutScreen() {
         <SummaryRow label="Nëntotali" value={`${subtotal.toFixed(2)}€`} />
         {promo && <SummaryRow label={`Zbritja (${promo.code})`} value={`-${discount.toFixed(2)}€`} positive />}
         <SummaryRow label="Totali" value={`${total.toFixed(2)}€`} bold />
+        <SummaryRow label="Fresh Points pas dorëzimit" value={`+${Math.floor(total)} pikë`} positive />
 
         <Pressable
           onPress={placeOrder}

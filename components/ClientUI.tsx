@@ -73,7 +73,9 @@ export function StatusBadge({ label }: { label: string }) {
   const statusLabels: Record<string, string> = {
     upcoming: 'Në ardhje',
     scheduled: 'I planifikuar',
-    pending: 'Në pritje',
+    ordered: 'Porositur',
+    confirmed: 'Konfirmuar',
+    delivered: 'Dorëzuar',
     arrived: 'Ka ardhur',
     completed: 'E përfunduar',
     canceled: 'E anuluar',

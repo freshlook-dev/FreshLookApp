@@ -40,19 +40,15 @@ type Order = {
 };
 
 const statusLabels: Record<string, string> = {
-  pending: 'Në pritje',
-  processing: 'Duke u përgatitur',
-  ready: 'Gati',
-  shipped: 'Në dërgesë',
+  ordered: 'Porositur',
+  confirmed: 'Konfirmuar',
   delivered: 'Dorëzuar',
-  completed: 'Përfunduar',
   cancelled: 'Anuluar',
-  canceled: 'Anuluar',
 };
 
 export default function ClientOrdersScreen() {
   const Colors = useClientColors();
-  const { user } = useAuth();
+  const { user, refreshProfile } = useAuth();
   const [orders, setOrders] = useState<Order[]>([]);
   const [expanded, setExpanded] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
@@ -86,12 +82,15 @@ export default function ClientOrdersScreen() {
       .on(
         'postgres_changes',
         { event: '*', schema: 'public', table: 'orders', filter: `user_id=eq.${user.id}` },
-        () => void loadOrders()
+        () => {
+          void loadOrders();
+          void refreshProfile();
+        }
       )
       .subscribe();
 
     return () => { void supabase.removeChannel(channel); };
-  }, [loadOrders, user?.id]);
+  }, [loadOrders, refreshProfile, user?.id]);
 
   useEffect(() => {
     const timer = setInterval(() => setNow(Date.now()), 60_000);
@@ -106,7 +105,7 @@ export default function ClientOrdersScreen() {
 
   const canManageOrder = (order: Order) =>
     now <= new Date(order.created_at).getTime() + 3 * 60 * 60 * 1000 &&
-    ['pending', 'processing'].includes(order.status);
+    order.status === 'ordered';
 
   const openEdit = (order: Order) => {
     setEditingOrder(order);
@@ -188,10 +187,11 @@ export default function ClientOrdersScreen() {
         <View style={styles.list}>
           {orders.map((order) => {
             const isOpen = expanded === order.id;
-            const isCanceled = ['cancelled', 'canceled'].includes(order.status);
-            const label = statusLabels[order.status] ?? order.status;
-            const canManage = canManageOrder(order);
             const editWindowExpired = now > new Date(order.created_at).getTime() + 3 * 60 * 60 * 1000;
+            const effectiveStatus = order.status === 'ordered' && editWindowExpired ? 'confirmed' : order.status;
+            const isCanceled = effectiveStatus === 'cancelled';
+            const label = statusLabels[effectiveStatus] ?? effectiveStatus;
+            const canManage = canManageOrder(order);
             return (
               <PremiumCard key={order.id} elevated style={styles.orderCard}>
                 <Pressable onPress={() => setExpanded(isOpen ? null : order.id)}>
@@ -231,11 +231,11 @@ export default function ClientOrdersScreen() {
                     )}
                     {!!order.address && <Text style={[styles.meta, { color: Colors.muted }]}><Text style={styles.metaStrong}>Adresa: </Text>{order.address}</Text>}
                     {!!order.instructions && <Text style={[styles.meta, { color: Colors.muted }]}><Text style={styles.metaStrong}>Udhëzime: </Text>{order.instructions}</Text>}
-                    {editWindowExpired && (
+                    {editWindowExpired && effectiveStatus === 'confirmed' && (
                       <View style={[styles.expiredNotice, { backgroundColor: Colors.surface, borderColor: Colors.border }]}> 
                         <Ionicons name="information-circle-outline" size={18} color={Colors.primary} />
                         <Text style={[styles.expiredNoticeText, { color: Colors.muted }]}> 
-                          3 orë kanë kaluar. Për të ndryshuar ose anuluar porosinë, kontaktoni me dikë nga stafi i Fresh Look.
+                          Porosia u konfirmua automatikisht pas 3 orësh. Për ndryshime ose anulim, kontaktoni stafin e Fresh Look.
                         </Text>
                       </View>
                     )}

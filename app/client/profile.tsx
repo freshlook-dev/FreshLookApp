@@ -103,6 +103,15 @@ export default function ProfileScreen() {
 
       <Pressable
         style={[styles.settingsLink, { borderColor: Colors.border, backgroundColor: Colors.card }]}
+        onPress={() => router.push('/client/points-history' as any)}
+      >
+        <Ionicons name="time-outline" size={20} color={Colors.primary} />
+        <Text style={[styles.settingsLinkText, { color: Colors.text }]}>Historiku i Fresh Points</Text>
+        <Ionicons name="chevron-forward" size={18} color={Colors.muted} />
+      </Pressable>
+
+      <Pressable
+        style={[styles.settingsLink, { borderColor: Colors.border, backgroundColor: Colors.card }]}
         onPress={() => router.push('/client/settings')}
       >
         <Ionicons name="settings-outline" size={20} color={Colors.primary} />

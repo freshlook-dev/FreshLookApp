@@ -51,7 +51,7 @@ Deno.serve(async (request) => {
     if (now > deadline) {
       return Response.json({ error: 'Afati prej 3 orësh për ndryshim ka përfunduar' }, { status: 403, headers: corsHeaders });
     }
-    if (!['pending', 'processing'].includes(order.status)) {
+    if (order.status !== 'ordered') {
       return Response.json({ error: 'Kjo porosi nuk mund të ndryshohet më' }, { status: 409, headers: corsHeaders });
     }
 
@@ -62,7 +62,7 @@ Deno.serve(async (request) => {
         .update({ status: 'cancelled' })
         .eq('id', order.id)
         .eq('user_id', userData.user.id)
-        .in('status', ['pending', 'processing'])
+        .eq('status', 'ordered')
         .gte('created_at', cutoff)
         .select('id, status')
         .maybeSingle();
@@ -96,7 +96,7 @@ Deno.serve(async (request) => {
       .update({ full_name: fullName, phone, address, instructions })
       .eq('id', order.id)
       .eq('user_id', userData.user.id)
-      .in('status', ['pending', 'processing'])
+      .eq('status', 'ordered')
       .gte('created_at', cutoff)
       .select('id')
       .maybeSingle();

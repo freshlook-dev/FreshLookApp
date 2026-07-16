@@ -355,8 +355,8 @@ export default function RegisterVisitScreen() {
       ? 0
       : Math.max(0, Number((totalAmount - paidBankValue).toFixed(2)));
 
-  const freshPointsEarned = Math.floor(totalAmount / 2);
-  const previousFreshPoints = Math.floor((previousTotalAmount ?? 0) / 2);
+  const freshPointsEarned = Math.floor(totalAmount);
+  const previousFreshPoints = Math.floor(previousTotalAmount ?? 0);
   const freshPointsDelta = clientUserId
     ? freshPointsEarned - previousFreshPoints
     : 0;
@@ -548,8 +548,11 @@ export default function RegisterVisitScreen() {
       new_points?: number | null;
     };
     const updatedClientUserId = result.client_user_id ?? clientUserId;
-    const actualPointsDelta = Number(result.points_delta ?? 0);
-    const newPointsBalance = Number(result.new_points ?? 0);
+    const actualPointsDelta = updatedClientUserId ? freshPointsDelta : 0;
+    const { data: updatedPointsProfile } = updatedClientUserId
+      ? await supabase.from('profiles').select('points').eq('id', updatedClientUserId).maybeSingle()
+      : { data: null };
+    const newPointsBalance = Number(updatedPointsProfile?.points ?? result.new_points ?? 0);
 
     if (updatedClientUserId && actualPointsDelta > 0 && Number.isFinite(newPointsBalance)) {
       void supabase.functions

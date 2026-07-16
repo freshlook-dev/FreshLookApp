@@ -37,7 +37,7 @@ export default function OwnerAdminScreen() {
     setSummary({
       revenue: orderRows.filter((o: any) => !['cancelled', 'canceled'].includes(o.status)).reduce((n: number, o: any) => n + Number(o.total || 0), 0),
       appointments: appointments.data?.length ?? 0, customers: customers.count ?? 0, products: productRows.length,
-      pending: orderRows.filter((o: any) => o.status === 'pending').length,
+      pending: orderRows.filter((o: any) => o.status === 'ordered').length,
       lowStock: productRows.filter((p: any) => Number(p.stock_online || 0) <= 5).length,
     });
   }, []);
@@ -54,7 +54,7 @@ export default function OwnerAdminScreen() {
     </ScrollView>
     {summary && (summary.pending > 0 || summary.lowStock > 0) ? <AdminCard>
       <Text style={[styles.attentionTitle, { color: C.text }]}>Kërkon vëmendje</Text>
-      {summary.pending > 0 && <Text style={{ color: C.muted }}>{summary.pending} porosi në pritje</Text>}
+      {summary.pending > 0 && <Text style={{ color: C.muted }}>{summary.pending} porosi të reja</Text>}
       {summary.lowStock > 0 && <Text style={{ color: C.muted }}>{summary.lowStock} produkte me 5 ose më pak copë online</Text>}
     </AdminCard> : null}
     <View style={styles.grid}>{tools.map(([icon, title, subtitle, route]) => <Pressable key={route} onPress={() => router.push(route as any)} style={({ pressed }) => [styles.tool, { backgroundColor: C.card, borderColor: C.border, opacity: pressed ? .75 : 1 }]}>

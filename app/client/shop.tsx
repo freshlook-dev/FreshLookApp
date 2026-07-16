@@ -127,6 +127,7 @@ export default function ClientShopScreen() {
             const availableOnlineStock = product.stock_online ?? product.stock_quantity ?? 0;
             const isSoldOut = product.is_out_of_stock || availableOnlineStock <= 0;
             const isSale = product.is_on_sale && product.sale_price != null;
+            const freshPoints = Math.floor(isSale ? product.sale_price! : product.price);
             const expandedProduct = expanded === product.id;
 
             return (
@@ -155,6 +156,8 @@ export default function ClientShopScreen() {
                     </View>
                   )}
                 </View>
+
+                <Text style={[styles.pointsEarned, { color: Colors.primary }]}>+{freshPoints} Fresh Points pas dorëzimit</Text>
 
                 <Text style={[styles.productName, { color: Colors.text }]} numberOfLines={2}>
                   {product.name}
@@ -260,6 +263,7 @@ const styles = StyleSheet.create({
   priceRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 8 },
   oldPrice: { fontSize: 12, textDecorationLine: 'line-through' },
   price: { fontSize: 15, fontWeight: '900' },
+  pointsEarned: { marginTop: 5, fontSize: 11, fontWeight: '800' },
   detailsLink: { marginTop: 8, fontSize: 12, fontWeight: '800' },
   description: { fontSize: 12, lineHeight: 18, marginTop: 6 },
   addButton: { minHeight: 42, borderRadius: 13, alignItems: 'center', justifyContent: 'center', marginTop: 12 },
