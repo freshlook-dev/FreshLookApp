@@ -101,13 +101,19 @@ export default function ManageUsersScreen() {
   };
 
   const confirmChange = async (u: UserRow, newRole: Role) => {
-    const { error } = await supabase
+    const { data: updatedUser, error } = await supabase
       .from('profiles')
       .update({ role: newRole })
-      .eq('id', u.id);
+      .eq('id', u.id)
+      .eq('role', u.role)
+      .select('id')
+      .maybeSingle();
 
-    if (error) {
-      Alert.alert('Gabim', error.message);
+    if (error || !updatedUser) {
+      Alert.alert(
+        'Gabim',
+        error?.message ?? 'Profili ka ndryshuar. Rifreskoni dhe provoni perseri.'
+      );
       return;
     }
 
@@ -161,13 +167,24 @@ export default function ManageUsersScreen() {
   };
 
   const confirmToggleActive = async (u: UserRow, nextActive: boolean) => {
-    const { error } = await supabase
+    let updateQuery = supabase
       .from('profiles')
       .update({ is_active: nextActive })
       .eq('id', u.id);
 
-    if (error) {
-      Alert.alert('Gabim', error.message);
+    updateQuery = u.is_active == null
+      ? updateQuery.is('is_active', null)
+      : updateQuery.eq('is_active', u.is_active);
+
+    const { data: updatedUser, error } = await updateQuery
+      .select('id')
+      .maybeSingle();
+
+    if (error || !updatedUser) {
+      Alert.alert(
+        'Gabim',
+        error?.message ?? 'Profili ka ndryshuar. Rifreskoni dhe provoni perseri.'
+      );
       return;
     }
 

@@ -23,6 +23,12 @@ import { useAutoRefresh } from '../hooks/useAutoRefresh';
 import * as FileSystem from 'expo-file-system/legacy';
 import * as Sharing from 'expo-sharing';
 import * as XLSX from 'xlsx';
+import { formatDate } from '../utils/format';
+import {
+  formatLocalDateOnly,
+  kosovoDateForPicker,
+  parseLocalDateOnly,
+} from '../utils/dateTime';
 
 
 
@@ -42,16 +48,6 @@ type Row = {
   payment_method: PaymentMethod | null;
   paid_cash: number | null;
   paid_bank: number | null;
-};
-
-const pad2 = (n: number) => String(n).padStart(2, '0');
-
-const toISODate = (d: Date) =>
-  `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`;
-
-const formatDate = (date: string) => {
-  const d = new Date(date);
-  return `${pad2(d.getDate())}-${pad2(d.getMonth() + 1)}-${d.getFullYear()}`;
 };
 
 const startOfMonth = (d: Date) => {
@@ -104,14 +100,14 @@ export default function OwnerStatsScreen() {
   const [datePreset, setDatePreset] = useState<DatePreset>('MONTH');
 
   const [startDateObj, setStartDateObj] = useState<Date>(() =>
-    startOfMonth(new Date())
+    startOfMonth(kosovoDateForPicker())
   );
   const [endDateObj, setEndDateObj] = useState<Date>(() =>
-    endOfMonth(new Date())
+    endOfMonth(kosovoDateForPicker())
   );
 
-  const startDate = toISODate(startDateObj);
-  const endDate = toISODate(endDateObj);
+  const startDate = formatLocalDateOnly(startDateObj);
+  const endDate = formatLocalDateOnly(endDateObj);
 
   const [showStartPicker, setShowStartPicker] = useState(false);
   const [showEndPicker, setShowEndPicker] = useState(false);
@@ -291,7 +287,7 @@ const excelSafePhone = (s?: string | null) =>
   }, [role, checkingRole, search, location, payment, startDate, endDate, page]);
 
   useEffect(() => {
-    const now = new Date();
+    const now = kosovoDateForPicker();
 
     if (datePreset === 'TODAY') {
       setStartDateObj(now);
@@ -589,7 +585,10 @@ const LocationButtons = useMemo(() => {
         <input
           type="date"
           value={startDate}
-          onChange={(e) => setStartDateObj(new Date(e.target.value))}
+          onChange={(e) => {
+            const nextDate = parseLocalDateOnly(e.target.value);
+            if (nextDate) setStartDateObj(nextDate);
+          }}
           style={{
             flex: 1,
             padding: 12,
@@ -603,7 +602,10 @@ const LocationButtons = useMemo(() => {
         <input
           type="date"
           value={endDate}
-          onChange={(e) => setEndDateObj(new Date(e.target.value))}
+          onChange={(e) => {
+            const nextDate = parseLocalDateOnly(e.target.value);
+            if (nextDate) setEndDateObj(nextDate);
+          }}
           style={{
             flex: 1,
             padding: 12,
@@ -641,6 +643,7 @@ const LocationButtons = useMemo(() => {
 
       {showStartPicker && (
         <DateTimePicker
+          locale="sq-AL"
           value={startDateObj}
           mode="date"
           display="default"
@@ -653,6 +656,7 @@ const LocationButtons = useMemo(() => {
 
       {showEndPicker && (
         <DateTimePicker
+          locale="sq-AL"
           value={endDateObj}
           mode="date"
           display="default"

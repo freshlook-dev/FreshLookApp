@@ -21,19 +21,31 @@ import { notifyStaffAppointmentChange } from '../../utils/appointmentStaffNotifi
 
 import { useTheme } from '../../context/ThemeContext';
 import { LightColors, DarkColors } from '../../constants/colors';
+import { getOrderedCatalogIds } from '../../utils/catalog';
+import {
+  formatLocalDateOnly,
+  kosovoDateForPicker,
+  parseLocalDateOnly,
+} from '../../utils/dateTime';
 
 /* ---------------- OPTIONS ---------------- */
 
-const TREATMENTS = [
-  'Pastrimi i fytyrës',
-  'Carbon Peeling',
-  'Depilim me Laser',
-  'Largim i Tatuazhit',
-  'Plasma Pen',
-  'EMS',
-  'Manikyr',
-  'Microblading',
-];
+type Service = {
+  id: string;
+  name: string;
+  price?: number;
+  duration?: number;
+  is_on_sale?: boolean | null;
+  sale_price?: number | null;
+};
+
+const orderServices = (items: Service[], orderedIds: string[]) => {
+  const positions = new Map(orderedIds.map((id, index) => [id, index]));
+  return [...items].sort((a, b) =>
+    (positions.get(a.id) ?? Number.MAX_SAFE_INTEGER) -
+    (positions.get(b.id) ?? Number.MAX_SAFE_INTEGER)
+  );
+};
 
 const LOCATIONS = ['Prishtinë', 'Fushë Kosovë'];
 
@@ -63,12 +75,13 @@ export default function EditAppointment() {
   const Colors = theme === 'dark' ? DarkColors : LightColors;
 
   const [loading, setLoading] = useState(true);
+  const [services, setServices] = useState<Service[]>([]);
 
   const [fullName, setFullName] = useState('');
   const [phone, setPhone] = useState('');
   const [treatment, setTreatment] = useState<string | null>(null);
   const [location, setLocation] = useState<string | null>(null);
-  const [date, setDate] = useState(new Date());
+  const [date, setDate] = useState(() => kosovoDateForPicker());
   const [time, setTime] = useState<string | null>(null);
   const [comment, setComment] = useState('');
 
@@ -92,11 +105,17 @@ export default function EditAppointment() {
       return;
     }
 
-    const { data, error } = await supabase
-      .from('appointments')
-      .select('*')
-      .eq('id', appointmentId)
-      .single();
+    const [{ data, error }, { data: serviceRows, error: servicesError }, { data: orderData }] = await Promise.all([
+      supabase
+        .from('appointments')
+        .select('*')
+        .eq('id', appointmentId)
+        .eq('status', 'upcoming')
+        .eq('archived', false)
+        .single(),
+      supabase.from('services').select('id, name, price, duration, is_on_sale, sale_price').eq('is_active', true).order('created_at', { ascending: true }).order('id', { ascending: true }),
+      supabase.from('content').select('value').eq('key', 'service_order').maybeSingle(),
+    ]);
 
     if (error || !data) {
       Alert.alert('Gabim', 'Termini nuk u gjet.');
@@ -104,11 +123,27 @@ export default function EditAppointment() {
       return;
     }
 
+    if (servicesError) {
+      Alert.alert('Shërbimet nuk u ngarkuan', servicesError.message);
+      setLoading(false);
+      return;
+    }
+
+    const activeServices = (serviceRows as Service[] | null) ?? [];
+    const includesCurrentService = activeServices.some((item) => item.name === data.service);
+    const availableServices = includesCurrentService || !data.service
+      ? activeServices
+      : [...activeServices, { id: `appointment-${appointmentId}`, name: data.service }];
+    setServices(orderServices(
+      availableServices,
+      getOrderedCatalogIds(orderData?.value)
+    ));
+
     setFullName(data.client_name);
     setPhone(data.phone);
     setTreatment(data.service);
     setLocation(data.location);
-    setDate(new Date(data.appointment_date));
+    setDate(parseLocalDateOnly(data.appointment_date) ?? kosovoDateForPicker());
     setTime(data.appointment_time);
     setComment(data.comment ?? '');
 
@@ -125,9 +160,7 @@ export default function EditAppointment() {
     setLoading(false);
   };
 
-  const formatDate = (d: Date) => d.toISOString().split('T')[0];
-
-  const buildChanges = () => {
+  const buildChanges = (nextTreatment = treatment) => {
     if (!originalData) return null;
     const changes: any = {};
     const compare = (label: string, oldVal: any, newVal: any) => {
@@ -136,8 +169,8 @@ export default function EditAppointment() {
 
     compare('Emri', originalData.client_name, fullName);
     compare('Telefoni', originalData.phone, phone);
-    compare('Trajtimi', originalData.service, treatment);
-    compare('Data', originalData.appointment_date, formatDate(date));
+    compare('Trajtimi', originalData.service, nextTreatment);
+    compare('Data', originalData.appointment_date, formatLocalDateOnly(date));
     compare('Ora', originalData.appointment_time, time);
     compare('Lokacioni', originalData.location, location);
     compare('Komenti', originalData.comment, comment);
@@ -174,22 +207,95 @@ export default function EditAppointment() {
 
     setLoading(true);
 
-    const { data: updatedRows, error } = await supabase
-      .from('appointments')
-      .update({
-        client_name: fullName,
-        phone,
-        service: treatment,
-        appointment_date: formatDate(date),
-        appointment_time: time,
-        location,
-        comment: comment || null,
-      })
-      .eq('id', appointmentId)
-      .select();
+    const serviceChanged = originalData?.service !== treatment;
+    const selectedService = serviceChanged
+      ? services.find((service) => service.name === treatment && !service.id.startsWith('appointment-'))
+      : undefined;
+    let liveSelectedService: Service | null = null;
 
-    if (error) {
-      Alert.alert('Gabim', error.message);
+    if (serviceChanged) {
+      if (!selectedService) {
+        setLoading(false);
+        Alert.alert('Gabim', 'Shërbimi i zgjedhur nuk është më aktiv.');
+        return;
+      }
+
+      const { data: liveServiceRow, error: serviceError } = await supabase
+        .from('services')
+        .select('id, name, price, duration, is_on_sale, sale_price')
+        .eq('id', selectedService.id)
+        .eq('is_active', true)
+        .maybeSingle();
+      liveSelectedService = liveServiceRow as Service | null;
+
+      if (serviceError || !liveSelectedService) {
+        setLoading(false);
+        Alert.alert(
+          'Gabim',
+          serviceError?.message ?? 'Shërbimi i zgjedhur nuk është më aktiv.'
+        );
+        return;
+      }
+    }
+
+    const serviceForUpdate = liveSelectedService?.name ?? treatment;
+    const selectedServicePrice = liveSelectedService
+      ? liveSelectedService.is_on_sale && liveSelectedService.sale_price != null
+        ? Number(liveSelectedService.sale_price)
+        : Number(liveSelectedService.price)
+      : null;
+    const selectedServiceDuration = liveSelectedService
+      ? Number(liveSelectedService.duration)
+      : null;
+    if (
+      liveSelectedService && (
+        selectedServicePrice == null ||
+        !Number.isFinite(selectedServicePrice) ||
+        selectedServicePrice < 0 ||
+        selectedServiceDuration == null ||
+        !Number.isInteger(selectedServiceDuration) ||
+        selectedServiceDuration <= 0
+      )
+    ) {
+      setLoading(false);
+      Alert.alert('Gabim', 'Të dhënat e shërbimit nuk janë valide.');
+      return;
+    }
+    const updatePayload: Record<string, unknown> = {
+      client_name: fullName,
+      phone,
+      service: serviceForUpdate,
+      appointment_date: formatLocalDateOnly(date),
+      appointment_time: time,
+      location,
+      comment: comment || null,
+    };
+
+    if (liveSelectedService && selectedServicePrice != null && selectedServiceDuration != null) {
+      updatePayload.selected_treatments = [{
+        id: liveSelectedService.id,
+        name: liveSelectedService.name,
+        price: selectedServicePrice,
+        qty: 1,
+        duration: selectedServiceDuration,
+        total: selectedServicePrice,
+      }];
+    }
+
+    const { data: updatedAppointment, error } = await supabase
+      .from('appointments')
+      .update(updatePayload)
+      .eq('id', appointmentId)
+      .eq('status', 'upcoming')
+      .eq('archived', false)
+      .select('id, client_name, service, appointment_date, appointment_time, location, status')
+      .maybeSingle();
+
+    if (error || !updatedAppointment) {
+      Alert.alert(
+        'Gabim',
+        error?.message ?? 'Termini nuk u perditesua. Mund te jete arkivuar ose ndryshuar.'
+      );
       setLoading(false);
       return;
     }
@@ -201,19 +307,12 @@ export default function EditAppointment() {
         target_id: appointmentId,
         metadata: {
           source: 'edit.tsx',
-          changed: buildChanges(),
+          changed: buildChanges(serviceForUpdate),
         },
       });
     } catch {}
 
-    void notifyStaffAppointmentChange('updated', updatedRows?.[0] ?? {
-      id: appointmentId,
-      client_name: fullName,
-      service: treatment,
-      appointment_date: formatDate(date),
-      appointment_time: time,
-      location,
-    });
+    void notifyStaffAppointmentChange('updated', updatedAppointment);
 
     Alert.alert('Sukses', 'Termini u përditësua');
     router.replace('/(tabs)/upcoming');
@@ -272,23 +371,23 @@ export default function EditAppointment() {
         <Text style={[styles.label, { color: Colors.muted }]}>
           Tretmani
         </Text>
-        {TREATMENTS.map((item) => (
+        {services.map((item) => (
           <Pressable
-            key={item}
+            key={item.id}
             style={[
               styles.option,
               { borderColor: Colors.primary },
-              treatment === item && { backgroundColor: Colors.primary },
+              treatment === item.name && { backgroundColor: Colors.primary },
             ]}
-            onPress={() => setTreatment(item)}
+            onPress={() => setTreatment(item.name)}
           >
             <Text
               style={[
                 styles.optionText,
-                { color: treatment === item ? '#fff' : Colors.text },
+                { color: treatment === item.name ? '#fff' : Colors.text },
               ]}
             >
-              {item}
+              {item.name}
             </Text>
           </Pressable>
         ))}
@@ -324,8 +423,11 @@ export default function EditAppointment() {
         {Platform.OS === 'web' ? (
           <input
             type="date"
-            value={formatDate(date)}
-            onChange={(e) => setDate(new Date(e.target.value))}
+            value={formatLocalDateOnly(date)}
+            onChange={(e) => {
+              const nextDate = parseLocalDateOnly(e.target.value);
+              if (nextDate) setDate(nextDate);
+            }}
             style={{
               border: `1px solid ${Colors.primary}`,
               borderRadius: 12,
@@ -348,12 +450,13 @@ export default function EditAppointment() {
               ]}
             >
               <Text style={{ color: Colors.text }}>
-                {formatDate(date)}
+                {formatLocalDateOnly(date)}
               </Text>
             </Pressable>
 
             {showDatePicker && (
               <DateTimePicker
+                locale="sq-AL"
                 value={date}
                 mode="date"
                 onChange={(_, d) => {

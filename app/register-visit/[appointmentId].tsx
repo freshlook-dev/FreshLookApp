@@ -20,6 +20,8 @@ import { useAuth } from '../../context/AuthContext';
 import { useTheme } from '../../context/ThemeContext';
 import { LightColors, DarkColors } from '../../constants/colors';
 import { notifyStaffAppointmentChange } from '../../utils/appointmentStaffNotifications';
+import { formatDate } from '../../utils/format';
+import { getOrderedCatalogIds } from '../../utils/catalog';
 
 type PaymentMethod = 'cash' | 'bank' | 'mixed';
 
@@ -27,6 +29,13 @@ type Treatment = {
   id: string;
   name: string;
   price: number;
+  duration?: number;
+  isActiveCatalog?: boolean;
+};
+
+type ServiceRow = Treatment & {
+  is_on_sale: boolean | null;
+  sale_price: number | null;
 };
 
 type RouteParams = {
@@ -34,26 +43,24 @@ type RouteParams = {
   returnTo?: string;
 };
 
-const TREATMENTS: Treatment[] = [
-  { id: 'facial', name: 'Pastrimi i fytyres', price: 50 },
-  { id: 'carbon', name: 'Carbon Peeling', price: 50 },
-  { id: 'tattoo', name: 'Largim i tatuazhit', price: 50 },
-  { id: 'plasma', name: 'Plasma Pen', price: 100 },
-  { id: 'epilim', name: 'Depilim me Laser', price: 100 },
-  { id: 'ems', name: 'EMS', price: 50 },
-  { id: 'manikyr', name: 'Manikyr', price: 15 },
-  { id: 'microblading', name: 'Microblading', price: 100 },
-  { id: 'cleanser', name: 'Face Cleanser', price: 40 },
-  { id: 'spf', name: 'SPF 50', price: 35 },
-  { id: 'vitc', name: 'Vitamin C', price: 40 },
-  { id: 'antiacne', name: 'Anti-Acne', price: 40 },
-  { id: 'cream', name: 'Moisturizing Cream', price: 40 },
-  { id: '1', name: '1€', price: 1 },
-  { id: '5', name: '5€', price: 5 },
-  { id: '10', name: '10€', price: 10 },
-  { id: '20', name: '20€', price: 20 },
-  { id: '50', name: '50€', price: 50 },
-];
+const SAFE_RETURN_ROUTES = new Set([
+  '/(tabs)/upcoming',
+  '/(tabs)/history',
+  '/owner-stats',
+]);
+
+const safeReturnRoute = (value: unknown, fallback: Href): Href =>
+  typeof value === 'string' && SAFE_RETURN_ROUTES.has(value)
+    ? (value as Href)
+    : fallback;
+
+const orderTreatments = (items: Treatment[], orderedIds: string[]) => {
+  const positions = new Map(orderedIds.map((id, index) => [id, index]));
+  return [...items].sort((a, b) =>
+    (positions.get(a.id) ?? Number.MAX_SAFE_INTEGER) -
+    (positions.get(b.id) ?? Number.MAX_SAFE_INTEGER)
+  );
+};
 
 const normalizeTreatmentName = (value: string) =>
   value
@@ -63,10 +70,29 @@ const normalizeTreatmentName = (value: string) =>
     .replace(/[^a-z0-9]+/g, ' ')
     .trim();
 
-const findTreatmentByService = (service: string) => {
+const findTreatmentsByService = (treatments: Treatment[], service: string) => {
   const normalizedService = normalizeTreatmentName(service);
+  if (!normalizedService) return [];
 
-  return TREATMENTS.find((treatment) => {
+  const exactMatch = treatments.find(
+    (treatment) => normalizeTreatmentName(treatment.name) === normalizedService
+  );
+  if (exactMatch) return [exactMatch];
+
+  const treatmentsByName = new Map(
+    treatments.map((treatment) => [normalizeTreatmentName(treatment.name), treatment])
+  );
+  const namedMatches = service
+    .split(',')
+    .map(normalizeTreatmentName)
+    .map((name) => treatmentsByName.get(name))
+    .filter((treatment): treatment is Treatment => treatment != null);
+
+  if (namedMatches.length > 0) {
+    return [...new Map(namedMatches.map((treatment) => [treatment.id, treatment])).values()];
+  }
+
+  const legacyMatch = treatments.find((treatment) => {
     const normalizedTreatment = normalizeTreatmentName(treatment.name);
     return (
       normalizedTreatment === normalizedService ||
@@ -74,16 +100,24 @@ const findTreatmentByService = (service: string) => {
       normalizedService.includes(normalizedTreatment)
     );
   });
+
+  return legacyMatch ? [legacyMatch] : [];
 };
 
 const parseAmountInput = (value: string) => Number(value.replace(',', '.'));
+
+const toOptionalFiniteNumber = (value: unknown) => {
+  if (value == null || value === '') return undefined;
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : undefined;
+};
 
 const toQuantityMap = (selectedTreatments: any) => {
   if (!Array.isArray(selectedTreatments)) return {};
 
   return selectedTreatments.reduce<Record<string, number>>((acc, treatment) => {
     const id = String(treatment?.id ?? '');
-    const qty = Number(treatment?.qty ?? 0);
+    const qty = treatment?.qty == null ? 1 : Number(treatment.qty);
 
     if (id && Number.isFinite(qty) && qty > 0) {
       acc[id] = qty;
@@ -104,12 +138,14 @@ export default function RegisterVisitScreen() {
 
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [treatments, setTreatments] = useState<Treatment[]>([]);
 
   const [clientName, setClientName] = useState('');
   const [clientUserId, setClientUserId] = useState<string | null>(null);
   const [previousTotalAmount, setPreviousTotalAmount] = useState<number | null>(
     null
   );
+  const [reEditingVisit, setReEditingVisit] = useState(false);
   const [serviceName, setServiceName] = useState('');
   const [appointmentDate, setAppointmentDate] = useState('');
   const [appointmentTime, setAppointmentTime] = useState('');
@@ -131,13 +167,22 @@ export default function RegisterVisitScreen() {
   const loadAppointment = async () => {
     setLoading(true);
 
-    const { data, error } = await supabase
-      .from('appointments')
-      .select(
-        'client_name, service, appointment_date, appointment_time, visit_notes, user_id, total_amount, payment_method, paid_bank, selected_treatments'
-      )
-      .eq('id', appointmentId)
-      .single();
+    const [{ data, error }, { data: serviceRows, error: servicesError }, { data: orderData }] = await Promise.all([
+      supabase
+        .from('appointments')
+        .select(
+          'client_name, service, appointment_date, appointment_time, visit_notes, user_id, total_amount, payment_method, paid_bank, selected_treatments'
+        )
+        .eq('id', appointmentId)
+        .single(),
+      supabase
+        .from('services')
+        .select('id, name, price, duration, is_on_sale, sale_price')
+        .eq('is_active', true)
+        .order('created_at', { ascending: true })
+        .order('id', { ascending: true }),
+      supabase.from('content').select('value').eq('key', 'service_order').maybeSingle(),
+    ]);
 
     if (error) {
       Alert.alert('Gabim', error.message);
@@ -145,24 +190,89 @@ export default function RegisterVisitScreen() {
       return;
     }
 
+    if (servicesError) {
+      Alert.alert('Shërbimet nuk u ngarkuan', servicesError.message);
+      setLoading(false);
+      return;
+    }
+
+    const activeTreatments = ((serviceRows as ServiceRow[] | null) ?? []).map((item) => ({
+      id: item.id,
+      name: item.name,
+      price: item.is_on_sale && item.sale_price != null ? Number(item.sale_price) : Number(item.price),
+      duration: toOptionalFiniteNumber(item.duration),
+      isActiveCatalog: true,
+    }));
+    const savedItems: Treatment[] = Array.isArray(data?.selected_treatments)
+      ? data.selected_treatments
+          .filter((item: any) => item?.id && item?.name && Number.isFinite(Number(item?.price)))
+          .map((item: any) => ({
+            id: String(item.id),
+            name: String(item.name),
+            price: Number(item.price),
+            duration: toOptionalFiniteNumber(item.duration),
+            isActiveCatalog: false,
+          }))
+      : [];
+    const isReEditingVisit = ['cash', 'bank', 'mixed'].includes(data?.payment_method);
+    const savedItemsById = new Map(savedItems.map((item) => [item.id, item]));
+    const pricedActiveTreatments = isReEditingVisit
+      ? activeTreatments.map((item) => {
+          const savedItem = savedItemsById.get(item.id);
+          return savedItem
+            ? {
+                ...savedItem,
+                duration: savedItem.duration ?? item.duration,
+                isActiveCatalog: true,
+              }
+            : item;
+        })
+      : activeTreatments;
+    const activeIds = new Set(pricedActiveTreatments.map((item) => item.id));
+    const availableTreatments = orderTreatments(
+      [...pricedActiveTreatments, ...savedItems.filter((item) => !activeIds.has(item.id))],
+      getOrderedCatalogIds(orderData?.value)
+    );
+    setTreatments(availableTreatments);
+
     setClientName(data?.client_name ?? '');
     setClientUserId(data?.user_id ?? null);
     const savedTotal = Number(data?.total_amount);
-    setPreviousTotalAmount(Number.isFinite(savedTotal) ? savedTotal : null);
+    const hasSavedTotal = data?.total_amount != null && Number.isFinite(savedTotal);
+    setPreviousTotalAmount(
+      isReEditingVisit && hasSavedTotal ? savedTotal : null
+    );
+    setReEditingVisit(isReEditingVisit);
     const loadedServiceName = data?.service ?? '';
     setServiceName(loadedServiceName);
     setAppointmentDate(data?.appointment_date ?? '');
     setAppointmentTime(data?.appointment_time ?? '');
     setNotes(data?.visit_notes ?? '');
-    setQuantities((current) => {
-      if (Object.values(current).some((qty) => qty > 0)) return current;
+    const savedQuantities = toQuantityMap(data?.selected_treatments);
+    const bookedTreatments = findTreatmentsByService(availableTreatments, loadedServiceName);
+    const initialQuantities = Object.keys(savedQuantities).length > 0
+      ? savedQuantities
+      : Object.fromEntries(bookedTreatments.map((treatment) => [treatment.id, 1]));
+    setQuantities(initialQuantities);
 
-      const savedQuantities = toQuantityMap(data?.selected_treatments);
-      if (Object.keys(savedQuantities).length > 0) return savedQuantities;
+    setOverridePercent(null);
+    setManualTotalInput('');
+    if (isReEditingVisit && hasSavedTotal) {
+      const savedBaseTotal = availableTreatments.reduce(
+        (sum, treatment) => sum + treatment.price * (initialQuantities[treatment.id] ?? 0),
+        0
+      );
+      const tenPercentTotal = Number((savedBaseTotal * 0.9).toFixed(2));
+      const twentyPercentTotal = Number((savedBaseTotal * 0.8).toFixed(2));
 
-      const bookedTreatment = findTreatmentByService(loadedServiceName);
-      return bookedTreatment ? { [bookedTreatment.id]: 1 } : current;
-    });
+      if (Math.abs(savedTotal - tenPercentTotal) < 0.01) {
+        setOverridePercent(10);
+      } else if (Math.abs(savedTotal - twentyPercentTotal) < 0.01) {
+        setOverridePercent(20);
+      } else if (Math.abs(savedTotal - savedBaseTotal) >= 0.01) {
+        setManualTotalInput(String(savedTotal));
+      }
+    }
 
     if (['cash', 'bank', 'mixed'].includes(data?.payment_method)) {
       setPaymentMethod(data.payment_method as PaymentMethod);
@@ -193,7 +303,7 @@ export default function RegisterVisitScreen() {
   };
 
   const selectedTreatments = useMemo(() => {
-    return TREATMENTS.filter((item) => (quantities[item.id] || 0) > 0).map(
+    return treatments.filter((item) => (quantities[item.id] || 0) > 0).map(
       (item) => {
         const qty = quantities[item.id] || 0;
         const total = qty * item.price;
@@ -202,12 +312,14 @@ export default function RegisterVisitScreen() {
           id: item.id,
           name: item.name,
           price: item.price,
+          duration: item.duration,
+          isActiveCatalog: item.isActiveCatalog === true,
           qty,
           total,
         };
       }
     );
-  }, [quantities]);
+  }, [quantities, treatments]);
 
   const baseTotalAmount = useMemo(() => {
     return selectedTreatments.reduce((sum, item) => sum + item.total, 0);
@@ -248,14 +360,6 @@ export default function RegisterVisitScreen() {
   const freshPointsDelta = clientUserId
     ? freshPointsEarned - previousFreshPoints
     : 0;
-
-  const formatDate = (date: string) => {
-    if (!date) return '';
-    const d = new Date(date);
-    return `${String(d.getDate()).padStart(2, '0')}.${String(
-      d.getMonth() + 1
-    ).padStart(2, '0')}.${d.getFullYear()}`;
-  };
 
   const formatTime = (time: string) => {
     if (!time) return '';
@@ -323,7 +427,7 @@ export default function RegisterVisitScreen() {
   };
 
   const finishSuccess = () => {
-    const nextRoute = (returnTo || '/(tabs)/history') as Href;
+    const nextRoute = safeReturnRoute(returnTo, '/(tabs)/history');
 
     if (Platform.OS === 'web') {
       window.alert('Vizita u regjistrua me sukses.');
@@ -344,6 +448,64 @@ export default function RegisterVisitScreen() {
 
     setSaving(true);
 
+    if (!reEditingVisit) {
+      if (selectedTreatments.some((treatment) => !treatment.isActiveCatalog)) {
+        setSaving(false);
+        Alert.alert(
+          'Trajtimi nuk është më aktiv',
+          'Hiqeni trajtimin joaktiv dhe zgjidhni një trajtim nga katalogu aktual para regjistrimit.'
+        );
+        return;
+      }
+
+      const activeSelectionIds = selectedTreatments
+        .filter((treatment) => treatment.isActiveCatalog)
+        .map((treatment) => treatment.id);
+
+      if (activeSelectionIds.length > 0) {
+        const { data: currentRows, error: catalogError } = await supabase
+          .from('services')
+          .select('id, name, price, duration, is_active, is_on_sale, sale_price')
+          .in('id', activeSelectionIds);
+
+        if (catalogError) {
+          Alert.alert('Shërbimet nuk u verifikuan', catalogError.message);
+          setSaving(false);
+          return;
+        }
+
+        const currentById = new Map(
+          ((currentRows as (ServiceRow & { is_active: boolean | null })[] | null) ?? [])
+            .map((row) => [row.id, row])
+        );
+        const catalogChanged = selectedTreatments
+          .filter((treatment) => treatment.isActiveCatalog)
+          .some((treatment) => {
+            const current = currentById.get(treatment.id);
+            if (!current || current.is_active !== true || current.name !== treatment.name) {
+              return true;
+            }
+
+            const currentPrice = current.is_on_sale && current.sale_price != null
+              ? Number(current.sale_price)
+              : Number(current.price);
+            return !Number.isFinite(currentPrice) ||
+              Math.abs(currentPrice - treatment.price) >= 0.01 ||
+              toOptionalFiniteNumber(current.duration) !== treatment.duration;
+          });
+
+        if (catalogChanged) {
+          await loadAppointment();
+          setSaving(false);
+          Alert.alert(
+            'Trajtimet u përditësuan',
+            'Çmimi ose disponueshmëria ndryshoi. Kontrolloni totalin dhe ruajeni përsëri.'
+          );
+          return;
+        }
+      }
+    }
+
     const payload = {
       status: 'arrived',
       payment_method: paymentMethod,
@@ -354,21 +516,24 @@ export default function RegisterVisitScreen() {
         id: t.id,
         name: t.name,
         price: t.price,
+        duration: t.duration,
         qty: t.qty,
         total: t.total,
       })),
       total_amount: totalAmount,
     };
 
-    const { data: updatedAppointment, error } = await supabase
-      .from('appointments')
-      .update(payload)
-      .eq('id', appointmentId)
-      .eq('archived', false)
-      .select('id')
-      .maybeSingle();
+    const { data: visitResult, error } = await supabase.rpc('register_visit_atomic', {
+      p_appointment_id: appointmentId,
+      p_payment_method: payload.payment_method,
+      p_paid_cash: payload.paid_cash,
+      p_paid_bank: payload.paid_bank,
+      p_visit_notes: notes.trim(),
+      p_selected_treatments: payload.selected_treatments,
+      p_total_amount: payload.total_amount,
+    });
 
-    if (error || !updatedAppointment) {
+    if (error || !visitResult) {
       Alert.alert(
         'Gabim',
         error?.message ?? 'Termini nuk u perditesua. Mund te jete arkivuar ose ndryshuar.'
@@ -377,30 +542,30 @@ export default function RegisterVisitScreen() {
       return;
     }
 
-    let pointsUpdateError: string | null = null;
+    const result = visitResult as {
+      client_user_id?: string | null;
+      points_delta?: number | null;
+      new_points?: number | null;
+    };
+    const updatedClientUserId = result.client_user_id ?? clientUserId;
+    const actualPointsDelta = Number(result.points_delta ?? 0);
+    const newPointsBalance = Number(result.new_points ?? 0);
 
-    if (clientUserId && freshPointsDelta !== 0) {
-      const { data: clientProfile, error: profileLoadError } = await supabase
-        .from('profiles')
-        .select('points')
-        .eq('id', clientUserId)
-        .single();
-
-      if (profileLoadError) {
-        pointsUpdateError = profileLoadError.message;
-      } else {
-        const currentPoints = Number(clientProfile?.points ?? 0);
-        const nextPoints = Math.max(0, currentPoints + freshPointsDelta);
-
-        const { error: profileUpdateError } = await supabase
-          .from('profiles')
-          .update({ points: nextPoints })
-          .eq('id', clientUserId);
-
-        if (profileUpdateError) {
-          pointsUpdateError = profileUpdateError.message;
-        }
-      }
+    if (updatedClientUserId && actualPointsDelta > 0 && Number.isFinite(newPointsBalance)) {
+      void supabase.functions
+        .invoke('send-push-notification', {
+            body: {
+              mode: 'points_earned',
+              recipient_id: updatedClientUserId,
+              points_added: actualPointsDelta,
+              new_balance: newPointsBalance,
+            },
+          })
+        .then((notificationResult: { error: { message: string } | null }) => {
+          if (notificationResult.error) {
+            console.warn('Fresh Points notification failed', notificationResult.error.message);
+          }
+        });
     }
 
     await supabase.from('audit_logs').insert({
@@ -420,11 +585,11 @@ export default function RegisterVisitScreen() {
             manualTotalInput.trim() !== '' ? manualTotalValue : null,
         },
         fresh_points: {
-          client_user_id: clientUserId,
+          client_user_id: updatedClientUserId,
           earned: freshPointsEarned,
           previous: previousFreshPoints,
-          delta: freshPointsDelta,
-          error: pointsUpdateError,
+          delta: actualPointsDelta,
+          error: null,
         },
       },
     });
@@ -439,23 +604,6 @@ export default function RegisterVisitScreen() {
     });
 
     setSaving(false);
-    if (pointsUpdateError) {
-      if (Platform.OS === 'web') {
-        window.alert(
-          `Vizita u regjistrua, por Fresh Points nuk u perditesuan: ${pointsUpdateError}`
-        );
-        finishSuccess();
-        return;
-      }
-
-      Alert.alert(
-        'Vizita u ruajt',
-        `Vizita u regjistrua, por Fresh Points nuk u perditesuan: ${pointsUpdateError}`,
-        [{ text: 'OK', onPress: finishSuccess }]
-      );
-      return;
-    }
-
     finishSuccess();
   };
 
@@ -535,9 +683,9 @@ export default function RegisterVisitScreen() {
             Zgjidh trajtimet e kryera
           </Text>
 
-          {TREATMENTS.map((item, index) => {
+          {treatments.map((item, index) => {
             const qty = quantities[item.id] || 0;
-            const isLast = index === TREATMENTS.length - 1;
+            const isLast = index === treatments.length - 1;
 
             return (
               <View
@@ -821,7 +969,9 @@ export default function RegisterVisitScreen() {
         </Pressable>
 
         <Pressable
-          onPress={() => router.replace((returnTo || '/(tabs)/upcoming') as Href)}
+          onPress={() =>
+            router.replace(safeReturnRoute(returnTo, '/(tabs)/upcoming'))
+          }
           style={[
             styles.backBtn,
             {

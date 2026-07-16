@@ -2,6 +2,7 @@ import { Platform } from 'react-native';
 import * as Notifications from 'expo-notifications';
 
 import { supabase } from '../context/supabase';
+import { kosovoAppointmentDateTime } from './dateTime';
 
 type Appointment = {
   id: string;
@@ -17,11 +18,19 @@ const REMINDERS = [
   { key: '1h', hours: 1, label: '1 orë' },
 ];
 
+let reminderQueue: Promise<void> = Promise.resolve();
+
+const enqueueReminderOperation = (operation: () => Promise<void>) => {
+  const next = reminderQueue.catch(() => {}).then(operation);
+  reminderQueue = next;
+  return next;
+};
+
 function appointmentDateTime(item: Appointment) {
-  if (!item.appointment_date || !item.appointment_time) return null;
-  const time = String(item.appointment_time).substring(0, 5);
-  const value = new Date(`${item.appointment_date}T${time}:00`);
-  return Number.isNaN(value.getTime()) ? null : value;
+  return kosovoAppointmentDateTime(
+    item.appointment_date,
+    String(item.appointment_time ?? '').substring(0, 8)
+  );
 }
 
 function reminderBody(item: Appointment, label: string) {
@@ -30,23 +39,37 @@ function reminderBody(item: Appointment, label: string) {
   return `Kujtesë: ${service}${location} fillon pas ${label}.`;
 }
 
-export async function syncClientAppointmentReminders(userId: string) {
-  const permission = await Notifications.getPermissionsAsync();
-  if (permission.status !== 'granted') return;
-
+async function cancelClientAppointmentReminders(userId: string) {
   const scheduled = await Notifications.getAllScheduledNotificationsAsync();
   await Promise.all(
     scheduled
-      .filter((item) => item.content.data?.type === 'appointment_reminder' && item.content.data?.userId === userId)
-      .map((item) => Notifications.cancelScheduledNotificationAsync(item.identifier))
+      .filter(
+        (item) =>
+          item.content.data?.type === 'appointment_reminder' &&
+          item.content.data?.userId === userId
+      )
+      .map((item) =>
+        Notifications.cancelScheduledNotificationAsync(item.identifier)
+      )
   );
+}
 
-  const { data } = await supabase
+async function performReminderSync(userId: string) {
+  const permission = await Notifications.getPermissionsAsync();
+  if (permission.status !== 'granted') return;
+
+  // Read the replacement set before deleting working reminders. A temporary
+  // database failure must not silently wipe all reminders on the device.
+  const { data, error } = await supabase
     .from('appointments')
     .select('id, service, appointment_date, appointment_time, location')
     .eq('user_id', userId)
     .eq('status', 'upcoming')
     .eq('archived', false);
+
+  if (error) throw error;
+
+  await cancelClientAppointmentReminders(userId);
 
   const now = Date.now();
   const minLeadTime = 60 * 1000;
@@ -79,4 +102,12 @@ export async function syncClientAppointmentReminders(userId: string) {
       });
     }
   }
+}
+
+export function syncClientAppointmentReminders(userId: string) {
+  return enqueueReminderOperation(() => performReminderSync(userId));
+}
+
+export function clearClientAppointmentReminders(userId: string) {
+  return enqueueReminderOperation(() => cancelClientAppointmentReminders(userId));
 }

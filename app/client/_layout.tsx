@@ -5,6 +5,7 @@ import {
   Animated,
   Easing,
   Image,
+  KeyboardAvoidingView,
   Platform,
   Pressable,
   StyleSheet,
@@ -167,7 +168,14 @@ function ClientLayoutContent() {
   }
 
   if (!user) return <Redirect href="/(auth)/login" />;
-  if (profile?.role && profile.role !== 'client') {
+  if (!profile) {
+    return (
+      <View style={[styles.center, { backgroundColor: Colors.background }]}>
+        <ActivityIndicator color={Colors.primary} />
+      </View>
+    );
+  }
+  if (profile.role !== 'client') {
     return <Redirect href="/(tabs)" />;
   }
 
@@ -176,17 +184,22 @@ function ClientLayoutContent() {
 
   return (
     <View style={[styles.shell, { backgroundColor: Colors.background }]}>
-      <Animated.View
-        style={[
-          styles.content,
-          {
-            opacity: contentOpacity,
-            transform: [{ translateY: contentTranslate }],
-          },
-        ]}
+      <KeyboardAvoidingView
+        style={styles.content}
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       >
-        <Slot />
-      </Animated.View>
+        <Animated.View
+          style={[
+            styles.content,
+            {
+              opacity: contentOpacity,
+              transform: [{ translateY: contentTranslate }],
+            },
+          ]}
+        >
+          <Slot />
+        </Animated.View>
+      </KeyboardAvoidingView>
 
       <View
         style={[

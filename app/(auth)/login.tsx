@@ -54,12 +54,17 @@ export default function Login() {
     // ✅ Fetch role
     const { data: profile, error: profileError } = await supabase
       .from('profiles')
-      .select('role')
+      .select('role, is_active')
       .eq('id', user.id)
       .single();
 
-    if (profileError || !profile) {
-      await supabase.auth.signOut();
+    if (
+      profileError ||
+      !profile ||
+      profile.is_active === false ||
+      !['client', 'staff', 'manager', 'owner'].includes(profile.role ?? '')
+    ) {
+      await supabase.auth.signOut({ scope: 'local' });
       setLoading(false);
       alert('Roli i përdoruesit nuk u ngarkua');
       return;
@@ -158,7 +163,7 @@ export default function Login() {
               disabled={loading}
             >
               <Text style={styles.buttonText}>
-                {loading ? 'Duke hyr�...' : 'Hyr'}
+                {loading ? 'Duke hyrë...' : 'Hyr'}
               </Text>
             </Pressable>
           </View>

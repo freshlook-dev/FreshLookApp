@@ -29,6 +29,7 @@ import AppointmentCardModal, {
   AppointmentReceiptData,
 } from '../../components/AppointmentCardModal';
 import { useAutoRefresh } from '../../hooks/useAutoRefresh';
+import { formatDate } from '../../utils/format';
 
 type Status = 'upcoming' | 'arrived' | 'canceled';
 type Role = 'owner' | 'manager' | 'staff';
@@ -44,13 +45,6 @@ type Appointment = {
   phone: string | null;
   status: Status;
   creator_name?: string | null;
-};
-
-const formatDate = (date: string) => {
-  const d = new Date(date);
-  return `${String(d.getDate()).padStart(2, '0')}.${String(
-    d.getMonth() + 1
-  ).padStart(2, '0')}.${d.getFullYear()}`;
 };
 
 const formatTime = (time: string) => time.slice(0, 5);
@@ -369,27 +363,29 @@ export default function UpcomingAppointments() {
                   </TouchableOpacity>
                 )}
 
-                <TouchableOpacity
-                  disabled={processingId === item.id}
-                  style={[
-                    styles.statusBtn,
-                    styles.arrived,
-                    processingId === item.id && styles.disabledBtn,
-                  ]}
-                  onPress={() =>
-                    router.push({
-                      pathname: '/register-visit/[appointmentId]',
-                      params: {
-                        appointmentId: item.id,
-                        returnTo: '/(tabs)/history',
-                      },
-                    })
-                  }
-                >
-                  <Text style={[styles.statusText, { color: '#FFFFFF' }]}>
-                    {processingId === item.id ? '...' : 'Ka ardhur'}
-                  </Text>
-                </TouchableOpacity>
+                {canEdit && (
+                  <TouchableOpacity
+                    disabled={processingId === item.id}
+                    style={[
+                      styles.statusBtn,
+                      styles.arrived,
+                      processingId === item.id && styles.disabledBtn,
+                    ]}
+                    onPress={() =>
+                      router.push({
+                        pathname: '/register-visit/[appointmentId]',
+                        params: {
+                          appointmentId: item.id,
+                          returnTo: '/(tabs)/history',
+                        },
+                      })
+                    }
+                  >
+                    <Text style={[styles.statusText, { color: '#FFFFFF' }]}>
+                      {processingId === item.id ? '...' : 'Ka ardhur'}
+                    </Text>
+                  </TouchableOpacity>
+                )}
 
                 <TouchableOpacity
                   disabled={processingId === item.id}

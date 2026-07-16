@@ -1,12 +1,14 @@
+import { formatKosovoDateTime, parseLocalDateOnly } from './dateTime';
+
+function formatNumericDate(date: Date) {
+  return `${String(date.getDate()).padStart(2, '0')}.${String(date.getMonth() + 1).padStart(2, '0')}.${date.getFullYear()}`;
+}
+
 export function formatDate(value: string | null | undefined) {
-  if (!value) return 'No date';
-  const date = new Date(`${value}T00:00:00`);
-  if (Number.isNaN(date.getTime())) return value;
-  return new Intl.DateTimeFormat('en', {
-    day: '2-digit',
-    month: 'short',
-    year: 'numeric',
-  }).format(date);
+  if (!value) return 'Pa datë';
+  const date = parseLocalDateOnly(value);
+  if (!date) return value;
+  return formatNumericDate(date);
 }
 
 export function formatTime(value: string | null | undefined) {
@@ -15,13 +17,7 @@ export function formatTime(value: string | null | undefined) {
 }
 
 export function formatDateTime(value: string | null | undefined) {
-  if (!value) return 'No date';
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return value;
-  return new Intl.DateTimeFormat('en', {
-    day: '2-digit',
-    month: 'short',
-    hour: '2-digit',
-    minute: '2-digit',
-  }).format(date);
+  if (!value) return 'Pa datë';
+  const formatted = formatKosovoDateTime(value);
+  return formatted === '-' ? value : formatted;
 }

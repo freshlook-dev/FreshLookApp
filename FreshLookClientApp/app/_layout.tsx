@@ -1,6 +1,6 @@
 import { Stack } from 'expo-router';
 import Head from 'expo-router/head';
-import { Platform, StyleSheet, View } from 'react-native';
+import { KeyboardAvoidingView, Platform, StyleSheet, View } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 import { AuthProvider } from '../context/AuthContext';
@@ -35,7 +35,14 @@ function AppShell() {
         edges={Platform.OS === 'web' ? ['top', 'left', 'right'] : ['top']}
       >
         <View style={Platform.OS === 'web' ? styles.webInner : styles.inner}>
-          <Stack screenOptions={{ headerShown: false }} />
+          <KeyboardAvoidingView
+            style={styles.keyboardRoot}
+            behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+          >
+            <View style={styles.keyboardRoot}>
+              <Stack screenOptions={{ headerShown: false }} />
+            </View>
+          </KeyboardAvoidingView>
         </View>
       </SafeAreaView>
     </>
@@ -55,6 +62,7 @@ export default function RootLayout() {
 }
 
 const styles = StyleSheet.create({
+  keyboardRoot: { flex: 1 },
   safe: {
     flex: 1,
   },

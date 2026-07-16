@@ -16,7 +16,6 @@ import { supabase } from '../../context/supabase';
 import { useAuth } from '../../context/AuthContext';
 import { useTheme } from '../../context/ThemeContext';
 import { DarkColors, LightColors } from '../../constants/colors';
-import { formatDateTime } from '../../utils/format';
 
 type Redemption = {
   id: string;
@@ -27,6 +26,9 @@ type Redemption = {
 };
 
 const REWARD_OPTIONS = [100, 500];
+const isActiveRedemption = (item: Redemption) =>
+  item.status === 'pending' &&
+  (!item.expires_at || new Date(item.expires_at).getTime() > Date.now());
 
 export default function RewardsScreen() {
   const { user, profile, refreshProfile } = useAuth();
@@ -39,14 +41,10 @@ export default function RewardsScreen() {
   const [customOpen, setCustomOpen] = useState(false);
   const [customPoints, setCustomPoints] = useState('');
 
-  const activeRedemption = useMemo(() => {
-    const now = Date.now();
-    return redemptions.find((item) => {
-      if (item.status !== 'pending') return false;
-      if (!item.expires_at) return true;
-      return new Date(item.expires_at).getTime() > now;
-    });
-  }, [redemptions]);
+  const activeRedemption = useMemo(
+    () => redemptions.find(isActiveRedemption),
+    [redemptions]
+  );
 
   const qrValue = activeRedemption
     ? JSON.stringify({ redemption_id: activeRedemption.id })
@@ -62,7 +60,15 @@ export default function RewardsScreen() {
       .order('created_at', { ascending: false })
       .limit(20);
 
-    setRedemptions(data ?? []);
+    const now = Date.now();
+    setRedemptions(
+      (data ?? []).filter(
+        (item: Redemption) =>
+          item.status !== 'pending' ||
+          !item.expires_at ||
+          new Date(item.expires_at).getTime() > now
+      )
+    );
     setLoading(false);
   }, [user?.id]);
 
@@ -101,34 +107,18 @@ export default function RewardsScreen() {
     if (activeRedemption) {
       notify(
         'QR already active',
-        'Use or wait for the current QR to expire before creating another one.'
+        'Use the current QR before creating another one.'
       );
       return;
     }
 
     setCreating(points);
-    const expiresAt = new Date(Date.now() + 15 * 60 * 1000).toISOString();
-
-    let { data, error } = await supabase
-      .from('point_redemptions')
-      .insert({
-      user_id: user.id,
-      points,
-      status: 'pending',
-      expires_at: expiresAt,
-      })
-      .select('id, points, status, expires_at, created_at')
-      .single();
-
-    if (error) {
-      const rpcResult = await supabase.rpc('create_point_redemption_qr', {
-        p_points: points,
-        p_expires_at: expiresAt,
-      });
-
-      data = rpcResult.data as Redemption | null;
-      error = rpcResult.error;
-    }
+    const rpcResult = await supabase.rpc('create_point_redemption_qr', {
+      p_points: points,
+      p_expires_at: null,
+    });
+    const data = rpcResult.data as Redemption | null;
+    const error = rpcResult.error;
 
     setCreating(null);
 
@@ -165,6 +155,9 @@ export default function RewardsScreen() {
       <View style={[styles.balanceCard, { backgroundColor: Colors.card, borderColor: Colors.border }]}>
         <Text style={[styles.label, { color: Colors.muted }]}>Available Fresh Points</Text>
         <Text style={[styles.balance, { color: Colors.text }]}>{profile?.points ?? 0}</Text>
+        <Text style={[styles.balanceEuro, { color: Colors.muted }]}>
+          {((profile?.points ?? 0) / 10).toFixed(2)} €
+        </Text>
       </View>
 
       <View style={[styles.qrCard, { backgroundColor: Colors.card, borderColor: Colors.border }]}>
@@ -179,7 +172,7 @@ export default function RewardsScreen() {
               {activeRedemption.points} Fresh Points
             </Text>
             <Text style={[styles.qrMeta, { color: Colors.muted }]}>
-              Expires {formatDateTime(activeRedemption.expires_at)}
+              Active until it is used at the salon
             </Text>
           </>
         ) : (
@@ -325,6 +318,11 @@ const styles = StyleSheet.create({
   balance: {
     fontSize: 42,
     fontWeight: '900',
+  },
+  balanceEuro: {
+    marginTop: 2,
+    fontSize: 14,
+    fontWeight: '800',
   },
   qrCard: {
     borderWidth: 1,

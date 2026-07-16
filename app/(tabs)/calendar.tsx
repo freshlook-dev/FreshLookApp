@@ -9,7 +9,7 @@ import {
   ActivityIndicator,
 } from 'react-native';
 
-import { Calendar, DateData } from 'react-native-calendars';
+import { Calendar, DateData, LocaleConfig } from 'react-native-calendars';
 
 import { supabase } from '../../context/supabase';
 import { useAuth } from '../../context/AuthContext';
@@ -21,6 +21,16 @@ import { Spacing } from '../../constants/theme';
 import { Card } from '../../components/Card';
 import { SectionTitle } from '../../components/SectionTitle';
 import { useAutoRefresh } from '../../hooks/useAutoRefresh';
+import { formatKosovoDateOnly } from '../../utils/dateTime';
+
+LocaleConfig.locales.sq = {
+  monthNames: ['Janar', 'Shkurt', 'Mars', 'Prill', 'Maj', 'Qershor', 'Korrik', 'Gusht', 'Shtator', 'Tetor', 'Nëntor', 'Dhjetor'],
+  monthNamesShort: ['Jan', 'Shk', 'Mar', 'Pri', 'Maj', 'Qer', 'Kor', 'Gus', 'Sht', 'Tet', 'Nën', 'Dhj'],
+  dayNames: ['E diel', 'E hënë', 'E martë', 'E mërkurë', 'E enjte', 'E premte', 'E shtunë'],
+  dayNamesShort: ['Die', 'Hën', 'Mar', 'Mër', 'Enj', 'Pre', 'Sht'],
+  today: 'Sot',
+};
+LocaleConfig.defaultLocale = 'sq';
 
 type Appointment = {
   id: string;
@@ -37,7 +47,6 @@ type Appointment = {
 
 /* 🔹 HELPERS */
 const formatTime = (time: string) => time.slice(0, 5);
-const today = new Date().toISOString().split('T')[0];
 
 export default function CalendarTab() {
   const { user } = useAuth();
@@ -48,13 +57,14 @@ export default function CalendarTab() {
   const [appointments, setAppointments] = useState<Appointment[]>([]);
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const today = formatKosovoDateOnly();
 
   useEffect(() => {
     if (user) {
       setSelectedDate(today);
       loadAppointments();
     }
-  }, [user]);
+  }, [user, today]);
 
   const loadAppointments = async () => {
     setLoading(true);
@@ -131,6 +141,11 @@ export default function CalendarTab() {
 
       <Calendar
         style={[styles.calendar, { backgroundColor: Colors.card, borderColor: Colors.border }]}
+        renderHeader={(date: any) => (
+          <Text style={[styles.calendarHeader, { color: Colors.text }]}>
+            {String(date.getMonth() + 1).padStart(2, '0')}.{date.getFullYear()}
+          </Text>
+        )}
         minDate={today}
         disableAllTouchEventsForDisabledDays
         markedDates={{
@@ -281,5 +296,9 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.05,
     shadowRadius: 16,
     elevation: 2,
+  },
+  calendarHeader: {
+    fontSize: 16,
+    fontWeight: '800',
   },
 });

@@ -1,4 +1,4 @@
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.87.1';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -18,6 +18,12 @@ type AppointmentPayload = {
 };
 
 const STAFF_ROLES = ['owner', 'manager', 'staff'];
+const STAFF_ONLY_NOTIFICATION_TITLES = new Set([
+  'Termin i ri',
+  'Termin i anuluar',
+  'Statusi i terminit ndryshoi',
+  'Termini u ndryshua',
+]);
 
 function appointmentEventCopy(event: AppointmentEvent, appointment: AppointmentPayload) {
   const client = appointment.client_name || 'Klient';
@@ -104,17 +110,54 @@ Deno.serve(async (request) => {
     const { data: userData, error: userError } = await userClient.auth.getUser();
     if (userError || !userData.user) throw new Error('Nuk jeni të kyçur');
 
-    const { data: profile } = await adminClient
+    const { data: profile, error: profileLookupError } = await adminClient
       .from('profiles')
       .select('role, is_active')
       .eq('id', userData.user.id)
-      .single();
+      .maybeSingle();
 
-    if (profile?.is_active === false) {
+    if (profileLookupError) throw profileLookupError;
+    if (
+      !profile ||
+      profile.is_active === false ||
+      ![...STAFF_ROLES, 'client'].includes(profile.role ?? '')
+    ) {
       return Response.json({ error: 'Llogaria nuk është aktive' }, { status: 403, headers: corsHeaders });
     }
 
     const body = await request.json();
+
+    if (body.mode === 'list_history') {
+      const isStaff = STAFF_ROLES.includes(profile?.role ?? '');
+      let historyQuery = adminClient
+        .from('push_notification_history')
+        .select('id, title, message, audience, recipient_id, recipient_count, created_at')
+        .order('created_at', { ascending: false })
+        .limit(isStaff ? 80 : 60);
+
+      if (!isStaff) {
+        historyQuery = historyQuery.or(
+          `audience.eq.all,recipient_id.eq.${userData.user.id}`
+        );
+      }
+
+      const { data: history, error: historyError } = await historyQuery;
+      if (historyError) throw historyError;
+
+      const visibleHistory = (history ?? [])
+        .filter((item) => isStaff || !STAFF_ONLY_NOTIFICATION_TITLES.has(item.title))
+        .map((item) => ({
+          ...item,
+          audience:
+            isStaff &&
+            item.recipient_id == null &&
+            STAFF_ONLY_NOTIFICATION_TITLES.has(item.title)
+              ? 'staff'
+              : item.audience,
+        }));
+
+      return Response.json({ history: visibleHistory }, { headers: corsHeaders });
+    }
 
     if (body.mode === 'list_recipients') {
       if (!STAFF_ROLES.includes(profile?.role ?? '')) {
@@ -122,10 +165,13 @@ Deno.serve(async (request) => {
       }
 
       const search = String(body.search ?? '').trim();
+      if (search.length > 80) {
+        return Response.json({ error: 'Kërkimi është shumë i gjatë' }, { status: 400, headers: corsHeaders });
+      }
       let query = adminClient
         .from('profiles')
         .select('id, email, full_name, role, is_active')
-        .neq('is_active', false)
+        .or('is_active.is.null,is_active.eq.true')
         .order('full_name', { ascending: true, nullsFirst: false })
         .limit(80);
 
@@ -149,6 +195,68 @@ Deno.serve(async (request) => {
       );
     }
 
+    if (body.mode === 'points_earned') {
+      if (!['owner', 'manager'].includes(profile?.role ?? '')) {
+        return Response.json({ error: 'Nuk keni qasje për të shtuar Fresh Points' }, { status: 403, headers: corsHeaders });
+      }
+
+      const recipientId = String(body.recipient_id ?? '').trim();
+      const pointsAdded = Number(body.points_added);
+      const suppliedBalance = Number(body.new_balance);
+
+      if (
+        !recipientId ||
+        !Number.isInteger(pointsAdded) ||
+        pointsAdded <= 0 ||
+        !Number.isFinite(suppliedBalance) ||
+        pointsAdded > suppliedBalance
+      ) {
+        return Response.json({ error: 'Të dhënat e Fresh Points nuk janë valide' }, { status: 400, headers: corsHeaders });
+      }
+
+      const { data: recipient, error: recipientError } = await adminClient
+        .from('profiles')
+        .select('id, role, is_active, points')
+        .eq('id', recipientId)
+        .maybeSingle();
+      if (recipientError) throw recipientError;
+      if (!recipient || recipient.role !== 'client' || recipient.is_active === false) {
+        return Response.json({ error: 'Perdoruesi nuk u gjet ose nuk eshte aktiv' }, { status: 404, headers: corsHeaders });
+      }
+
+      const newBalance = Number(recipient.points ?? 0);
+      if (newBalance !== suppliedBalance) {
+        return Response.json({ error: 'Balanca e Fresh Points ka ndryshuar' }, { status: 409, headers: corsHeaders });
+      }
+
+      const title = 'Fresh Points u shtuan';
+      const message = `Keni fituar ${pointsAdded} Fresh Points. Balanca juaj e re është ${newBalance} pikë (${(newBalance / 10).toFixed(2)} €).`;
+      const { data: tokenRows, error: tokenError } = await adminClient
+        .from('push_tokens')
+        .select('expo_push_token')
+        .eq('user_id', recipientId);
+      if (tokenError) throw tokenError;
+
+      const sent = await sendExpoPush(
+        (tokenRows ?? []).map((row) => row.expo_push_token),
+        title,
+        message,
+        { type: 'points_earned', pointsAdded, newBalance }
+      );
+
+      const { error: historyError } = await adminClient.from('push_notification_history').insert({
+        sent_by: userData.user.id,
+        recipient_id: recipientId,
+        audience: 'direct',
+        title,
+        message,
+        recipient_count: sent,
+      });
+      if (historyError) throw historyError;
+
+      return Response.json({ sent }, { headers: corsHeaders });
+    }
+
     if (body.mode === 'direct_notification') {
       if (!STAFF_ROLES.includes(profile?.role ?? '')) {
         return Response.json({ error: 'Nuk keni qasje për të dërguar njoftime individuale' }, { status: 403, headers: corsHeaders });
@@ -168,12 +276,16 @@ Deno.serve(async (request) => {
 
       const { data: recipient, error: recipientError } = await adminClient
         .from('profiles')
-        .select('id, is_active')
+        .select('id, role, is_active')
         .eq('id', recipientId)
         .maybeSingle();
 
       if (recipientError) throw recipientError;
-      if (!recipient || recipient.is_active === false) {
+      if (
+        !recipient ||
+        recipient.is_active === false ||
+        ![...STAFF_ROLES, 'client'].includes(recipient.role ?? '')
+      ) {
         return Response.json({ error: 'Përdoruesi nuk u gjet ose nuk është aktiv' }, { status: 404, headers: corsHeaders });
       }
 
@@ -195,12 +307,15 @@ Deno.serve(async (request) => {
         }
       );
 
-      await adminClient.from('push_notification_history').insert({
+      const { error: historyError } = await adminClient.from('push_notification_history').insert({
         sent_by: userData.user.id,
+        recipient_id: recipientId,
+        audience: 'direct',
         title,
         message,
         recipient_count: sent,
       });
+      if (historyError) throw historyError;
 
       return Response.json({ sent }, { headers: corsHeaders });
     }
@@ -212,18 +327,58 @@ Deno.serve(async (request) => {
       }
 
       let appointment = (body.appointment ?? {}) as AppointmentPayload;
-      if (appointment.id) {
-        const { data: row } = await adminClient
+      const appointmentId = String(appointment.id ?? '').trim();
+      if (!appointmentId) {
+        return Response.json({ error: 'Mungon ID e terminit' }, { status: 400, headers: corsHeaders });
+      }
+
+      {
+        const { data: row, error: appointmentError } = await adminClient
           .from('appointments')
           .select('id, user_id, created_by, client_name, service, appointment_date, appointment_time, location, status')
-          .eq('id', appointment.id)
+          .eq('id', appointmentId)
+          .eq('archived', false)
           .maybeSingle();
+
+        if (appointmentError) throw appointmentError;
+        if (!row) {
+          return Response.json({ error: 'Termini nuk u gjet' }, { status: 404, headers: corsHeaders });
+        }
 
         if (row) {
           const isClientOwner = row.user_id === userData.user.id;
           const isStaff = STAFF_ROLES.includes(profile?.role ?? '');
           if (!isClientOwner && !isStaff) {
             return Response.json({ error: 'Nuk mund të dërgoni njoftim për këtë termin' }, { status: 403, headers: corsHeaders });
+          }
+
+          if (!isStaff) {
+            const appointmentStatus = String(row.status ?? '');
+            const eventMatchesState = event === 'canceled'
+              ? ['canceled', 'cancelled'].includes(appointmentStatus)
+              : ['created', 'updated'].includes(event) && appointmentStatus === 'upcoming';
+
+            if (!eventMatchesState) {
+              return Response.json(
+                { error: 'Gjendja e terminit nuk përputhet me njoftimin' },
+                { status: 409, headers: corsHeaders }
+              );
+            }
+
+            const notificationCutoff = new Date(Date.now() - 30_000).toISOString();
+            const { data: recentEvents, error: recentEventsError } = await adminClient
+              .from('push_notification_history')
+              .select('id')
+              .eq('sent_by', userData.user.id)
+              .gte('created_at', notificationCutoff)
+              .limit(1);
+            if (recentEventsError) throw recentEventsError;
+            if ((recentEvents ?? []).length > 0) {
+              return Response.json(
+                { error: 'Prisni pak para se të dërgoni një njoftim tjetër' },
+                { status: 429, headers: corsHeaders }
+              );
+            }
           }
 
           appointment = {
@@ -264,6 +419,17 @@ Deno.serve(async (request) => {
         appointmentId: appointment.id ?? null,
       });
 
+      const { error: historyError } = await adminClient.from('push_notification_history').insert({
+        sent_by: userData.user.id,
+        // Direct with no recipient is intentionally invisible to clients under
+        // the history policy, while staff can still inspect operational events.
+        audience: 'direct',
+        title,
+        message,
+        recipient_count: sent,
+      });
+      if (historyError) throw historyError;
+
       return Response.json({ sent }, { headers: corsHeaders });
     }
 
@@ -277,24 +443,39 @@ Deno.serve(async (request) => {
       return Response.json({ error: 'Përmbajtja e njoftimit nuk është valide' }, { status: 400, headers: corsHeaders });
     }
 
-    const { data: rows, error: tokenError } = await adminClient
-      .from('push_tokens')
-      .select('expo_push_token');
-    if (tokenError) throw tokenError;
+    const { data: activeProfiles, error: activeProfilesError } = await adminClient
+      .from('profiles')
+      .select('id')
+      .in('role', [...STAFF_ROLES, 'client'])
+      .or('is_active.is.null,is_active.eq.true');
+    if (activeProfilesError) throw activeProfilesError;
+
+    const activeUserIds = (activeProfiles ?? []).map((item) => item.id);
+    let broadcastTokens: string[] = [];
+    if (activeUserIds.length) {
+      const { data: rows, error: tokenError } = await adminClient
+        .from('push_tokens')
+        .select('expo_push_token')
+        .in('user_id', activeUserIds);
+      if (tokenError) throw tokenError;
+      broadcastTokens = (rows ?? []).map((row) => row.expo_push_token);
+    }
 
     const sent = await sendExpoPush(
-      (rows ?? []).map((row) => row.expo_push_token),
+      broadcastTokens,
       title,
       message,
       { type: 'owner_broadcast' }
     );
 
-    await adminClient.from('push_notification_history').insert({
+    const { error: historyError } = await adminClient.from('push_notification_history').insert({
       sent_by: userData.user.id,
+      audience: 'all',
       title,
       message,
       recipient_count: sent,
     });
+    if (historyError) throw historyError;
 
     return Response.json({ sent }, { headers: corsHeaders });
   } catch (error) {

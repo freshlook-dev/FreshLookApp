@@ -16,6 +16,7 @@ import { EmptyState, PremiumCard, useClientColors } from '../../components/Clien
 import { ShopHeader } from '../../components/ShopHeader';
 import { useCart } from '../../context/CartContext';
 import { supabase } from '../../context/supabase';
+import { getCatalogImageUrl } from '../../utils/imageUrl';
 
 type PromoCodeRecord = {
   code: string;
@@ -61,7 +62,21 @@ export default function ClientCartScreen() {
       return;
     }
 
-    if (promoRecord.expires_at && new Date(promoRecord.expires_at) < new Date()) {
+    const expiryTimestamp = promoRecord.expires_at == null
+      ? null
+      : Date.parse(promoRecord.expires_at);
+    const invalidDiscount =
+      (promoRecord.discount_type !== 'percentage' && promoRecord.discount_type !== 'fixed') ||
+      !Number.isFinite(promoRecord.discount_value) ||
+      promoRecord.discount_value < 0 ||
+      (promoRecord.discount_type === 'percentage' && promoRecord.discount_value > 100);
+
+    if (invalidDiscount) {
+      setPromoMessage('Kodi nuk është i vlefshëm.');
+      return;
+    }
+
+    if (expiryTimestamp != null && (!Number.isFinite(expiryTimestamp) || expiryTimestamp <= Date.now())) {
       setPromoMessage('Kodi ka skaduar.');
       return;
     }
@@ -108,7 +123,7 @@ export default function ClientCartScreen() {
 
           <View style={styles.items}>
             {cart.map((item) => {
-              const price = item.is_on_sale && item.sale_price ? item.sale_price : item.price;
+              const price = item.is_on_sale && item.sale_price != null ? item.sale_price : item.price;
               const hasReachedStockLimit =
                 !item.is_out_of_stock &&
                 typeof item.stock_quantity === 'number' &&
@@ -118,7 +133,7 @@ export default function ClientCartScreen() {
                 <View key={item.id} style={[styles.itemCard, { backgroundColor: Colors.card, borderColor: Colors.border }]}>
                   <View style={[styles.imageWrap, { backgroundColor: Colors.surface }]}>
                     {item.image ? (
-                      <Image source={{ uri: item.image }} style={styles.itemImage} />
+                      <CartProductImage url={item.image} fallbackColor={Colors.muted} />
                     ) : (
                       <Ionicons name="image-outline" size={26} color={Colors.muted} />
                     )}
@@ -203,6 +218,29 @@ export default function ClientCartScreen() {
         </>
       )}
     </ScrollView>
+  );
+}
+
+function CartProductImage({ url, fallbackColor }: { url: string; fallbackColor: string }) {
+  const optimizedUrl = getCatalogImageUrl(url, 180);
+  const [sourceUrl, setSourceUrl] = useState(optimizedUrl);
+  const [failed, setFailed] = useState(false);
+
+  if (failed) {
+    return <Ionicons name="image-outline" size={26} color={fallbackColor} />;
+  }
+
+  return (
+    <Image
+      source={{ uri: sourceUrl!, cache: 'force-cache' }}
+      style={styles.itemImage}
+      resizeMode="contain"
+      fadeDuration={180}
+      onError={() => {
+        if (sourceUrl !== url) setSourceUrl(url);
+        else setFailed(true);
+      }}
+    />
   );
 }
 

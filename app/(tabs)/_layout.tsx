@@ -72,6 +72,7 @@ export default function TabsLayout() {
   // ✅ Redirects AFTER hooks
   if (loading) return null;
   if (!user) return <Redirect href="/(auth)/login" />;
+  if (!profile) return null;
   if (profile?.role === 'client') {
     return <Redirect href={'/client' as any} />;
   }
@@ -245,6 +246,14 @@ export default function TabsLayout() {
       />
 
       <Tabs.Screen
+        name="notification-history"
+        options={{
+          href: null,
+          title: 'Historiku i njoftimeve',
+        }}
+      />
+
+      <Tabs.Screen
         name="edit"
         options={{
           href: null,
@@ -305,6 +314,14 @@ export default function TabsLayout() {
         options={{
           href: null,
           title: 'Përdor shpërblim QR',
+        }}
+      />
+
+      <Tabs.Screen
+        name="manage-services"
+        options={{
+          href: null,
+          title: 'Menaxho shërbimet',
         }}
       />
 

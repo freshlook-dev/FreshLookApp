@@ -1,7 +1,7 @@
 {
   "name": "freshlookapp",
   "main": "expo-router/entry",
-  "version": "2.0",
+  "version": "2.3",
   "scripts": {
     "start": "expo start",
     "android": "expo run:android",
@@ -37,6 +37,8 @@
     "react-easy-crop": "^5.5.6",
     "react-native": "0.81.5",
     "react-native-calendars": "^1.1313.0",
+    "react-native-draggable-flatlist": "^4.0.3",
+    "react-native-gesture-handler": "~2.28.0",
     "react-native-qrcode-svg": "^6.3.21",
     "react-native-reanimated": "~4.1.1",
     "react-native-safe-area-context": "~5.6.0",
@@ -46,7 +48,7 @@
     "react-native-web": "~0.21.0",
     "react-native-worklets": "0.5.1",
     "tslib": "^2.4.1",
-    "xlsx": "^0.18.5"
+    "xlsx": "https://cdn.sheetjs.com/xlsx-0.20.3/xlsx-0.20.3.tgz"
   },
   "devDependencies": {
     "@types/react": "~19.1.0",

@@ -6,13 +6,15 @@ import {
   Text,
   StyleSheet,
   ActivityIndicator,
-  FlatList,
   Image,
   Pressable,
   Platform,
   Modal,
+  RefreshControl,
+  ScrollView,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { router } from 'expo-router';
 
 import { useAuth } from '../../context/AuthContext';
 import { supabase } from '../../context/supabase';
@@ -23,6 +25,7 @@ import { Spacing } from '../../constants/theme';
 import { useTheme } from '../../context/ThemeContext';
 import { LightColors, DarkColors } from '../../constants/colors';
 import { useAutoRefresh } from '../../hooks/useAutoRefresh';
+import { formatKosovoDateOnly } from '../../utils/dateTime';
 
 /* ---------- TYPES ---------- */
 
@@ -63,8 +66,8 @@ export default function HomeTab() {
   const loadStats = async () => {
     setLoading(true);
 
-    const today = new Date().toISOString().split('T')[0];
-    const currentMonth = new Date().toISOString().slice(0, 7);
+    const today = formatKosovoDateOnly();
+    const currentMonth = today.slice(0, 7);
 
     const { data: profile } = await supabase
       .from('profiles')
@@ -75,13 +78,7 @@ export default function HomeTab() {
     setFullName(profile?.full_name ?? 'User');
     setAvatarUrl(profile?.avatar_url ?? null);
 
-    const firstDayOfMonth = new Date(
-      new Date().getFullYear(),
-      new Date().getMonth(),
-      1
-    )
-      .toISOString()
-      .split('T')[0];
+    const firstDayOfMonth = `${currentMonth}-01`;
 
     const { count: total } = await supabase
       .from('appointments')
@@ -193,7 +190,19 @@ export default function HomeTab() {
     : avatarPlaceholder;
 
   return (
-    <View style={[styles.container, { backgroundColor: Colors.background }]}>
+    <ScrollView
+      style={{ backgroundColor: Colors.background }}
+      contentContainerStyle={styles.container}
+      showsVerticalScrollIndicator={false}
+      refreshControl={
+        <RefreshControl
+          refreshing={refreshing}
+          onRefresh={onRefresh}
+          tintColor={Colors.primary}
+          colors={[Colors.primary]}
+        />
+      }
+    >
       <View style={styles.homeHeader}>
         <View style={styles.homeHeaderText}>
           <Text style={[styles.welcome, { color: Colors.muted }]}>
@@ -203,6 +212,16 @@ export default function HomeTab() {
           <Text style={[styles.name, { color: Colors.text }]}>{fullName}</Text>
         </View>
 
+        <View style={styles.homeActions}>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Historiku i njoftimeve"
+            style={[styles.notificationButton, { backgroundColor: Colors.card, borderColor: Colors.border }]}
+            onPress={() => router.push('/(tabs)/notification-history' as any)}
+          >
+            <Ionicons name="notifications-outline" size={22} color={Colors.primary} />
+          </Pressable>
+
         <View style={styles.homeAvatarWrap}>
           <Pressable onPress={() => openAvatarPreview(avatarUrl)}>
             <Image
@@ -211,6 +230,7 @@ export default function HomeTab() {
               style={[styles.homeAvatar, { backgroundColor: Colors.card }]}
             />
           </Pressable>
+        </View>
         </View>
       </View>
 
@@ -268,14 +288,9 @@ export default function HomeTab() {
         📊 Statistika mujore (stafi)
       </Text>
 
-      <FlatList
-        data={staffStats}
-        keyExtractor={(item) => item.user_id}
-        showsVerticalScrollIndicator={false}
-        refreshing={refreshing}
-        onRefresh={onRefresh}
-        renderItem={({ item, index }) => (
-          <Card>
+      <View>
+        {staffStats.map((item, index) => (
+          <Card key={item.user_id}>
             <View style={styles.staffRow}>
               <View style={styles.staffLeft}>
                 <Pressable onPress={() => openAvatarPreview(item.avatar_url)}>
@@ -304,8 +319,8 @@ export default function HomeTab() {
               </Text>
             </View>
           </Card>
-        )}
-      />
+        ))}
+      </View>
 
       {avatarPreviewVisible && Platform.OS === 'web' && (
         <View
@@ -355,7 +370,7 @@ export default function HomeTab() {
           </View>
         </Modal>
       )}
-    </View>
+    </ScrollView>
   );
 }
 
@@ -363,9 +378,10 @@ export default function HomeTab() {
 
 const styles = StyleSheet.create({
   container: {
-    flex: 1,
+    flexGrow: 1,
     paddingHorizontal: 20,
     paddingTop: 22,
+    paddingBottom: 100,
   },
   center: {
     flex: 1,
@@ -399,6 +415,20 @@ const styles = StyleSheet.create({
     width: 62,
     height: 62,
     flexShrink: 0,
+  },
+  homeActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    flexShrink: 0,
+  },
+  notificationButton: {
+    width: 48,
+    height: 48,
+    borderRadius: 16,
+    borderWidth: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   homeAvatar: {
     width: 62,

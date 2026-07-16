@@ -21,6 +21,7 @@ import { notifyStaffAppointmentChange } from '../../utils/appointmentStaffNotifi
 import { useTheme } from '../../context/ThemeContext';
 import { LightColors, DarkColors } from '../../constants/colors';
 import { useAutoRefresh } from '../../hooks/useAutoRefresh';
+import { formatDate } from '../../utils/format';
 
 type Status = 'arrived' | 'canceled' | 'upcoming';
 type Filter = 'arrived' | 'canceled';
@@ -41,13 +42,6 @@ type Appointment = {
   creator_name: string | null;
   payment_method: string | null;
   total_amount: number | null;
-};
-
-const formatDate = (date: string) => {
-  const d = new Date(date);
-  return `${String(d.getDate()).padStart(2, '0')}.${String(
-    d.getMonth() + 1
-  ).padStart(2, '0')}.${d.getFullYear()}`;
 };
 
 export default function HistoryScreen() {
@@ -203,47 +197,20 @@ export default function HistoryScreen() {
     );
     if (!appointment) return;
 
-    const clearsRegisteredVisit = status !== 'arrived' && appointment.payment_method !== null;
-    const updatePayload =
-      status === 'arrived' || !clearsRegisteredVisit
-        ? { status }
-        : {
-            status,
-            payment_method: null,
-            paid_cash: null,
-            paid_bank: null,
-            visit_notes: null,
-            selected_treatments: null,
-            total_amount: null,
-          };
-
-    const { error } = await supabase
-      .from('appointments')
-      .update(updatePayload)
-      .eq('id', id);
-
-    if (error) {
-      Alert.alert('Gabim', error.message);
-      return;
-    }
-
-    if (clearsRegisteredVisit && appointment.user_id) {
-      const previousPoints = Math.floor(Number(appointment.total_amount ?? 0) / 2);
-
-      if (previousPoints > 0) {
-        const { data: profile } = await supabase
-          .from('profiles')
-          .select('points')
-          .eq('id', appointment.user_id)
-          .single();
-
-        const currentPoints = Number(profile?.points ?? 0);
-
-        await supabase
-          .from('profiles')
-          .update({ points: Math.max(0, currentPoints - previousPoints) })
-          .eq('id', appointment.user_id);
+    const { data: statusResult, error } = await supabase.rpc(
+      'set_appointment_status_atomic',
+      {
+        p_appointment_id: id,
+        p_status: status,
       }
+    );
+
+    if (error || !statusResult) {
+      Alert.alert(
+        'Gabim',
+        error?.message ?? 'Termini nuk u perditesua. Mund te jete arkivuar ose ndryshuar.'
+      );
+      return;
     }
 
     await logStatusChange(appointment, status);
@@ -275,10 +242,21 @@ export default function HistoryScreen() {
 
     if (!confirmed) return;
 
-    await supabase
+    const { data: archivedAppointment, error } = await supabase
       .from('appointments')
       .update({ archived: true })
-      .eq('id', id);
+      .eq('id', id)
+      .eq('archived', false)
+      .select('id')
+      .maybeSingle();
+
+    if (error || !archivedAppointment) {
+      Alert.alert(
+        'Gabim',
+        error?.message ?? 'Termini nuk mund te arkivohej sepse ka ndryshuar.'
+      );
+      return;
+    }
 
     await logArchiveChange(appointment, true);
 
@@ -292,10 +270,21 @@ export default function HistoryScreen() {
     const appointment = archived.find((a) => a.id === id);
     if (!appointment) return;
 
-    await supabase
+    const { data: unarchivedAppointment, error } = await supabase
       .from('appointments')
       .update({ archived: false })
-      .eq('id', id);
+      .eq('id', id)
+      .eq('archived', true)
+      .select('id')
+      .maybeSingle();
+
+    if (error || !unarchivedAppointment) {
+      Alert.alert(
+        'Gabim',
+        error?.message ?? 'Termini nuk mund te rikthehej sepse ka ndryshuar.'
+      );
+      return;
+    }
 
     await logArchiveChange(appointment, false);
 

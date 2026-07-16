@@ -15,6 +15,7 @@ import { useAuth } from '../../context/AuthContext';
 import { useTheme } from '../../context/ThemeContext';
 import { LightColors, DarkColors } from '../../constants/colors';
 import { useAutoRefresh } from '../../hooks/useAutoRefresh';
+import { formatDateTime } from '../../utils/format';
 
 /* ================= TYPES ================= */
 
@@ -27,14 +28,6 @@ type AuditLogRow = {
 };
 
 /* ================= HELPERS ================= */
-
-const formatDateTime = (iso: string) => {
-  const d = new Date(iso);
-  return `${d.toLocaleDateString()} • ${d.toLocaleTimeString([], {
-    hour: '2-digit',
-    minute: '2-digit',
-  })}`;
-};
 
 const actionLabel = (action: string, metadata: any) => {
   if (metadata?.changed?.status) {
@@ -63,6 +56,14 @@ const prettyField = (field: string) => {
       return 'Data';
     case 'time':
       return 'Ora';
+    case 'client_name':
+      return 'Klienti';
+    case 'service':
+      return 'Shërbimi';
+    case 'location':
+      return 'Lokacioni';
+    case 'phone':
+      return 'Telefoni';
     default:
       return field;
   }
@@ -158,6 +159,7 @@ export default function AuditLogsScreen() {
             item.metadata?.appointment?.client_name ?? null;
 
           const changes = item.metadata?.changed ?? null;
+          const appointment = item.metadata?.appointment ?? null;
 
           return (
             <View style={[styles.card, { backgroundColor: Colors.card }]}>
@@ -188,7 +190,18 @@ export default function AuditLogsScreen() {
                 ✏️ {actor}
               </Text>
 
-              {changes && Object.keys(changes).length > 0 ? (
+              {item.action === 'CREATE_APPOINTMENT' && appointment && (
+                <View style={[styles.appointmentBox, { backgroundColor: Colors.background }]}>
+                  <DetailRow label="Shërbimi" value={appointment.service} colors={Colors} />
+                  <DetailRow label="Data" value={appointment.appointment_date} colors={Colors} />
+                  <DetailRow label="Ora" value={appointment.appointment_time} colors={Colors} />
+                  <DetailRow label="Lokacioni" value={appointment.location} colors={Colors} />
+                  <DetailRow label="Telefoni" value={appointment.phone} colors={Colors} />
+                  {!!appointment.comment && <DetailRow label="Komenti" value={appointment.comment} colors={Colors} />}
+                </View>
+              )}
+
+              {item.action === 'CREATE_APPOINTMENT' ? null : changes && Object.keys(changes).length > 0 ? (
                 <View
                   style={[
                     styles.changesBox,
@@ -247,6 +260,16 @@ export default function AuditLogsScreen() {
   );
 }
 
+function DetailRow({ label, value, colors }: { label: string; value: unknown; colors: typeof LightColors }) {
+  if (value == null || value === '') return null;
+  return (
+    <View style={styles.detailRow}>
+      <Text style={[styles.detailLabel, { color: colors.muted }]}>{label}</Text>
+      <Text style={[styles.detailValue, { color: colors.text }]}>{String(value)}</Text>
+    </View>
+  );
+}
+
 /* ================= STYLES ================= */
 
 const styles = StyleSheet.create({
@@ -273,6 +296,10 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: 'rgba(128,128,128,0.18)',
   },
+  appointmentBox: { borderRadius: 14, padding: 13, marginTop: 12, gap: 8 },
+  detailRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 12 },
+  detailLabel: { width: 82, fontSize: 12, fontWeight: '700' },
+  detailValue: { flex: 1, fontSize: 13, fontWeight: '800', textAlign: 'right' },
   headerRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',

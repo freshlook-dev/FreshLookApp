@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useState } from 'react';
+import { createContext, useContext, useEffect, useRef, useState } from 'react';
 import { AppState, Platform } from 'react-native';
 import type { Session, User } from '@supabase/supabase-js';
 import { supabase } from './supabase';
@@ -44,11 +44,30 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [profile, setProfile] = useState<ClientProfile | null>(null);
   const [loading, setLoading] = useState(true);
   const [authError, setAuthError] = useState<string | null>(null);
+  const mountedRef = useRef(true);
+  const activeUserIdRef = useRef<string | null>(null);
+  const authRequestRef = useRef(0);
+  const profileRequestRef = useRef(0);
+
+  useEffect(() => {
+    mountedRef.current = true;
+
+    return () => {
+      mountedRef.current = false;
+      authRequestRef.current += 1;
+      profileRequestRef.current += 1;
+    };
+  }, []);
 
   const applySession = async (session: Session | null) => {
+    const requestId = ++authRequestRef.current;
+    if (!mountedRef.current) return;
+
     const nextUser = session?.user ?? null;
 
     if (!nextUser) {
+      activeUserIdRef.current = null;
+      profileRequestRef.current += 1;
       setUser(null);
       setProfile(null);
       setAuthError(null);
@@ -56,10 +75,23 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       return;
     }
 
+    setLoading(true);
     const { data, error } = await loadClientProfile(nextUser.id);
 
+    if (
+      !mountedRef.current ||
+      requestId !== authRequestRef.current
+    ) {
+      return;
+    }
+
     if (error || !data) {
-      await supabase.auth.signOut({ scope: 'local' });
+      activeUserIdRef.current = null;
+      profileRequestRef.current += 1;
+      try {
+        await supabase.auth.signOut({ scope: 'local' });
+      } catch {}
+      if (!mountedRef.current || activeUserIdRef.current !== null) return;
       setUser(null);
       setProfile(null);
       setAuthError('We could not load your FreshLook profile.');
@@ -68,7 +100,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
 
     if (data.is_active === false) {
-      await supabase.auth.signOut({ scope: 'local' });
+      activeUserIdRef.current = null;
+      profileRequestRef.current += 1;
+      try {
+        await supabase.auth.signOut({ scope: 'local' });
+      } catch {}
+      if (!mountedRef.current || activeUserIdRef.current !== null) return;
       setUser(null);
       setProfile(null);
       setAuthError('This account is currently inactive.');
@@ -77,7 +114,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
 
     if (data.role !== 'client') {
-      await supabase.auth.signOut({ scope: 'local' });
+      activeUserIdRef.current = null;
+      profileRequestRef.current += 1;
+      try {
+        await supabase.auth.signOut({ scope: 'local' });
+      } catch {}
+      if (!mountedRef.current || activeUserIdRef.current !== null) return;
       setUser(null);
       setProfile(null);
       setAuthError('This app is only for FreshLook clients. Please use the staff app.');
@@ -85,6 +127,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       return;
     }
 
+    activeUserIdRef.current = nextUser.id;
     setUser(nextUser);
     setProfile(data);
     setAuthError(null);
@@ -92,32 +135,77 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   const refreshProfile = async () => {
-    if (!user?.id) return;
-    const { data } = await loadClientProfile(user.id);
+    const userId = user?.id;
+    if (!userId) return;
+
+    const requestId = ++profileRequestRef.current;
+    const { data, error } = await loadClientProfile(userId);
+
+    if (
+      !mountedRef.current ||
+      requestId !== profileRequestRef.current ||
+      activeUserIdRef.current !== userId
+    ) {
+      return;
+    }
+
+    // Preserve the last verified profile during a temporary network failure.
+    if (error || !data) return;
+
     if (data?.role === 'client' && data.is_active !== false) {
       setProfile(data);
+      return;
     }
+
+    const nextError =
+      data.is_active === false
+        ? 'This account is currently inactive.'
+        : 'This app is only for FreshLook clients. Please use the staff app.';
+
+    activeUserIdRef.current = null;
+    profileRequestRef.current += 1;
+    try {
+      await supabase.auth.signOut({ scope: 'local' });
+    } catch {}
+    if (!mountedRef.current || activeUserIdRef.current !== null) return;
+    setUser(null);
+    setProfile(null);
+    setAuthError(nextError);
+    setLoading(false);
   };
 
   useEffect(() => {
     let mounted = true;
 
     const init = async () => {
-      const { data } = await supabase.auth.getSession();
+      const { data, error } = await supabase.auth.getSession();
+
+      if (error) {
+        try {
+          await supabase.auth.signOut({ scope: 'local' });
+        } catch {}
+        if (mounted) await applySession(null);
+        return;
+      }
+
       if (mounted) await applySession(data.session);
     };
 
-    init();
+    void init().catch(() => {
+      if (mounted) void applySession(null);
+    });
 
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((_event, session) => {
       if (!mounted) return;
-      applySession(session);
+      void applySession(session);
     });
 
     return () => {
       mounted = false;
+      authRequestRef.current += 1;
+      profileRequestRef.current += 1;
       subscription.unsubscribe();
     };
   }, []);
@@ -160,9 +248,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, [user?.id]);
 
   const logout = async () => {
-    await supabase.auth.signOut({ scope: 'local' });
+    authRequestRef.current += 1;
+    profileRequestRef.current += 1;
+    activeUserIdRef.current = null;
+    try {
+      await supabase.auth.signOut({ scope: 'local' });
+    } catch {}
+    if (!mountedRef.current) return;
     setUser(null);
     setProfile(null);
+    setAuthError(null);
   };
 
   return (

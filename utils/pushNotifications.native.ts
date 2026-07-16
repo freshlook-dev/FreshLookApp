@@ -14,7 +14,7 @@ Notifications.setNotificationHandler({
   }),
 });
 
-export async function registerPushToken(userId: string) {
+export async function registerPushToken(_userId: string) {
   if (!Device.isDevice) return;
 
   if (Platform.OS === 'android') {
@@ -37,13 +37,27 @@ export async function registerPushToken(userId: string) {
   if (!projectId) return;
 
   const token = (await Notifications.getExpoPushTokenAsync({ projectId })).data;
-  await supabase.from('push_tokens').upsert(
-    {
-      user_id: userId,
-      expo_push_token: token,
-      platform: Platform.OS,
-      updated_at: new Date().toISOString(),
-    },
-    { onConflict: 'expo_push_token' }
-  );
+  const { error } = await supabase.rpc('register_push_token', {
+    p_expo_push_token: token,
+    p_platform: Platform.OS,
+  });
+
+  if (error) throw error;
+}
+
+export async function unregisterPushToken() {
+  if (!Device.isDevice) return;
+
+  const permission = await Notifications.getPermissionsAsync();
+  if (permission.status !== 'granted') return;
+
+  const projectId = Constants.expoConfig?.extra?.eas?.projectId ?? Constants.easConfig?.projectId;
+  if (!projectId) return;
+
+  const token = (await Notifications.getExpoPushTokenAsync({ projectId })).data;
+  const { error } = await supabase.rpc('unregister_push_token', {
+    p_expo_push_token: token,
+  });
+
+  if (error) throw error;
 }

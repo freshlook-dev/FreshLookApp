@@ -8,6 +8,8 @@ export default function AuthLayout() {
 
   // If logged in, never show auth screens
   if (user) {
+    if (!profile) return null;
+
     if (profile?.role === 'client') {
       return <Redirect href={'/client' as any} />;
     }

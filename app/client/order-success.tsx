@@ -6,7 +6,11 @@ import { useClientColors } from '../../components/ClientUI';
 
 export default function ClientOrderSuccessScreen() {
   const Colors = useClientColors();
-  const { orderId, total } = useLocalSearchParams<{ orderId?: string; total?: string }>();
+  const { orderId, total, emailStatus } = useLocalSearchParams<{
+    orderId?: string;
+    total?: string;
+    emailStatus?: 'sent' | 'partial' | 'failed';
+  }>();
 
   return (
     <ScrollView style={{ backgroundColor: Colors.background }} contentContainerStyle={styles.content}>
@@ -18,6 +22,29 @@ export default function ClientOrderSuccessScreen() {
         <Text style={[styles.subtitle, { color: Colors.muted }]}>
           Faleminderit. Porosia juaj është regjistruar me sukses dhe ekipi do ta përgatisë për dorëzim.
         </Text>
+
+        <View
+          style={[
+            styles.emailStatus,
+            {
+              backgroundColor: emailStatus === 'sent' ? Colors.primarySoft : Colors.surface,
+              borderColor: emailStatus === 'sent' ? Colors.primary : Colors.danger,
+            },
+          ]}
+        >
+          <Ionicons
+            name={emailStatus === 'sent' ? 'mail-outline' : 'alert-circle-outline'}
+            size={19}
+            color={emailStatus === 'sent' ? Colors.primary : Colors.danger}
+          />
+          <Text style={[styles.emailStatusText, { color: Colors.text }]}>
+            {emailStatus === 'sent'
+              ? 'Konfirmimi u dërgua në emailin tuaj dhe ekipi u njoftua.'
+              : emailStatus === 'partial'
+                ? 'Porosia u ruajt, por njëri prej emaileve nuk u dërgua.'
+                : 'Porosia u ruajt, por emailet e konfirmimit nuk u dërguan.'}
+          </Text>
+        </View>
 
         {!!orderId && (
           <View style={[styles.detailBox, { backgroundColor: Colors.surface, borderColor: Colors.border }]}>
@@ -50,6 +77,8 @@ const styles = StyleSheet.create({
   iconWrap: { width: 72, height: 72, borderRadius: 36, alignItems: 'center', justifyContent: 'center', marginBottom: 18 },
   title: { fontSize: 28, fontWeight: '900', textAlign: 'center' },
   subtitle: { fontSize: 14, lineHeight: 21, textAlign: 'center', marginTop: 8, marginBottom: 18 },
+  emailStatus: { width: '100%', minHeight: 52, borderWidth: 1, borderRadius: 15, padding: 13, marginBottom: 12, flexDirection: 'row', alignItems: 'center' },
+  emailStatusText: { flex: 1, fontSize: 13, lineHeight: 19, fontWeight: '700' },
   detailBox: { width: '100%', borderWidth: 1, borderRadius: 16, padding: 14, marginBottom: 10 },
   detailLabel: { fontSize: 12, fontWeight: '900', textTransform: 'uppercase' },
   detailValue: { fontSize: 18, fontWeight: '900', marginTop: 4 },

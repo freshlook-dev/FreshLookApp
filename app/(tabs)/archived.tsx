@@ -19,6 +19,7 @@ import { useAuth } from '../../context/AuthContext';
 import { useTheme } from '../../context/ThemeContext';
 import { LightColors, DarkColors } from '../../constants/colors';
 import { useAutoRefresh } from '../../hooks/useAutoRefresh';
+import { formatDateTime } from '../../utils/format';
 
 type Appointment = {
   id: string;
@@ -29,14 +30,6 @@ type Appointment = {
   creator_name: string | null;
   archived_by: string | null;
   archived_at: string | null;
-};
-
-const formatDateTime = (iso: string) => {
-  const d = new Date(iso);
-  return `${d.toLocaleDateString()} • ${d.toLocaleTimeString([], {
-    hour: '2-digit',
-    minute: '2-digit',
-  })}`;
 };
 
 export default function ArchivedScreen() {
@@ -170,13 +163,19 @@ export default function ArchivedScreen() {
     const appointment = appointments.find((a) => a.id === id);
     if (!appointment) return;
 
-    const { error } = await supabase
+    const { data: unarchivedAppointment, error } = await supabase
       .from('appointments')
       .update({ archived: false })
-      .eq('id', id);
+      .eq('id', id)
+      .eq('archived', true)
+      .select('id')
+      .maybeSingle();
 
-    if (error) {
-      Alert.alert('Gabim', error.message);
+    if (error || !unarchivedAppointment) {
+      Alert.alert(
+        'Gabim',
+        error?.message ?? 'Termini nuk mund te rikthehej sepse ka ndryshuar.'
+      );
       return;
     }
 

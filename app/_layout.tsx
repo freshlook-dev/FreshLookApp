@@ -1,9 +1,10 @@
 import { Stack } from 'expo-router';
 import Head from 'expo-router/head';
 import { usePathname } from 'expo-router';
-import { Platform, StyleSheet, View } from 'react-native';
+import { KeyboardAvoidingView, Platform, StyleSheet, View } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
 
 import { AuthProvider } from '../context/AuthContext';
 import { ThemeProvider, useTheme } from '../context/ThemeContext';
@@ -13,6 +14,7 @@ function AppLayout() {
   const isDark = theme === 'dark';
   const pathname = usePathname();
   const isClientWeb = Platform.OS === 'web' && pathname.startsWith('/client');
+  const isClientRoute = pathname.startsWith('/client');
 
   return (
     <>
@@ -39,7 +41,7 @@ function AppLayout() {
         style={[
           styles.safe,
           {
-            backgroundColor: isDark ? '#0F0F10' : '#FAF8F4',
+            backgroundColor: isDark ? '#1B1B1D' : '#FAF8F4',
           },
         ]}
         edges={
@@ -57,11 +59,18 @@ function AppLayout() {
               : styles.nativeInner
           }
         >
-          <Stack screenOptions={{ headerShown: false }}>
-            <Stack.Screen name="(auth)" options={{ gestureEnabled: false }} />
-            <Stack.Screen name="(tabs)" options={{ gestureEnabled: false }} />
-            <Stack.Screen name="client" options={{ gestureEnabled: false }} />
-          </Stack>
+          <KeyboardAvoidingView
+            style={styles.keyboardRoot}
+            behavior={Platform.OS === 'ios' && !isClientRoute ? 'padding' : undefined}
+          >
+            <View style={styles.keyboardRoot}>
+              <Stack screenOptions={{ headerShown: false }}>
+                <Stack.Screen name="(auth)" options={{ gestureEnabled: false }} />
+                <Stack.Screen name="(tabs)" options={{ gestureEnabled: false }} />
+                <Stack.Screen name="client" options={{ gestureEnabled: false }} />
+              </Stack>
+            </View>
+          </KeyboardAvoidingView>
         </View>
       </SafeAreaView>
     </>
@@ -70,17 +79,20 @@ function AppLayout() {
 
 export default function RootLayout() {
   return (
-    <SafeAreaProvider>
-      <ThemeProvider>
-        <AuthProvider>
-          <AppLayout />
-        </AuthProvider>
-      </ThemeProvider>
-    </SafeAreaProvider>
+    <GestureHandlerRootView style={styles.keyboardRoot}>
+      <SafeAreaProvider>
+        <ThemeProvider>
+          <AuthProvider>
+            <AppLayout />
+          </AuthProvider>
+        </ThemeProvider>
+      </SafeAreaProvider>
+    </GestureHandlerRootView>
   );
 }
 
 const styles = StyleSheet.create({
+  keyboardRoot: { flex: 1 },
   safe: {
     flex: 1,
   },

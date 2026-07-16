@@ -31,6 +31,9 @@ type Redemption = {
 };
 
 const REWARD_OPTIONS = [100, 500];
+const isActiveRedemption = (item: Redemption) =>
+  item.status === 'pending' &&
+  (!item.expires_at || new Date(item.expires_at).getTime() > Date.now());
 
 export default function RewardsScreen() {
   const { user, profile, refreshProfile } = useAuth();
@@ -45,8 +48,8 @@ export default function RewardsScreen() {
   const [deletingId, setDeletingId] = useState<string | null>(null);
 
   const activeRedemption = useMemo(
-    () => redemptions.find((item) => item.id === selectedRedemptionId && item.status === 'pending')
-      ?? redemptions.find((item) => item.status === 'pending'),
+    () => redemptions.find((item) => item.id === selectedRedemptionId && isActiveRedemption(item))
+      ?? redemptions.find(isActiveRedemption),
     [redemptions, selectedRedemptionId]
   );
 
@@ -62,7 +65,15 @@ export default function RewardsScreen() {
       .order('created_at', { ascending: false })
       .limit(20);
 
-    setRedemptions(data ?? []);
+    const now = Date.now();
+    setRedemptions(
+      (data ?? []).filter(
+        (item: Redemption) =>
+          item.status !== 'pending' ||
+          !item.expires_at ||
+          new Date(item.expires_at).getTime() > now
+      )
+    );
     setLoading(false);
   }, [user?.id]);
 
@@ -95,20 +106,12 @@ export default function RewardsScreen() {
       return;
     }
     setCreating(points);
-    let { data, error } = await supabase
-      .from('point_redemptions')
-      .insert({ user_id: user.id, points, status: 'pending', expires_at: null })
-      .select('id, points, status, expires_at, created_at')
-      .single();
-
-    if (error) {
-      const rpcResult = await supabase.rpc('create_point_redemption_qr', {
-        p_points: points,
-        p_expires_at: null,
-      });
-      data = rpcResult.data as Redemption | null;
-      error = rpcResult.error;
-    }
+    const rpcResult = await supabase.rpc('create_point_redemption_qr', {
+      p_points: points,
+      p_expires_at: null,
+    });
+    const data = rpcResult.data as Redemption | null;
+    const error = rpcResult.error;
 
     setCreating(null);
     if (error) {
@@ -176,6 +179,9 @@ export default function RewardsScreen() {
             <Text style={[styles.balance, { color: Colors.onPrimary }]}>{profile?.points ?? 0}</Text>
             <Text style={[styles.pointsUnit, { color: Colors.onPrimary }]}>PTS</Text>
           </View>
+          <Text style={[styles.balanceEuro, { color: Colors.onPrimary }]}>
+            {((profile?.points ?? 0) / 10).toFixed(2)} €
+          </Text>
         </View>
         <View style={[styles.balanceIcon, { borderColor: Colors.onPrimary }]}>
           <Ionicons name="diamond-outline" size={22} color={Colors.onPrimary} />
@@ -347,6 +353,7 @@ const styles = StyleSheet.create({
   balanceRow: { flexDirection: 'row', alignItems: 'baseline', gap: 8 },
   balance: { fontSize: 46, lineHeight: 54, fontWeight: '800', letterSpacing: -1.2 },
   pointsUnit: { fontSize: 11, fontWeight: '800', letterSpacing: 1.5, opacity: 0.75 },
+  balanceEuro: { marginTop: 1, fontSize: 14, fontWeight: '800', opacity: 0.78 },
   balanceIcon: {
     width: 46, height: 46, borderRadius: 23, borderWidth: 1,
     alignItems: 'center', justifyContent: 'center', opacity: 0.85,

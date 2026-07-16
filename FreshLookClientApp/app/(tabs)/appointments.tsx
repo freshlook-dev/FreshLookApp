@@ -11,7 +11,7 @@ import { supabase } from '../../context/supabase';
 import { useAuth } from '../../context/AuthContext';
 import { useTheme } from '../../context/ThemeContext';
 import { DarkColors, LightColors } from '../../constants/colors';
-import { formatDate, formatTime } from '../../utils/format';
+import { formatDate, formatKosovoDateOnly, formatTime } from '../../utils/format';
 
 type Appointment = {
   id: string;
@@ -52,7 +52,7 @@ export default function AppointmentsScreen() {
   }, [loadAppointments]);
 
   const grouped = useMemo(() => {
-    const today = new Date().toISOString().slice(0, 10);
+    const today = formatKosovoDateOnly();
     return {
       upcoming: appointments.filter((item) => (item.appointment_date ?? '') >= today),
       history: appointments.filter((item) => (item.appointment_date ?? '') < today),

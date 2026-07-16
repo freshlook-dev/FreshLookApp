@@ -14,16 +14,16 @@ export const LightColors = {
 };
 
 export const DarkColors = {
-  background: '#0D0D0E',
-  card: '#161617',
-  surface: '#1D1D1F',
-  elevated: '#222224',
-  text: '#F7F4EE',
-  muted: '#A29D94',
+  background: '#1B1B1D',
+  card: '#232326',
+  surface: '#2A2A2E',
+  elevated: '#303034',
+  text: '#F4F1EB',
+  muted: '#ABA7A0',
   primary: '#D0A94F',
-  primarySoft: '#352D1D',
+  primarySoft: '#3B3322',
   onPrimary: '#17130B',
-  border: '#2D2D30',
+  border: '#3B3B40',
   success: '#4ADE80',
   danger: '#F87171',
 };

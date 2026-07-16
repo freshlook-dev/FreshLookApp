@@ -4,6 +4,7 @@ import {
   Alert,
   Animated,
   Easing,
+  Keyboard,
   Modal,
   Platform,
   Pressable,
@@ -14,14 +15,22 @@ import {
   View,
 } from 'react-native';
 import { useRef } from 'react';
-import DateTimePicker from '@react-native-community/datetimepicker';
+import DateTimePicker, { DateTimePickerAndroid } from '@react-native-community/datetimepicker';
 import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { supabase } from '../../context/supabase';
 import { useAuth } from '../../context/AuthContext';
+import { useTheme } from '../../context/ThemeContext';
 import { PremiumCard, ScreenHeader, useClientColors } from '../../components/ClientUI';
 import { notifyStaffAppointmentChange } from '../../utils/appointmentStaffNotifications';
 import { syncClientAppointmentReminders } from '../../utils/appointmentReminders';
+import { getOrderedCatalogIds } from '../../utils/catalog';
+import {
+  formatKosovoDateOnly,
+  formatLocalDateOnly,
+  isKosovoSlotAtLeastMinutesAway,
+  kosovoDateForPicker,
+} from '../../utils/dateTime';
 
 type Service = {
   id: string;
@@ -32,12 +41,15 @@ type Service = {
   sale_price?: number | null;
 };
 
-type ServiceOrderContent = {
-  orderedIds?: string[];
-};
+const getEffectiveServicePrice = (service: Service) =>
+  service.is_on_sale && service.sale_price != null ? service.sale_price : service.price;
 
 const LOCATIONS = ['Prishtinë', 'Fushë Kosovë'];
-const TIME_SLOTS = ['09:00', '10:00', '11:00', '12:00', '13:00', '14:00', '15:00', '16:00', '17:00', '18:00', '19:00', '20:00'];
+const TIME_SLOTS = [
+  '10:00', '10:30', '11:00', '11:30', '12:00', '12:30', '13:00', '13:30',
+  '14:00', '14:30', '15:00', '15:30', '16:00', '16:30', '17:00', '17:30',
+  '18:00', '18:30', '19:00', '19:30', '20:00',
+];
 const BOOKING_URL = 'https://www.freshlook-ks.com/api/appointments';
 
 function orderByIdList<T extends { id: string }>(items: T[], orderedIds: string[]) {
@@ -55,37 +67,23 @@ function orderByIdList<T extends { id: string }>(items: T[], orderedIds: string[
   });
 }
 
-function dateValue(value: Date) {
-  const year = value.getFullYear();
-  const month = String(value.getMonth() + 1).padStart(2, '0');
-  const day = String(value.getDate()).padStart(2, '0');
-  return `${year}-${month}-${day}`;
-}
-
-function startOfDay(value: Date) {
-  const next = new Date(value);
-  next.setHours(0, 0, 0, 0);
-  return next;
+function capitalizedMonthAndYear(value: Date) {
+  const formatted = new Intl.DateTimeFormat('sq-AL', { month: 'long', year: 'numeric' }).format(value);
+  return formatted.charAt(0).toLocaleUpperCase('sq-AL') + formatted.slice(1);
 }
 
 function isTooSoonToBook(selectedDate: string, slot: string, now: Date) {
-  const today = dateValue(now);
-  if (selectedDate < today) return true;
-  if (selectedDate > today) return false;
-
-  const [hours, minutes] = slot.split(':').map(Number);
-  const slotMinutes = hours * 60 + minutes;
-  const minimumMinutes = now.getHours() * 60 + now.getMinutes() + 30;
-  return slotMinutes < minimumMinutes;
+  return !isKosovoSlotAtLeastMinutesAway(selectedDate, slot, 30, now);
 }
 
 export default function BookAppointmentScreen() {
   const { user, profile } = useAuth();
+  const { theme } = useTheme();
   const Colors = useClientColors();
   const [services, setServices] = useState<Service[]>([]);
   const [selectedServices, setSelectedServices] = useState<Service[]>([]);
-  const [location, setLocation] = useState('');
-  const [date, setDate] = useState(new Date());
+  const [location, setLocation] = useState(LOCATIONS[0]);
+  const [date, setDate] = useState(() => kosovoDateForPicker());
   const [currentTime, setCurrentTime] = useState(new Date());
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [time, setTime] = useState('');
@@ -96,9 +94,12 @@ export default function BookAppointmentScreen() {
   const [loadingServices, setLoadingServices] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [bookingComplete, setBookingComplete] = useState(false);
+  const [openSelect, setOpenSelect] = useState<'services' | 'location' | null>(null);
+  const [selectSearch, setSelectSearch] = useState('');
   const successOpacity = useRef(new Animated.Value(0)).current;
   const successScale = useRef(new Animated.Value(0.86)).current;
   const redirectTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const scrollRef = useRef<ScrollView>(null);
 
   useEffect(() => {
     setName(profile?.full_name ?? '');
@@ -123,12 +124,13 @@ export default function BookAppointmentScreen() {
           .from('services')
           .select('id, name, price, duration, is_on_sale, sale_price')
           .eq('is_active', true)
-          .order('created_at', { ascending: true }),
+          .order('created_at', { ascending: true })
+          .order('id', { ascending: true }),
         supabase.from('content').select('value').eq('key', 'service_order').maybeSingle(),
       ]);
 
       if (error) Alert.alert('Shërbimet nuk u ngarkuan', error.message);
-      const orderedIds = ((orderData?.value as ServiceOrderContent | null)?.orderedIds || []).filter(Boolean);
+      const orderedIds = getOrderedCatalogIds(orderData?.value);
       setServices(orderByIdList((data as Service[] | null) ?? [], orderedIds));
       setLoadingServices(false);
     };
@@ -136,8 +138,11 @@ export default function BookAppointmentScreen() {
     void loadServices();
   }, []);
 
-  const selectedDate = useMemo(() => dateValue(date), [date]);
-  const minimumDate = useMemo(() => startOfDay(currentTime), [currentTime]);
+  const selectedDate = useMemo(() => formatLocalDateOnly(date), [date]);
+  const minimumDate = useMemo(
+    () => kosovoDateForPicker(currentTime),
+    [currentTime]
+  );
 
   const loadBookedTimes = useCallback(async () => {
     if (!location) {
@@ -146,17 +151,18 @@ export default function BookAppointmentScreen() {
     }
 
     setLoadingTimes(true);
-    const { data } = await supabase
-      .from('appointments')
-      .select('appointment_time')
-      .eq('appointment_date', selectedDate)
-      .eq('location', location)
-      .eq('status', 'upcoming')
-      .eq('archived', false);
+    const { data, error } = await supabase.rpc('get_booked_appointment_times', {
+      p_date: selectedDate,
+      p_location: location,
+    });
+
+    if (error) {
+      console.warn('Booked appointment times could not be loaded', error);
+    }
 
     setBookedTimes(
-      ((data ?? []) as { appointment_time: string }[]).map((item) =>
-        String(item.appointment_time).substring(0, 5)
+      ((data ?? []) as { booked_time: string }[]).map((item) =>
+        String(item.booked_time).substring(0, 5)
       )
     );
     setLoadingTimes(false);
@@ -197,7 +203,7 @@ export default function BookAppointmentScreen() {
 
   const selectedServiceName = selectedServices.map((item) => item.name).join(', ');
   const selectedTreatmentPayload = selectedServices.map((item) => {
-    const price = item.is_on_sale && item.sale_price ? item.sale_price : item.price;
+    const price = getEffectiveServicePrice(item);
     return {
       id: item.id,
       name: item.name,
@@ -208,6 +214,37 @@ export default function BookAppointmentScreen() {
   });
   const selectedTotal = selectedTreatmentPayload.reduce((sum, item) => sum + Number(item.total || 0), 0);
   const selectedDuration = selectedServices.reduce((sum, item) => sum + Number(item.duration || 0), 0);
+  const normalizedSearch = selectSearch.trim().toLocaleLowerCase('sq-AL');
+  const filteredServices = services.filter((item) => item.name.toLocaleLowerCase('sq-AL').includes(normalizedSearch));
+  const filteredLocations = LOCATIONS.filter((item) => item.toLocaleLowerCase('sq-AL').includes(normalizedSearch));
+  const showSelect = (type: 'services' | 'location') => {
+    setSelectSearch('');
+    setOpenSelect(type);
+  };
+
+  const applySelectedDate = (value?: Date) => {
+    if (!value) return;
+    setDate(value < minimumDate ? minimumDate : value);
+    setTime('');
+  };
+
+  const openDatePicker = () => {
+    Keyboard.dismiss();
+    if (Platform.OS === 'android') {
+      DateTimePickerAndroid.open({
+        value: date,
+        mode: 'date',
+        minimumDate,
+        onChange: (_, value) => applySelectedDate(value),
+      });
+      return;
+    }
+    setShowDatePicker(true);
+  };
+
+  const revealContactFields = () => {
+    setTimeout(() => scrollRef.current?.scrollToEnd({ animated: true }), 120);
+  };
 
   const submit = async () => {
     if (!selectedServices.length || !location || !time || !name.trim() || !phone.trim()) {
@@ -220,7 +257,7 @@ export default function BookAppointmentScreen() {
       return;
     }
 
-    if (selectedDate < dateValue(currentTime)) {
+    if (selectedDate < formatKosovoDateOnly(currentTime)) {
       Alert.alert('Datë e pavlefshme', 'Ju lutemi zgjidhni një datë nga sot e tutje.');
       return;
     }
@@ -234,20 +271,50 @@ export default function BookAppointmentScreen() {
     setSubmitting(true);
     try {
       await loadBookedTimes();
-      const { data: occupiedRows } = await supabase
-        .from('appointments')
-        .select('id')
-        .eq('appointment_date', selectedDate)
-        .eq('appointment_time', time)
-        .eq('location', location)
-        .eq('status', 'upcoming')
-        .eq('archived', false)
-        .limit(1);
+      const { data: occupiedRows, error: availabilityError } = await supabase.rpc(
+        'get_booked_appointment_times',
+        { p_date: selectedDate, p_location: location }
+      );
+      if (availabilityError) throw new Error(availabilityError.message);
 
-      if (occupiedRows?.length) {
+      const occupied = ((occupiedRows ?? []) as { booked_time: string }[]).some(
+        (item) => String(item.booked_time).substring(0, 5) === time.substring(0, 5)
+      );
+      if (occupied) {
         setTime('');
         throw new Error('Kjo orë sapo u rezervua nga dikush tjetër. Ju lutemi zgjidhni një orë tjetër.');
       }
+
+      const selectedServiceIds = selectedServices.map((service) => service.id);
+      const { data: liveServiceRows, error: liveServicesError } = await supabase
+        .from('services')
+        .select('id, name, price, duration, is_on_sale, sale_price')
+        .in('id', selectedServiceIds)
+        .eq('is_active', true);
+
+      if (liveServicesError) throw new Error(liveServicesError.message);
+
+      const liveServicesById = new Map(
+        ((liveServiceRows as Service[] | null) ?? []).map((service) => [service.id, service])
+      );
+      const unavailableService = selectedServiceIds.some((id) => !liveServicesById.has(id));
+      if (unavailableService) {
+        throw new Error('Një nga shërbimet e zgjedhura nuk është më aktiv.');
+      }
+
+      const liveSelectedServices = selectedServiceIds.map((id) => liveServicesById.get(id)!);
+      const liveSelectedServiceName = liveSelectedServices.map((service) => service.name).join(', ');
+      const liveSelectedTreatmentPayload = liveSelectedServices.map((service) => {
+        const price = getEffectiveServicePrice(service);
+        return {
+          id: service.id,
+          name: service.name,
+          price,
+          qty: 1,
+          duration: service.duration,
+          total: price,
+        };
+      });
 
       const { data: sessionData } = await supabase.auth.getSession();
       const accessToken = sessionData.session?.access_token;
@@ -260,7 +327,7 @@ export default function BookAppointmentScreen() {
           Authorization: `Bearer ${accessToken}`,
         },
         body: JSON.stringify({
-          service: selectedServiceName,
+          service: liveSelectedServiceName,
           location,
           appointment_date: selectedDate,
           appointment_time: time,
@@ -275,16 +342,22 @@ export default function BookAppointmentScreen() {
       if (!response.ok) throw new Error(result.error || 'Termini nuk mund të krijohej.');
 
       if (result.appointmentId) {
-        await supabase
+        const { error: treatmentSnapshotError } = await supabase
           .from('appointments')
-          .update({ selected_treatments: selectedTreatmentPayload })
+          .update({ selected_treatments: liveSelectedTreatmentPayload })
           .eq('id', result.appointmentId)
           .eq('user_id', user?.id ?? '');
+
+        if (treatmentSnapshotError) {
+          // The appointment itself already exists. Keep the successful booking flow;
+          // register-visit can reconstruct all selections from the service names.
+          console.warn('Appointment treatment snapshot update failed', treatmentSnapshotError);
+        }
       }
 
       void notifyStaffAppointmentChange('created', {
         id: result.appointmentId,
-        service: selectedServiceName,
+        service: liveSelectedServiceName,
         client_name: name.trim(),
         appointment_date: selectedDate,
         appointment_time: time,
@@ -323,9 +396,12 @@ export default function BookAppointmentScreen() {
   return (
     <>
       <ScrollView
+        ref={scrollRef}
         style={{ backgroundColor: Colors.background }}
         contentContainerStyle={styles.content}
-        keyboardShouldPersistTaps="handled"
+        keyboardShouldPersistTaps="always"
+        keyboardDismissMode={Platform.OS === 'ios' ? 'interactive' : 'on-drag'}
+        onTouchStart={Keyboard.dismiss}
       >
         <Pressable style={styles.back} onPress={() => router.back()}>
           <Ionicons name="arrow-back" size={19} color={Colors.primary} />
@@ -342,41 +418,15 @@ export default function BookAppointmentScreen() {
       {loadingServices ? (
         <ActivityIndicator color={Colors.primary} style={styles.loader} />
       ) : (
-        <View style={styles.grid}>
-          {services.map((item) => {
-            const selected = selectedServices.some((service) => service.id === item.id);
-            const price = item.is_on_sale && item.sale_price ? item.sale_price : item.price;
-            return (
-              <Pressable
-                key={item.id}
-                onPress={() => toggleService(item)}
-                style={[
-                  styles.choice,
-                  {
-                    backgroundColor: selected ? Colors.primarySoft : Colors.card,
-                    borderColor: selected ? Colors.primary : Colors.border,
-                  },
-                ]}
-              >
-                <View style={styles.choiceTop}>
-                  <Text style={[styles.choiceTitle, { color: Colors.text }]}>{item.name}</Text>
-                  <View
-                    style={[
-                      styles.checkCircle,
-                      {
-                        backgroundColor: selected ? Colors.primary : Colors.surface,
-                        borderColor: selected ? Colors.primary : Colors.border,
-                      },
-                    ]}
-                  >
-                    {selected && <Ionicons name="checkmark" size={15} color={Colors.onPrimary} />}
-                  </View>
-                </View>
-                <Text style={[styles.choiceMeta, { color: Colors.muted }]}>{item.duration} min · {price} EUR</Text>
-              </Pressable>
-            );
-          })}
-        </View>
+        <Pressable
+          onPress={() => showSelect('services')}
+          style={[styles.selectField, { backgroundColor: Colors.card, borderColor: Colors.border }]}
+        >
+          <Text numberOfLines={1} style={[styles.selectText, { color: selectedServices.length ? Colors.text : Colors.muted }]}>
+            {selectedServices.length ? `${selectedServices.length} shërbime të zgjedhura` : 'Zgjidhni shërbimet'}
+          </Text>
+          <Ionicons name="chevron-down" size={20} color={Colors.primary} />
+        </Pressable>
       )}
       {!!selectedServices.length && (
         <PremiumCard style={styles.summaryCard}>
@@ -389,35 +439,25 @@ export default function BookAppointmentScreen() {
       )}
 
       <SectionTitle title="2. Zgjidhni lokacionin" />
-      <View style={styles.row}>
-        {LOCATIONS.map((item) => (
-          <ChoicePill key={item} label={item} selected={location === item} onPress={() => setLocation(item)} />
-        ))}
-      </View>
+      <Pressable
+        onPress={() => showSelect('location')}
+        style={[styles.selectField, { backgroundColor: Colors.card, borderColor: Colors.border }]}
+      >
+        <Text style={[styles.selectText, { color: location ? Colors.text : Colors.muted }]}>
+          {location || 'Zgjidhni lokacionin'}
+        </Text>
+        <Ionicons name="chevron-down" size={20} color={Colors.primary} />
+      </Pressable>
 
       <SectionTitle title="3. Zgjidhni datën dhe orën" />
       <PremiumCard style={styles.cardGap}>
         <Pressable
           style={[styles.dateButton, { borderColor: Colors.border }]}
-          onPress={() => setShowDatePicker(true)}
+          onPress={openDatePicker}
         >
           <Ionicons name="calendar-outline" size={19} color={Colors.primary} />
           <Text style={[styles.dateText, { color: Colors.text }]}>{selectedDate}</Text>
         </Pressable>
-        {showDatePicker && (
-          <DateTimePicker
-            value={date}
-            mode="date"
-            minimumDate={minimumDate}
-            onChange={(_, value) => {
-              if (Platform.OS !== 'ios') setShowDatePicker(false);
-              if (value) {
-                setDate(value < minimumDate ? minimumDate : value);
-                setTime('');
-              }
-            }}
-          />
-        )}
         <View style={styles.timeGrid}>
           {loadingTimes && <ActivityIndicator color={Colors.primary} style={styles.timeLoader} />}
           {TIME_SLOTS.map((slot) => {
@@ -452,6 +492,7 @@ export default function BookAppointmentScreen() {
         <TextInput
           value={name}
           onChangeText={setName}
+          onFocus={revealContactFields}
           placeholder="Emri dhe mbiemri"
           placeholderTextColor={Colors.muted}
           style={[styles.input, { color: Colors.text, borderColor: Colors.border, backgroundColor: Colors.surface }]}
@@ -459,6 +500,7 @@ export default function BookAppointmentScreen() {
         <TextInput
           value={phone}
           onChangeText={setPhone}
+          onFocus={revealContactFields}
           keyboardType="phone-pad"
           placeholder="Numri i telefonit"
           placeholderTextColor={Colors.muted}
@@ -475,6 +517,113 @@ export default function BookAppointmentScreen() {
       </Pressable>
 
       </ScrollView>
+
+      <Modal
+        visible={Platform.OS === 'ios' && showDatePicker}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setShowDatePicker(false)}
+      >
+        <Pressable style={styles.modalBackdrop} onPress={() => setShowDatePicker(false)}>
+          <Pressable
+            onPress={(event) => event.stopPropagation()}
+            style={[styles.dateModal, { backgroundColor: Colors.card, borderColor: Colors.border }]}
+          >
+            <View style={styles.modalHeader}>
+              <View>
+                <Text style={[styles.modalEyebrow, { color: Colors.primary }]}>ZGJIDHNI</Text>
+                <Text style={[styles.modalTitle, { color: Colors.text }]}>{capitalizedMonthAndYear(date)}</Text>
+              </View>
+              <Pressable onPress={() => setShowDatePicker(false)} style={[styles.modalClose, { backgroundColor: Colors.surface }]}>
+                <Ionicons name="close" size={22} color={Colors.text} />
+              </Pressable>
+            </View>
+            <DateTimePicker
+              locale="sq-AL"
+              value={date}
+              mode="date"
+              display="inline"
+              themeVariant={theme}
+              accentColor={Colors.primary}
+              minimumDate={minimumDate}
+              onChange={(_, value) => applySelectedDate(value)}
+              style={styles.iosDatePicker}
+            />
+            <Pressable onPress={() => setShowDatePicker(false)} style={[styles.modalDone, { backgroundColor: Colors.primary }]}>
+              <Text style={[styles.modalDoneText, { color: Colors.onPrimary }]}>Mbyll</Text>
+            </Pressable>
+          </Pressable>
+        </Pressable>
+      </Modal>
+
+      <Modal visible={openSelect !== null} transparent animationType="fade" onRequestClose={() => setOpenSelect(null)}>
+        <Pressable style={styles.modalBackdrop} onPress={() => setOpenSelect(null)}>
+          <Pressable
+            onPress={(event) => event.stopPropagation()}
+            style={[styles.selectModal, { backgroundColor: Colors.card, borderColor: Colors.border }]}
+          >
+            <View style={styles.modalHeader}>
+              <View>
+                <Text style={[styles.modalEyebrow, { color: Colors.primary }]}>ZGJIDHNI</Text>
+                <Text style={[styles.modalTitle, { color: Colors.text }]}>
+                  {openSelect === 'services' ? 'Shërbimet' : 'Lokacionin'}
+                </Text>
+              </View>
+              <Pressable onPress={() => setOpenSelect(null)} style={[styles.modalClose, { backgroundColor: Colors.surface }]}>
+                <Ionicons name="close" size={22} color={Colors.text} />
+              </Pressable>
+            </View>
+            <View style={[styles.searchWrap, { backgroundColor: Colors.surface, borderColor: Colors.border }]}>
+              <Ionicons name="search-outline" size={19} color={Colors.muted} />
+              <TextInput
+                value={selectSearch}
+                onChangeText={setSelectSearch}
+                placeholder={openSelect === 'services' ? 'Kërko shërbimin' : 'Kërko lokacionin'}
+                placeholderTextColor={Colors.muted}
+                autoCorrect={false}
+                style={[styles.searchInput, { color: Colors.text }]}
+              />
+            </View>
+            <ScrollView style={styles.optionsScroll} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
+              {openSelect === 'services' && filteredServices.map((item) => {
+                const selected = selectedServices.some((service) => service.id === item.id);
+                const price = getEffectiveServicePrice(item);
+                return (
+                  <Pressable
+                    key={item.id}
+                    onPress={() => toggleService(item)}
+                    style={[styles.optionRow, { backgroundColor: selected ? Colors.primarySoft : Colors.surface, borderColor: selected ? Colors.primary : Colors.border }]}
+                  >
+                    <View style={styles.optionCopy}>
+                      <Text style={[styles.optionText, { color: selected ? Colors.primary : Colors.text }]}>{item.name}</Text>
+                      <Text style={[styles.optionMeta, { color: Colors.muted }]}>{item.duration} min · {price} EUR</Text>
+                    </View>
+                    <Ionicons name={selected ? 'checkmark-circle' : 'ellipse-outline'} size={22} color={selected ? Colors.primary : Colors.muted} />
+                  </Pressable>
+                );
+              })}
+              {openSelect === 'location' && filteredLocations.map((item) => (
+                <Pressable
+                  key={item}
+                  onPress={() => { setLocation(item); setTime(''); setOpenSelect(null); }}
+                  style={[styles.optionRow, { backgroundColor: location === item ? Colors.primarySoft : Colors.surface, borderColor: location === item ? Colors.primary : Colors.border }]}
+                >
+                  <Text style={[styles.optionText, { color: location === item ? Colors.primary : Colors.text }]}>{item}</Text>
+                  {location === item && <Ionicons name="checkmark-circle" size={22} color={Colors.primary} />}
+                </Pressable>
+              ))}
+              {((openSelect === 'services' && filteredServices.length === 0) || (openSelect === 'location' && filteredLocations.length === 0)) && (
+                <Text style={[styles.noResults, { color: Colors.muted }]}>Nuk u gjet asnjë rezultat.</Text>
+              )}
+            </ScrollView>
+            {openSelect === 'services' && (
+              <Pressable onPress={() => setOpenSelect(null)} style={[styles.modalDone, { backgroundColor: Colors.primary }]}>
+                <Text style={[styles.modalDoneText, { color: Colors.onPrimary }]}>Mbyll ({selectedServices.length})</Text>
+              </Pressable>
+            )}
+          </Pressable>
+        </Pressable>
+      </Modal>
 
       <Modal visible={bookingComplete} transparent animationType="none">
         <Animated.View
@@ -527,6 +676,8 @@ const styles = StyleSheet.create({
   back: { flexDirection: 'row', alignItems: 'center', gap: 7, marginBottom: 18 },
   backText: { fontSize: 14, fontWeight: '700' },
   sectionTitle: { fontSize: 18, fontWeight: '800', marginTop: 12, marginBottom: 12 },
+  selectField: { minHeight: 54, borderWidth: 1, borderRadius: 14, paddingHorizontal: 15, flexDirection: 'row', alignItems: 'center', gap: 10 },
+  selectText: { flex: 1, fontSize: 15, fontWeight: '700' },
   loader: { marginVertical: 24 },
   grid: { gap: 10 },
   choice: { borderWidth: 1, borderRadius: 16, padding: 16 },
@@ -589,4 +740,22 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     marginTop: 6,
   },
+  modalBackdrop: { flex: 1, backgroundColor: 'rgba(15,13,10,0.6)', justifyContent: 'center', padding: 20 },
+  selectModal: { width: '100%', maxWidth: 480, maxHeight: '76%', alignSelf: 'center', borderWidth: 1, borderRadius: 24, padding: 18 },
+  dateModal: { width: '100%', maxWidth: 420, alignSelf: 'center', borderWidth: 1, borderRadius: 24, padding: 18 },
+  iosDatePicker: { alignSelf: 'center', width: '100%' },
+  modalHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 15 },
+  modalEyebrow: { fontSize: 10, fontWeight: '900', letterSpacing: 1.2 },
+  modalTitle: { marginTop: 3, fontSize: 23, fontWeight: '900' },
+  modalClose: { width: 42, height: 42, borderRadius: 21, alignItems: 'center', justifyContent: 'center' },
+  searchWrap: { minHeight: 48, borderWidth: 1, borderRadius: 14, paddingHorizontal: 13, marginBottom: 12, flexDirection: 'row', alignItems: 'center', gap: 9 },
+  searchInput: { flex: 1, fontSize: 14, paddingVertical: 10 },
+  optionsScroll: { flexGrow: 0 },
+  optionRow: { minHeight: 52, borderWidth: 1, borderRadius: 14, paddingHorizontal: 14, paddingVertical: 10, marginBottom: 9, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12 },
+  optionCopy: { flex: 1 },
+  optionText: { fontSize: 14, fontWeight: '800' },
+  optionMeta: { fontSize: 12, marginTop: 4 },
+  noResults: { paddingVertical: 24, textAlign: 'center', fontSize: 14, fontWeight: '700' },
+  modalDone: { minHeight: 50, borderRadius: 14, alignItems: 'center', justifyContent: 'center', marginTop: 4 },
+  modalDoneText: { fontSize: 15, fontWeight: '900' },
 });

@@ -60,7 +60,6 @@ export default function SignUpScreen() {
   const [phonePrefixIndex, setPhonePrefixIndex] = useState(0);
   const [city, setCity] = useState(COUNTRIES[0].cities[0]);
   const [openSelector, setOpenSelector] = useState<'country' | 'city' | 'prefix' | null>(null);
-  const [accessCode, setAccessCode] = useState('');
   const [loading, setLoading] = useState(false);
 
   const { theme } = useTheme();
@@ -70,7 +69,6 @@ export default function SignUpScreen() {
     const cleanEmail = email.toLowerCase().trim();
     const cleanName = fullName.trim();
     const cleanPhone = phone.trim();
-    const cleanCode = accessCode.trim();
     const country = COUNTRIES[countryIndex];
     const phonePrefix = COUNTRIES[phonePrefixIndex];
 
@@ -87,26 +85,6 @@ export default function SignUpScreen() {
     setLoading(true);
 
     try {
-      let codeData: { id: string } | null = null;
-
-      if (cleanCode) {
-        const { data, error: codeError } = await supabase
-          .from('access_codes')
-          .select('id')
-          .eq('code', cleanCode)
-          .eq('role', 'staff')
-          .eq('used', false)
-          .maybeSingle();
-
-        if (codeError || !data) {
-          Alert.alert('Kodi nuk vlen', 'Kodi i qasjes nuk është i saktë ose është përdorur tashmë.');
-          return;
-        }
-
-        codeData = data;
-      }
-
-      const nextRole = codeData ? 'staff' : 'client';
 
       const { data: signUpData, error: signUpError } =
         await supabase.auth.signUp({
@@ -119,7 +97,7 @@ export default function SignUpScreen() {
               country: country.name,
               city,
               phone_country_code: phonePrefix.dialCode,
-              role: nextRole,
+              role: 'client',
             },
           },
         });
@@ -139,28 +117,9 @@ export default function SignUpScreen() {
         return;
       }
 
-      if (codeData) {
-        const { error: codeUpdateError } = await supabase
-          .from('access_codes')
-          .update({ used: true })
-          .eq('id', codeData.id)
-          .eq('used', false);
-
-        if (codeUpdateError) {
-          Alert.alert('Gabim me kodin e qasjes', codeUpdateError.message);
-          return;
-        }
-
-        await supabase.from('audit_logs').insert({
-          actor_id: signUpData.user.id,
-          action: 'USE_ACCESS_CODE',
-          target_id: codeData.id,
-        });
-      }
-
       void sendWelcomeEmail(signUpData.session.access_token);
-      Alert.alert('Sukses', nextRole === 'client' ? 'Llogaria e klientit u krijua me sukses.' : 'Llogaria e stafit u krijua me sukses.');
-      router.replace(nextRole === 'client' ? '/client' : '/(tabs)');
+      Alert.alert('Sukses', 'Llogaria e klientit u krijua me sukses.');
+      router.replace('/client');
     } catch (err) {
       console.error(err);
       Alert.alert('Gabim', 'Diçka shkoi keq. Ju lutemi provoni përsëri.');
@@ -192,7 +151,7 @@ export default function SignUpScreen() {
               Krijoni llogari
             </Text>
             <Text style={[styles.subtitle, { color: Colors.muted }]}>
-              Krijoni llogari klienti ose vendosni kodin e qasjes për staf
+              Krijoni llogari klienti për të rezervuar dhe menaxhuar vizitat tuaja
             </Text>
           </View>
 
@@ -292,24 +251,6 @@ export default function SignUpScreen() {
               onChangeText={setConfirmPassword}
               returnKeyType="next"
               style={[styles.input, { backgroundColor: Colors.background, color: Colors.text, borderColor: Colors.primary }]}
-            />
-
-            <TextInput
-              placeholder="Kodi 5-shifror i stafit (opsional)"
-              placeholderTextColor={Colors.muted}
-              keyboardType="number-pad"
-              maxLength={5}
-              value={accessCode}
-              onChangeText={setAccessCode}
-              returnKeyType="done"
-              style={[
-                styles.input,
-                {
-                  backgroundColor: Colors.background,
-                  color: Colors.text,
-                  borderColor: Colors.primary,
-                },
-              ]}
             />
 
             <Pressable

@@ -2,7 +2,7 @@
   "expo": {
     "name": "My Fresh Look",
     "slug": "freshlook-app",
-    "version": "2.0",
+    "version": "2.3",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
     "scheme": "freshlookapp",
@@ -16,7 +16,7 @@
     "ios": {
       "supportsTablet": false,
       "bundleIdentifier": "com.freshlook.staff",
-      "buildNumber": "2",
+      "buildNumber": "1",
       "infoPlist": {
         "CFBundleDisplayName": "My Fresh Look",
         "CFBundleName": "My Fresh Look",
@@ -27,6 +27,7 @@
     },
     "android": {
       "package": "com.freshlook.staff",
+      "softwareKeyboardLayoutMode": "resize",
       "permissions": [
         "CAMERA"
       ],
@@ -62,7 +63,8 @@
       [
         "expo-camera",
         {
-          "cameraPermission": "My Fresh Look përdor kamerën për të skanuar kodet QR të shpërblimeve në sallon."
+          "cameraPermission": "My Fresh Look përdor kamerën për të skanuar kodet QR të shpërblimeve në sallon.",
+          "recordAudioAndroid": false
         }
       ],
       "expo-font",

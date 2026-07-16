@@ -19,22 +19,32 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
   const [theme, setTheme] = useState<ThemeMode>('light');
 
   useEffect(() => {
+    let active = true;
+
     const loadTheme = async () => {
-      const saved = await AsyncStorage.getItem('theme');
-      if (saved === 'light' || saved === 'dark') {
-        setTheme(saved);
-      } else {
-        setTheme(systemTheme);
+      try {
+        const saved = await AsyncStorage.getItem('theme');
+        if (!active) return;
+        setTheme(saved === 'light' || saved === 'dark' ? saved : systemTheme);
+      } catch {
+        if (active) setTheme(systemTheme);
       }
     };
 
-    loadTheme();
+    void loadTheme();
+    return () => {
+      active = false;
+    };
   }, [systemTheme]);
 
   const toggleTheme = async () => {
     const nextTheme = theme === 'light' ? 'dark' : 'light';
     setTheme(nextTheme);
-    await AsyncStorage.setItem('theme', nextTheme);
+    try {
+      await AsyncStorage.setItem('theme', nextTheme);
+    } catch (error) {
+      console.warn('Theme preference could not be saved', error);
+    }
   };
 
   return (

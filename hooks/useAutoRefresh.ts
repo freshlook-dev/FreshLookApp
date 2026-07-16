@@ -32,6 +32,12 @@ export function useAutoRefresh(
   const refreshRef = useRef(refresh);
   const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
+  const clearScheduledRefresh = useCallback(() => {
+    if (!timeoutRef.current) return;
+    clearTimeout(timeoutRef.current);
+    timeoutRef.current = null;
+  }, []);
+
   useEffect(() => {
     refreshRef.current = refresh;
   }, [refresh]);
@@ -50,14 +56,22 @@ export function useAutoRefresh(
   const scheduleRefresh = useCallback(() => {
     if (!enabled) return;
 
-    if (timeoutRef.current) {
-      clearTimeout(timeoutRef.current);
-    }
+    clearScheduledRefresh();
 
     timeoutRef.current = setTimeout(() => {
-      refreshRef.current();
+      timeoutRef.current = null;
+      void Promise.resolve()
+        .then(() => refreshRef.current())
+        .catch((error: unknown) => {
+          console.warn('Automatic refresh failed', error);
+        });
     }, debounceMs);
-  }, [debounceMs, enabled]);
+  }, [clearScheduledRefresh, debounceMs, enabled]);
+
+  useEffect(() => {
+    if (!enabled) clearScheduledRefresh();
+    return clearScheduledRefresh;
+  }, [clearScheduledRefresh, enabled]);
 
   useEffect(() => {
     if (!enabled) return;

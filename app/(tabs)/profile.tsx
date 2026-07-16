@@ -704,6 +704,12 @@ export default function ProfileTab() {
             onPress={() => router.push('../(tabs)/manage-appointments')}
           />
           <ProfileRow
+            title="Menaxho shërbimet"
+            subtitle="Shto, ndrysho ose fshi trajtimet."
+            colors={Colors}
+            onPress={() => router.push('../(tabs)/manage-services')}
+          />
+          <ProfileRow
             title="Log-et e auditimit"
             subtitle="Shiko ndryshimet e rëndësishme në sistem."
             colors={Colors}

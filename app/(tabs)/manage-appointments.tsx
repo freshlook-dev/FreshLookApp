@@ -21,6 +21,7 @@ import { notifyStaffAppointmentChange } from '../../utils/appointmentStaffNotifi
 import { useTheme } from '../../context/ThemeContext';
 import { LightColors, DarkColors } from '../../constants/colors';
 import { useAutoRefresh } from '../../hooks/useAutoRefresh';
+import { formatDate } from '../../utils/format';
 
 type Role = 'owner' | 'manager' | 'staff';
 
@@ -44,13 +45,6 @@ type Appointment = {
   archived: boolean;
   created_by: string | null;
   creator_name: string | null;
-};
-
-const formatDate = (date: string) => {
-  const d = new Date(date);
-  return `${String(d.getDate()).padStart(2, '0')}.${String(
-    d.getMonth() + 1
-  ).padStart(2, '0')}.${d.getFullYear()}`;
 };
 
 const formatTime = (time: string) => time.slice(0, 5);
@@ -181,13 +175,41 @@ export default function ManageAppointmentsScreen() {
 
     setSavingId(appointment.id);
 
-    const { error } = await supabase
+    const { data: currentAssignee, error: assigneeError } = await supabase
+      .from('profiles')
+      .select('id')
+      .eq('id', nextUser.id)
+      .in('role', ['owner', 'manager', 'staff'])
+      .or('is_active.is.null,is_active.eq.true')
+      .maybeSingle();
+
+    if (assigneeError || !currentAssignee) {
+      Alert.alert(
+        'Gabim',
+        assigneeError?.message ?? 'Perdoruesi nuk eshte me aktiv.'
+      );
+      setSavingId(null);
+      return;
+    }
+
+    let updateQuery = supabase
       .from('appointments')
       .update({ created_by: nextUser.id })
       .eq('id', appointment.id);
 
-    if (error) {
-      Alert.alert('Gabim', error.message);
+    updateQuery = appointment.created_by == null
+      ? updateQuery.is('created_by', null)
+      : updateQuery.eq('created_by', appointment.created_by);
+
+    const { data: updatedAppointment, error } = await updateQuery
+      .select('id')
+      .maybeSingle();
+
+    if (error || !updatedAppointment) {
+      Alert.alert(
+        'Gabim',
+        error?.message ?? 'Termini ka ndryshuar. Rifreskoni dhe provoni perseri.'
+      );
       setSavingId(null);
       return;
     }

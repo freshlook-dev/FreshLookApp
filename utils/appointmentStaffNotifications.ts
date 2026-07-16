@@ -17,13 +17,17 @@ export async function notifyStaffAppointmentChange(
   appointment: AppointmentPayload
 ) {
   try {
-    await supabase.functions.invoke('send-push-notification', {
+    const { data, error } = await supabase.functions.invoke('send-push-notification', {
       body: {
         mode: 'appointment_event',
         event,
         appointment,
       },
     });
+
+    if (error || data?.error) {
+      throw error ?? new Error(String(data.error));
+    }
   } catch (error) {
     console.warn('Staff appointment notification failed', error);
   }

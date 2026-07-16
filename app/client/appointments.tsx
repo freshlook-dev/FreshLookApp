@@ -21,6 +21,13 @@ import { formatDate, formatTime } from '../../utils/format';
 import { notifyStaffAppointmentChange } from '../../utils/appointmentStaffNotifications';
 import { syncClientAppointmentReminders } from '../../utils/appointmentReminders';
 import {
+  formatKosovoDateOnly,
+  formatLocalDateOnly,
+  isKosovoSlotAtLeastMinutesAway,
+  kosovoDateForPicker,
+  parseLocalDateOnly,
+} from '../../utils/dateTime';
+import {
   EmptyState,
   PremiumCard,
   ScreenHeader,
@@ -44,20 +51,15 @@ type VisitTab = 'upcoming' | 'history';
 
 const ACTIVE_VISIT_STATUSES = new Set(['upcoming', 'scheduled', 'pending']);
 const LOCATIONS = ['Prishtinë', 'Fushë Kosovë'];
-const TIME_SLOTS = ['09:00', '10:00', '11:00', '12:00', '13:00', '14:00', '15:00', '16:00', '17:00'];
+const TIME_SLOTS = [
+  '10:00', '10:30', '11:00', '11:30', '12:00', '12:30', '13:00', '13:30',
+  '14:00', '14:30', '15:00', '15:30', '16:00', '16:30', '17:00', '17:30',
+  '18:00', '18:30', '19:00', '19:30', '20:00',
+];
 const DANGER = '#DC2626';
 
-function localDateValue(value: Date) {
-  const year = value.getFullYear();
-  const month = String(value.getMonth() + 1).padStart(2, '0');
-  const day = String(value.getDate()).padStart(2, '0');
-  return `${year}-${month}-${day}`;
-}
-
 function dateFromValue(value: string | null) {
-  if (!value) return new Date();
-  const date = new Date(`${value}T12:00:00`);
-  return Number.isNaN(date.getTime()) ? new Date() : date;
+  return parseLocalDateOnly(value) ?? kosovoDateForPicker();
 }
 
 function isUpcomingVisit(item: Appointment, today: string) {
@@ -74,7 +76,7 @@ export default function AppointmentsScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [activeTab, setActiveTab] = useState<VisitTab>('upcoming');
   const [editingAppointment, setEditingAppointment] = useState<Appointment | null>(null);
-  const [editDate, setEditDate] = useState(new Date());
+  const [editDate, setEditDate] = useState(() => kosovoDateForPicker());
   const [editLocation, setEditLocation] = useState('');
   const [editTime, setEditTime] = useState('');
   const [editComment, setEditComment] = useState('');
@@ -99,7 +101,7 @@ export default function AppointmentsScreen() {
     setLoading(false);
   }, [user?.id]);
 
-  const editDateValue = useMemo(() => localDateValue(editDate), [editDate]);
+  const editDateValue = useMemo(() => formatLocalDateOnly(editDate), [editDate]);
 
   const loadBookedTimes = useCallback(async () => {
     if (!editLocation || !editingAppointment) {
@@ -134,7 +136,7 @@ export default function AppointmentsScreen() {
   }, [loadBookedTimes]);
 
   const grouped = useMemo(() => {
-    const today = localDateValue(new Date());
+    const today = formatKosovoDateOnly();
     const upcoming = appointments
       .filter((item) => isUpcomingVisit(item, today))
       .sort((a, b) =>
@@ -182,7 +184,7 @@ export default function AppointmentsScreen() {
       return;
     }
 
-    const today = localDateValue(new Date());
+    const today = formatKosovoDateOnly();
     if (editDateValue < today) {
       Alert.alert('Datë e pavlefshme', 'Zgjidhni një datë nga sot e tutje.');
       return;
@@ -190,6 +192,24 @@ export default function AppointmentsScreen() {
 
     if (editDate.getDay() === 0) {
       Alert.alert('Mbyllur të dielën', 'Ju lutemi zgjidhni një datë tjetër.');
+      return;
+    }
+
+    const previousTime = editingAppointment.appointment_time
+      ? String(editingAppointment.appointment_time).substring(0, 5)
+      : '';
+    const scheduleChanged =
+      editDateValue !== editingAppointment.appointment_date ||
+      editTime !== previousTime ||
+      editLocation !== editingAppointment.location;
+    if (
+      scheduleChanged &&
+      !isKosovoSlotAtLeastMinutesAway(editDateValue, editTime, 30)
+    ) {
+      Alert.alert(
+        'Ora nuk është e disponueshme',
+        'Zgjidhni një orë të paktën 30 minuta pas kohës aktuale.'
+      );
       return;
     }
 
@@ -211,7 +231,7 @@ export default function AppointmentsScreen() {
         throw new Error('Kjo orë është e rezervuar. Ju lutemi zgjidhni një orë tjetër.');
       }
 
-      const { error } = await supabase
+      const { data: updatedAppointment, error } = await supabase
         .from('appointments')
         .update({
           appointment_date: editDateValue,
@@ -220,9 +240,16 @@ export default function AppointmentsScreen() {
           comment: editComment.trim() || null,
         })
         .eq('id', editingAppointment.id)
-        .eq('user_id', user.id);
+        .eq('user_id', user.id)
+        .eq('status', 'upcoming')
+        .eq('archived', false)
+        .select('id')
+        .maybeSingle();
 
       if (error) throw error;
+      if (!updatedAppointment) {
+        throw new Error('Termini nuk eshte me i disponueshem per ndryshim.');
+      }
 
       await loadAppointments();
       void notifyStaffAppointmentChange('updated', {
@@ -251,13 +278,20 @@ export default function AppointmentsScreen() {
       if (!editingAppointment || !user?.id) return;
       setCancelingAppointment(true);
       try {
-        const { error } = await supabase
+        const { data: canceledAppointment, error } = await supabase
           .from('appointments')
           .update({ status: 'canceled' })
           .eq('id', editingAppointment.id)
-          .eq('user_id', user.id);
+          .eq('user_id', user.id)
+          .eq('status', 'upcoming')
+          .eq('archived', false)
+          .select('id')
+          .maybeSingle();
 
         if (error) throw error;
+        if (!canceledAppointment) {
+          throw new Error('Termini nuk eshte me i disponueshem per anulim.');
+        }
 
         await loadAppointments();
         void notifyStaffAppointmentChange('canceled', {
@@ -418,9 +452,10 @@ export default function AppointmentsScreen() {
               </Pressable>
               {showEditDatePicker && (
                 <DateTimePicker
+                  locale="sq-AL"
                   value={editDate}
                   mode="date"
-                  minimumDate={new Date()}
+                  minimumDate={kosovoDateForPicker()}
                   onChange={(_, value) => {
                     if (Platform.OS !== 'ios') setShowEditDatePicker(false);
                     if (value) {
@@ -532,7 +567,7 @@ export default function AppointmentsScreen() {
 
 function AppointmentCard({ item, canEdit, onEdit }: { item: Appointment; canEdit: boolean; onEdit: () => void }) {
   const Colors = useClientColors();
-  const dateParts = formatDate(item.appointment_date).split(' ');
+  const dateParts = formatDate(item.appointment_date).split('.');
 
   return (
     <PremiumCard elevated>
@@ -540,7 +575,7 @@ function AppointmentCard({ item, canEdit, onEdit }: { item: Appointment; canEdit
         <View style={[styles.dateTile, { backgroundColor: Colors.primarySoft }]}>
           <Text style={[styles.dateDay, { color: Colors.primary }]}>{dateParts[0] || '--'}</Text>
           <Text style={[styles.dateMonth, { color: Colors.primary }]}>
-            {dateParts.slice(1).join(' ') || 'Vizitë'}
+            {dateParts.slice(1).join('.') || '--'}
           </Text>
         </View>
         <View style={styles.cardHeading}>

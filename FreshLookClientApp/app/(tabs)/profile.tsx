@@ -34,7 +34,7 @@ export default function ProfileScreen() {
       <View style={[styles.card, { backgroundColor: Colors.card, borderColor: Colors.border }]}>
         <Row label="Phone" value={profile?.phone || 'Not added'} />
         <Row label="Fresh Points" value={String(profile?.points ?? 0)} />
-        <Row label="Account" value={profile?.is_active === false ? 'Inactive' : 'Active'} />
+        <Row label="Euro Value" value={`${((profile?.points ?? 0) / 10).toFixed(2)} €`} />
       </View>
 
       <View style={[styles.setting, { backgroundColor: Colors.card, borderColor: Colors.border }]}>

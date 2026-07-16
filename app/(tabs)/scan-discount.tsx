@@ -306,17 +306,26 @@ export default function ScanDiscountScreen() {
 
     if (!qrCode) return null;
 
-    const { data: redemption } = await supabase
+    const { data: redemptionCandidates } = await supabase
       .from('point_redemptions')
       .select(REDEMPTION_SELECT)
       .eq('user_id', qrCode.user_id)
       .eq('points', qrCode.points)
       .eq('status', 'pending')
       .order('created_at', { ascending: false })
-      .limit(1)
-      .maybeSingle();
+      .limit(2);
 
-    return (redemption as Redemption | null) ?? null;
+    const legacyCreatedAt = Date.parse(qrCode.created_at);
+    if (!Number.isFinite(legacyCreatedAt)) return null;
+
+    const linkedCandidates = ((redemptionCandidates ?? []) as Redemption[])
+      .filter((candidate) => {
+        const redemptionCreatedAt = Date.parse(candidate.created_at);
+        return Number.isFinite(redemptionCreatedAt) &&
+          Math.abs(redemptionCreatedAt - legacyCreatedAt) <= 5 * 60 * 1000;
+      });
+
+    return linkedCandidates.length === 1 ? linkedCandidates[0] : null;
   };
 
   const prepareScannedValue = async (value: string) => {
@@ -346,12 +355,6 @@ export default function ScanDiscountScreen() {
     }
 
     if (redemption.expires_at && new Date(redemption.expires_at) < new Date()) {
-      await supabase
-        .from('point_redemptions')
-        .update({ status: 'expired' })
-        .eq('id', redemption.id)
-        .eq('status', 'pending');
-
       setLastRedemption({ ...redemption, status: 'expired' });
       setMessage('Ky QR ka skaduar.');
       setSaving(false);

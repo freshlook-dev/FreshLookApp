@@ -15,6 +15,9 @@ import { EmptyState, useClientColors } from '../../components/ClientUI';
 import { ShopHeader } from '../../components/ShopHeader';
 import { useCart } from '../../context/CartContext';
 import { supabase } from '../../context/supabase';
+import { useAutoRefresh } from '../../hooks/useAutoRefresh';
+import { getCatalogImageUrl } from '../../utils/imageUrl';
+import { getOrderedCatalogIds } from '../../utils/catalog';
 
 type Product = {
   id: string;
@@ -29,10 +32,6 @@ type Product = {
   is_out_of_stock: boolean;
   stock_quantity: number | null;
   stock_online: number | null;
-};
-
-type ProductOrderContent = {
-  orderedIds?: string[];
 };
 
 const orderByIdList = (items: Product[], orderedIds: string[]) => {
@@ -58,20 +57,26 @@ export default function ClientShopScreen() {
     const [{ data: productRows }, { data: orderData }] = await Promise.all([
       supabase
         .from('products')
-        .select('*')
+        .select('id, name, subtitle, description, price, sale_price, is_on_sale, image_url, is_active, is_out_of_stock, stock_quantity, stock_online')
         .eq('is_active', true)
-        .order('created_at', { ascending: true }),
+        .order('created_at', { ascending: true })
+        .order('id', { ascending: true }),
       supabase.from('content').select('value').eq('key', 'product_order').maybeSingle(),
     ]);
 
-    const orderedIds = ((orderData?.value as ProductOrderContent | null)?.orderedIds || []).filter(Boolean);
+    const orderedIds = getOrderedCatalogIds(orderData?.value);
     setProducts(orderByIdList((productRows as Product[] | null) ?? [], orderedIds));
     setLoading(false);
   }, []);
 
   useEffect(() => {
-    loadProducts();
+    void loadProducts();
   }, [loadProducts]);
+
+  useAutoRefresh(loadProducts, {
+    tables: ['products', 'content'],
+    channelName: 'client-products',
+  });
 
   const onRefresh = async () => {
     setRefreshing(true);
@@ -121,7 +126,7 @@ export default function ClientShopScreen() {
           {products.map((product) => {
             const availableOnlineStock = product.stock_online ?? product.stock_quantity ?? 0;
             const isSoldOut = product.is_out_of_stock || availableOnlineStock <= 0;
-            const isSale = product.is_on_sale && !!product.sale_price;
+            const isSale = product.is_on_sale && product.sale_price != null;
             const expandedProduct = expanded === product.id;
 
             return (
@@ -131,7 +136,11 @@ export default function ClientShopScreen() {
               >
                 <View style={[styles.imageWrap, { backgroundColor: Colors.surface }]}>
                   {product.image_url ? (
-                    <Image source={{ uri: product.image_url }} style={[styles.image, isSoldOut && styles.faded]} />
+                    <ProductImage
+                      url={product.image_url}
+                      soldOut={isSoldOut}
+                      fallbackColor={Colors.muted}
+                    />
                   ) : (
                     <Ionicons name="image-outline" size={34} color={Colors.muted} />
                   )}
@@ -197,6 +206,36 @@ export default function ClientShopScreen() {
         </View>
       )}
     </ScrollView>
+  );
+}
+
+function ProductImage({
+  url,
+  soldOut,
+  fallbackColor,
+}: {
+  url: string;
+  soldOut: boolean;
+  fallbackColor: string;
+}) {
+  const optimizedUrl = getCatalogImageUrl(url, 480);
+  const [sourceUrl, setSourceUrl] = useState(optimizedUrl);
+  const [failed, setFailed] = useState(false);
+
+  if (failed) {
+    return <Ionicons name="image-outline" size={34} color={fallbackColor} />;
+  }
+
+  return (
+    <Image
+      source={{ uri: sourceUrl!, cache: 'force-cache' }}
+      style={[styles.image, soldOut && styles.faded]}
+      resizeMode="contain"
+      onError={() => {
+        if (sourceUrl !== url) setSourceUrl(url);
+        else setFailed(true);
+      }}
+    />
   );
 }
 

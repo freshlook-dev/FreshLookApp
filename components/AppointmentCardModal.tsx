@@ -14,6 +14,7 @@ import {
 import { DarkColors, LightColors } from '../constants/colors';
 import { Radius, Spacing } from '../constants/theme';
 import { useTheme } from '../context/ThemeContext';
+import { formatDate } from '../utils/format';
 
 export type AppointmentReceiptData = {
   client_name: string;
@@ -87,7 +88,7 @@ export default function AppointmentCardModal({ visible, onClose, data }: Props) 
           <View style={styles.row}>
             <View style={styles.col}>
               <Text style={[styles.label, { color: Colors.muted }]}>Data</Text>
-              <Text style={[styles.value, { color: Colors.text }]}>{safeData.appointment_date}</Text>
+              <Text style={[styles.value, { color: Colors.text }]}>{formatDate(safeData.appointment_date)}</Text>
             </View>
 
             <View style={styles.col}>

@@ -1,6 +1,7 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
+  Animated,
   Pressable,
   RefreshControl,
   ScrollView,
@@ -14,7 +15,7 @@ import { supabase } from '../../context/supabase';
 import { useAuth } from '../../context/AuthContext';
 import { useTheme } from '../../context/ThemeContext';
 import { DarkColors, LightColors } from '../../constants/colors';
-import { formatDate, formatTime } from '../../utils/format';
+import { formatDate, formatKosovoDateOnly, formatTime } from '../../utils/format';
 
 type Appointment = {
   id: string;
@@ -25,6 +26,36 @@ type Appointment = {
   status: string | null;
 };
 
+function AnimatedPoints({ value, trigger, color }: { value: number; trigger: number; color: string }) {
+  const count = useRef(new Animated.Value(0)).current;
+  const scale = useRef(new Animated.Value(1)).current;
+  const [displayValue, setDisplayValue] = useState(0);
+
+  useEffect(() => {
+    count.stopAnimation();
+    count.setValue(0);
+    scale.setValue(1);
+    setDisplayValue(0);
+    const listener = count.addListener(({ value: current }) => setDisplayValue(Math.round(current)));
+
+    Animated.parallel([
+      Animated.timing(count, { toValue: value, duration: 750, useNativeDriver: false }),
+      Animated.sequence([
+        Animated.timing(scale, { toValue: 1.12, duration: 220, useNativeDriver: true }),
+        Animated.spring(scale, { toValue: 1, friction: 5, tension: 90, useNativeDriver: true }),
+      ]),
+    ]).start();
+
+    return () => count.removeListener(listener);
+  }, [count, scale, value, trigger]);
+
+  return (
+    <Animated.Text style={[styles.points, { color, transform: [{ scale }] }]}>
+      {displayValue}
+    </Animated.Text>
+  );
+}
+
 export default function HomeScreen() {
   const { user, profile, refreshProfile } = useAuth();
   const { theme } = useTheme();
@@ -32,11 +63,12 @@ export default function HomeScreen() {
   const [nextAppointment, setNextAppointment] = useState<Appointment | null>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [pointsAnimationKey, setPointsAnimationKey] = useState(0);
 
   const loadHome = useCallback(async () => {
     if (!user?.id) return;
 
-    const today = new Date().toISOString().slice(0, 10);
+    const today = formatKosovoDateOnly();
     const { data } = await supabase
       .from('appointments')
       .select('id, service, appointment_date, appointment_time, location, status')
@@ -59,6 +91,7 @@ export default function HomeScreen() {
   const onRefresh = async () => {
     setRefreshing(true);
     await Promise.all([loadHome(), refreshProfile()]);
+    setPointsAnimationKey((current) => current + 1);
     setRefreshing(false);
   };
 
@@ -66,7 +99,16 @@ export default function HomeScreen() {
     <ScrollView
       style={{ backgroundColor: Colors.background }}
       contentContainerStyle={styles.content}
-      refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
+      alwaysBounceVertical
+      showsVerticalScrollIndicator={false}
+      refreshControl={
+        <RefreshControl
+          refreshing={refreshing}
+          onRefresh={onRefresh}
+          tintColor={Colors.primary}
+          colors={[Colors.primary]}
+        />
+      }
     >
       <View style={styles.header}>
         <Text style={[styles.eyebrow, { color: Colors.primary }]}>FreshLook</Text>
@@ -81,7 +123,14 @@ export default function HomeScreen() {
       <View style={[styles.pointsCard, { backgroundColor: Colors.card, borderColor: Colors.border }]}>
         <View>
           <Text style={[styles.cardLabel, { color: Colors.muted }]}>Fresh Points</Text>
-          <Text style={[styles.points, { color: Colors.text }]}>{profile?.points ?? 0}</Text>
+          <AnimatedPoints
+            value={profile?.points ?? 0}
+            trigger={pointsAnimationKey}
+            color={Colors.text}
+          />
+          <Text style={[styles.pointsEuroValue, { color: Colors.muted }]}>
+            {((profile?.points ?? 0) / 10).toFixed(2)} €
+          </Text>
         </View>
         <Pressable
           style={[styles.iconButton, { backgroundColor: Colors.primary }]}
@@ -132,6 +181,7 @@ export default function HomeScreen() {
 
 const styles = StyleSheet.create({
   content: {
+    flexGrow: 1,
     padding: 20,
     paddingBottom: 110,
   },
@@ -169,6 +219,11 @@ const styles = StyleSheet.create({
   points: {
     fontSize: 42,
     fontWeight: '900',
+  },
+  pointsEuroValue: {
+    marginTop: 2,
+    fontSize: 14,
+    fontWeight: '800',
   },
   iconButton: {
     width: 48,

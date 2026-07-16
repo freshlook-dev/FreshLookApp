@@ -1,6 +1,7 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
+  Animated,
   Pressable,
   RefreshControl,
   ScrollView,
@@ -20,6 +21,7 @@ import {
   StatusBadge,
   useClientColors,
 } from '../../components/ClientUI';
+import { formatKosovoDateOnly } from '../../utils/dateTime';
 
 type Appointment = {
   id: string;
@@ -30,11 +32,34 @@ type Appointment = {
   status: string | null;
 };
 
-function localDateValue(value: Date) {
-  const year = value.getFullYear();
-  const month = String(value.getMonth() + 1).padStart(2, '0');
-  const day = String(value.getDate()).padStart(2, '0');
-  return `${year}-${month}-${day}`;
+function AnimatedPoints({ value, trigger, color }: { value: number; trigger: number; color: string }) {
+  const count = useRef(new Animated.Value(0)).current;
+  const scale = useRef(new Animated.Value(1)).current;
+  const [displayValue, setDisplayValue] = useState(0);
+
+  useEffect(() => {
+    count.stopAnimation();
+    count.setValue(0);
+    scale.setValue(1);
+    setDisplayValue(0);
+    const listener = count.addListener(({ value: current }) => setDisplayValue(Math.round(current)));
+
+    Animated.parallel([
+      Animated.timing(count, { toValue: value, duration: 750, useNativeDriver: false }),
+      Animated.sequence([
+        Animated.timing(scale, { toValue: 1.12, duration: 220, useNativeDriver: true }),
+        Animated.spring(scale, { toValue: 1, friction: 5, tension: 90, useNativeDriver: true }),
+      ]),
+    ]).start();
+
+    return () => count.removeListener(listener);
+  }, [count, scale, value, trigger]);
+
+  return (
+    <Animated.Text style={[styles.pointsValue, { color, transform: [{ scale }] }]}>
+      {displayValue}
+    </Animated.Text>
+  );
 }
 
 export default function HomeScreen() {
@@ -43,11 +68,12 @@ export default function HomeScreen() {
   const [nextAppointment, setNextAppointment] = useState<Appointment | null>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [pointsAnimationKey, setPointsAnimationKey] = useState(0);
 
   const loadHome = useCallback(async () => {
     if (!user?.id) return;
 
-    const today = localDateValue(new Date());
+    const today = formatKosovoDateOnly();
     const { data } = await supabase
       .from('appointments')
       .select('id, service, appointment_date, appointment_time, location, status')
@@ -71,6 +97,7 @@ export default function HomeScreen() {
   const onRefresh = async () => {
     setRefreshing(true);
     await Promise.all([loadHome(), refreshProfile()]);
+    setPointsAnimationKey((current) => current + 1);
     setRefreshing(false);
   };
 
@@ -80,19 +107,43 @@ export default function HomeScreen() {
     <ScrollView
       style={{ backgroundColor: Colors.background }}
       contentContainerStyle={styles.content}
+      alwaysBounceVertical
+      showsVerticalScrollIndicator={false}
       refreshControl={
         <RefreshControl
           refreshing={refreshing}
           onRefresh={onRefresh}
           tintColor={Colors.primary}
+          colors={[Colors.primary]}
         />
       }
     >
+      <View style={styles.headerRow}>
+        <View style={styles.headerCopy}>
       <ScreenHeader
         eyebrow="Anëtarësia FreshLook"
         title={`Mirë se vini${firstName ? `, ${firstName}` : ''}`}
         subtitle="Çdo gjë për vizitën tuaj të ardhshme në sallon, e organizuar në një vend."
       />
+        </View>
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="Historiku i njoftimeve"
+          style={[styles.notificationButton, { backgroundColor: Colors.card, borderColor: Colors.border }]}
+          onPress={() => router.push('/client/notifications' as any)}
+        >
+          <Ionicons name="notifications-outline" size={22} color={Colors.primary} />
+        </Pressable>
+      </View>
+
+      <Pressable
+        style={[styles.ordersShortcut, { backgroundColor: Colors.card, borderColor: Colors.border }]}
+        onPress={() => router.push('/client/orders')}
+      >
+        <Ionicons name="receipt-outline" size={19} color={Colors.primary} />
+        <Text style={[styles.ordersShortcutText, { color: Colors.text }]}>Porositë e mia</Text>
+        <Ionicons name="chevron-forward" size={18} color={Colors.muted} />
+      </Pressable>
 
       <Pressable
         style={[styles.bookButton, { backgroundColor: Colors.primary }]}
@@ -108,8 +159,13 @@ export default function HomeScreen() {
           <View style={styles.pointsTopRow}>
             <View>
               <Text style={[styles.pointsKicker, { color: Colors.onPrimary }]}>Fresh Points</Text>
-              <Text style={[styles.pointsValue, { color: Colors.onPrimary }]}>
-                {profile?.points ?? 0}
+              <AnimatedPoints
+                value={profile?.points ?? 0}
+                trigger={pointsAnimationKey}
+                color={Colors.onPrimary}
+              />
+              <Text style={[styles.pointsEuroValue, { color: Colors.onPrimary }]}>
+                {((profile?.points ?? 0) / 10).toFixed(2)} €
               </Text>
             </View>
             <View style={[styles.pointsIcon, { borderColor: Colors.onPrimary }]}>
@@ -194,10 +250,31 @@ function DetailRow({ icon, text }: { icon: keyof typeof Ionicons.glyphMap; text:
 
 const styles = StyleSheet.create({
   content: {
+    flexGrow: 1,
     paddingHorizontal: 22,
     paddingTop: 24,
     paddingBottom: 118,
   },
+  headerRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 14,
+  },
+  headerCopy: {
+    flex: 1,
+    minWidth: 0,
+  },
+  notificationButton: {
+    width: 48,
+    height: 48,
+    borderRadius: 16,
+    borderWidth: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 2,
+  },
+  ordersShortcut: { minHeight: 50, marginTop: -10, marginBottom: 14, borderWidth: 1, borderRadius: 15, paddingHorizontal: 15, flexDirection: 'row', alignItems: 'center', gap: 9 },
+  ordersShortcutText: { flex: 1, fontSize: 14, fontWeight: '800' },
   bookButton: {
     minHeight: 56, borderRadius: 17, flexDirection: 'row', alignItems: 'center',
     justifyContent: 'center', gap: 9, marginBottom: 22,
@@ -241,6 +318,12 @@ const styles = StyleSheet.create({
     fontWeight: '800',
     letterSpacing: -1.5,
     marginTop: 2,
+  },
+  pointsEuroValue: {
+    marginTop: 2,
+    fontSize: 14,
+    fontWeight: '800',
+    opacity: 0.78,
   },
   pointsIcon: {
     width: 46,

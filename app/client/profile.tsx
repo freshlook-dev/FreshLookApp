@@ -54,8 +54,10 @@ export default function ProfileScreen() {
           </View>
           <View style={styles.heroDivider} />
           <View style={styles.heroStat}>
-            <Ionicons name="checkmark-circle" size={23} color={Colors.onPrimary} />
-            <Text style={[styles.heroLabel, { color: Colors.onPrimary }]}>Anëtar aktiv</Text>
+            <Text style={[styles.heroValue, { color: Colors.onPrimary }]}>
+              {((profile?.points ?? 0) / 10).toFixed(2)} €
+            </Text>
+            <Text style={[styles.heroLabel, { color: Colors.onPrimary }]}>Vlera në euro</Text>
           </View>
         </View>
       </View>

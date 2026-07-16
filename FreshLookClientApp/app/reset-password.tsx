@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
   KeyboardAvoidingView,
+  Linking,
   Platform,
   Pressable,
   ScrollView,
@@ -24,7 +25,57 @@ export default function ResetPasswordScreen() {
   const Colors = theme === 'dark' ? DarkColors : LightColors;
 
   useEffect(() => {
-    supabase.auth.getSession();
+    let active = true;
+
+    const createSessionFromUrl = async (url: string | null) => {
+      if (!url || Platform.OS === 'web') return;
+
+      const [beforeHash, fragment = ''] = url.split('#');
+      const query = beforeHash.includes('?') ? beforeHash.split('?')[1] : '';
+      const params = new URLSearchParams([query, fragment].filter(Boolean).join('&'));
+      const errorDescription = params.get('error_description');
+      if (errorDescription) {
+        if (active) setMessage(errorDescription);
+        return;
+      }
+
+      const accessToken = params.get('access_token');
+      const refreshToken = params.get('refresh_token');
+      if (!accessToken || !refreshToken) return;
+
+      const { error } = await supabase.auth.setSession({
+        access_token: accessToken,
+        refresh_token: refreshToken,
+      });
+
+      if (!active) return;
+      if (error) {
+        setMessage(error.message);
+        return;
+      }
+      setMessage('');
+    };
+
+    const handleLinkError = (error: unknown) => {
+      if (!active) return;
+      setMessage(
+        error instanceof Error
+          ? error.message
+          : 'The password reset link could not be opened.'
+      );
+    };
+
+    void Linking.getInitialURL()
+      .then(createSessionFromUrl)
+      .catch(handleLinkError);
+    const subscription = Linking.addEventListener('url', ({ url }) => {
+      void createSessionFromUrl(url).catch(handleLinkError);
+    });
+
+    return () => {
+      active = false;
+      subscription.remove();
+    };
   }, []);
 
   const canSubmit = useMemo(() => {
