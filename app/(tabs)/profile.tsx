@@ -115,13 +115,13 @@ const canvasToJpegBlob = (canvas: HTMLCanvasElement): Promise<Blob> =>
           resolve(blob);
         },
         'image/jpeg',
-        0.85
+        0.72
       );
       return;
     }
 
     try {
-      const dataUrl = canvas.toDataURL('image/jpeg', 0.85);
+      const dataUrl = canvas.toDataURL('image/jpeg', 0.72);
       const [header, data] = dataUrl.split(',');
       const mime = header.match(/data:(.*);base64/)?.[1] || 'image/jpeg';
       const binary = window.atob(data);
@@ -137,15 +137,15 @@ const canvasToJpegBlob = (canvas: HTMLCanvasElement): Promise<Blob> =>
     }
   });
 
-const webCropToBlob512 = async (
+const webCropToBlob384 = async (
   imageSrc: string,
   cropPixels: { x: number; y: number; width: number; height: number }
 ): Promise<Blob> => {
   const img = await webLoadImage(imageSrc);
 
   const canvas = document.createElement('canvas');
-  canvas.width = 512;
-  canvas.height = 512;
+  canvas.width = 384;
+  canvas.height = 384;
 
   const ctx = canvas.getContext('2d');
   if (!ctx) throw new Error('Canvas not supported');
@@ -160,8 +160,8 @@ const webCropToBlob512 = async (
     cropPixels.height,
     0,
     0,
-    512,
-    512
+    384,
+    384
   );
 
   return canvasToJpegBlob(canvas);
@@ -326,8 +326,8 @@ export default function ProfileTab() {
 
       const manipulated = await ImageManipulator.manipulateAsync(
         uri,
-        [{ resize: { width: 512, height: 512 } }],
-        { compress: 0.85, format: ImageManipulator.SaveFormat.JPEG }
+        [{ resize: { width: 384, height: 384 } }],
+        { compress: 0.72, format: ImageManipulator.SaveFormat.JPEG }
       );
 
       const arrayBuffer = await fetch(manipulated.uri).then((res) =>
@@ -341,6 +341,7 @@ export default function ProfileTab() {
         .upload(filePath, arrayBuffer, {
           upsert: true,
           contentType: 'image/jpeg',
+          cacheControl: '31536000',
         });
 
       if (error) throw error;
@@ -377,6 +378,7 @@ export default function ProfileTab() {
         .upload(filePath, blob, {
           upsert: true,
           contentType: 'image/jpeg',
+          cacheControl: '31536000',
         });
 
       if (error) throw error;
@@ -523,7 +525,7 @@ export default function ProfileTab() {
         height: Math.round(cropHeight),
       };
 
-      const blob = await webCropToBlob512(webPreviewUrl, cropPixels);
+      const blob = await webCropToBlob384(webPreviewUrl, cropPixels);
 
       await uploadWebBlob(blob);
     } catch (err: any) {
@@ -685,6 +687,12 @@ export default function ProfileTab() {
       {isOwner && (
         <View style={[styles.sectionCard, { backgroundColor: Colors.card, borderColor: Colors.border }]}>
           <Text style={[styles.sectionTitle, { color: Colors.muted }]}>Vegla për pronarin</Text>
+          <ProfileRow
+            title="Paneli i administrimit"
+            subtitle="Porosi, produkte, stok, promo dhe klientë në një vend."
+            colors={Colors}
+            onPress={() => router.push('../owner-admin')}
+          />
           <ProfileRow
             title="Statistikat financiare"
             subtitle="Përmbledhje e pagesave dhe raportimit."

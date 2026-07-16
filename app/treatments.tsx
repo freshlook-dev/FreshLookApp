@@ -11,6 +11,7 @@ import {
   View,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { Image as ExpoImage } from 'expo-image';
 import { router } from 'expo-router';
 import { supabase } from '../context/supabase';
 import { useTheme } from '../context/ThemeContext';
@@ -281,10 +282,13 @@ function CatalogCard({ item, kind, Colors, onAction, onOpen }: { item: CatalogIt
         ]}
       >
         {hasImage ? (
-          <Image
-            source={{ uri: imageUrl!, cache: 'force-cache' }}
+          <ExpoImage
+            source={imageUrl!}
             style={[styles.catalogImage, kind === 'product' && styles.productImage]}
-            resizeMode={kind === 'product' ? 'contain' : 'cover'}
+            contentFit={kind === 'product' ? 'contain' : 'cover'}
+            cachePolicy="memory-disk"
+            recyclingKey={imageUrl!}
+            transition={180}
             onError={handleImageError}
           />
         ) : (

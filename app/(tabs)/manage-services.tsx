@@ -170,14 +170,18 @@ export default function ManageServicesScreen() {
       setUploadingPhoto(true);
       const optimized = await ImageManipulator.manipulateAsync(
         result.assets[0].uri,
-        [{ resize: { width: 1200, height: 900 } }],
-        { compress: 0.82, format: ImageManipulator.SaveFormat.JPEG },
+        [{ resize: { width: 900, height: 675 } }],
+        { compress: 0.72, format: ImageManipulator.SaveFormat.JPEG },
       );
       const bytes = await fetch(optimized.uri).then((response) => response.arrayBuffer());
       const filePath = `${user.id}/${Date.now()}.jpg`;
       const { error } = await supabase.storage
         .from('service-images')
-        .upload(filePath, bytes, { contentType: 'image/jpeg', upsert: false });
+        .upload(filePath, bytes, {
+          contentType: 'image/jpeg',
+          cacheControl: '31536000',
+          upsert: false,
+        });
       if (error) throw error;
       const { data } = supabase.storage.from('service-images').getPublicUrl(filePath);
       setField('image_url', `${data.publicUrl}?t=${Date.now()}`);

@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import {
   ActivityIndicator,
-  Image,
   Pressable,
   RefreshControl,
   ScrollView,
@@ -10,6 +9,7 @@ import {
   View,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { Image as ExpoImage } from 'expo-image';
 
 import { EmptyState, useClientColors } from '../../components/ClientUI';
 import { ShopHeader } from '../../components/ShopHeader';
@@ -227,10 +227,13 @@ function ProductImage({
   }
 
   return (
-    <Image
-      source={{ uri: sourceUrl!, cache: 'force-cache' }}
+    <ExpoImage
+      source={sourceUrl!}
       style={[styles.image, soldOut && styles.faded]}
-      resizeMode="contain"
+      contentFit="contain"
+      cachePolicy="memory-disk"
+      recyclingKey={sourceUrl!}
+      transition={160}
       onError={() => {
         if (sourceUrl !== url) setSourceUrl(url);
         else setFailed(true);

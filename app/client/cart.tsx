@@ -1,7 +1,6 @@
 import { useState } from 'react';
 import {
   Alert,
-  Image,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -11,6 +10,7 @@ import {
 } from 'react-native';
 import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
+import { Image as ExpoImage } from 'expo-image';
 
 import { EmptyState, PremiumCard, useClientColors } from '../../components/ClientUI';
 import { ShopHeader } from '../../components/ShopHeader';
@@ -231,11 +231,13 @@ function CartProductImage({ url, fallbackColor }: { url: string; fallbackColor: 
   }
 
   return (
-    <Image
-      source={{ uri: sourceUrl!, cache: 'force-cache' }}
+    <ExpoImage
+      source={sourceUrl!}
       style={styles.itemImage}
-      resizeMode="contain"
-      fadeDuration={180}
+      contentFit="contain"
+      cachePolicy="memory-disk"
+      recyclingKey={sourceUrl!}
+      transition={180}
       onError={() => {
         if (sourceUrl !== url) setSourceUrl(url);
         else setFailed(true);

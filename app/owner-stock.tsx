@@ -1,0 +1,22 @@
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import { ActivityIndicator, Alert, StyleSheet, Text, TextInput, View } from 'react-native';
+import { Image } from 'expo-image';
+
+import { AdminButton, AdminCard, adminStyles as A, OwnerAdminShell } from '../components/owner-admin/OwnerAdminShell';
+import { useTheme } from '../context/ThemeContext'; import { DarkColors, LightColors } from '../constants/colors'; import { supabase } from '../context/supabase'; import { getCatalogImageUrl } from '../utils/imageUrl';
+type Product = { id: string; name: string; image_url: string | null; is_active: boolean; stock_online: number | null; stock_prishtine: number | null; stock_fushe_kosove: number | null };
+type Field = 'stock_online' | 'stock_prishtine' | 'stock_fushe_kosove';
+const fields: [Field, string, string][] = [['stock_online','Online','Porositë nga webi e zvogëlojnë automatikisht.'],['stock_prishtine','Prishtinë','Përditësohet manualisht nga pronari.'],['stock_fushe_kosove','Fushë Kosovë','Përditësohet manualisht nga pronari.']];
+export default function OwnerStock() {
+ const { theme }=useTheme(); const C=theme==='dark'?DarkColors:LightColors; const [items,setItems]=useState<Product[]>([]); const [search,setSearch]=useState(''); const [loading,setLoading]=useState(true); const [saving,setSaving]=useState(''); const [draft,setDraft]=useState<Record<string,string>>({});
+ const load=useCallback(async()=>{setLoading(true);const {data,error}=await supabase.from('products').select('id,name,image_url,is_active,stock_online,stock_prishtine,stock_fushe_kosove').order('name');if(error)Alert.alert('Gabim',error.message);setItems(data??[]);setLoading(false)},[]);
+ useEffect(()=>{void load()},[load]); const filtered=useMemo(()=>items.filter(i=>i.name.toLowerCase().includes(search.trim().toLowerCase())),[items,search]);
+ const save=async(p:Product,f:Field,n:number)=>{const key=p.id+f;setSaving(key);const value=Math.max(0,Math.floor(n));const payload:any={[f]:value};if(f==='stock_online')payload.is_out_of_stock=value<=0;const {error}=await supabase.from('products').update(payload).eq('id',p.id);setSaving('');if(error){Alert.alert('Ruajtja dështoi',error.message);return}setItems(v=>v.map(x=>x.id===p.id?{...x,[f]:value}:x));setDraft(v=>({...v,[key]:String(value)}));};
+ return <OwnerAdminShell title="Stoku" subtitle="Inventari i ndarë për online dhe lokacionet">
+  <TextInput value={search} onChangeText={setSearch} placeholder="Kërko produkt" placeholderTextColor={C.muted} style={[A.input,{color:C.text,borderColor:C.border,backgroundColor:C.card,marginBottom:14}]}/>
+  {loading?<ActivityIndicator color={C.primary}/>:filtered.map(p=><AdminCard key={p.id}><View style={A.row}><Image source={{uri:getCatalogImageUrl(p.image_url) ?? undefined}} style={styles.image}/><View style={{flex:1}}><Text style={[A.name,{color:C.text}]}>{p.name}</Text>{!p.is_active&&<Text style={{color:C.muted}}>Joaktiv</Text>}</View></View>
+   {fields.map(([f,label,hint])=>{const qty=Number(p[f]??0),key=p.id+f;return <View key={f} style={[styles.editor,{borderColor:C.border,backgroundColor:C.surface}]}><View style={A.between}><View style={{flex:1}}><Text style={[styles.label,{color:C.text}]}>{label}</Text><Text style={[A.muted,{color:C.muted}]}>{hint}</Text></View><Text style={[styles.qty,{color:qty<=0?C.danger:qty<=5?'#B7791F':C.success}]}>{qty} copë</Text></View><View style={A.actions}><AdminButton label="−1" secondary disabled={qty<=0||saving===key} onPress={()=>void save(p,f,qty-1)}/><AdminButton label="+1" secondary disabled={saving===key} onPress={()=>void save(p,f,qty+1)}/><AdminButton label="+5" secondary disabled={saving===key} onPress={()=>void save(p,f,qty+5)}/><TextInput keyboardType="number-pad" value={draft[key]??String(qty)} onChangeText={v=>/^\d*$/.test(v)&&setDraft(d=>({...d,[key]:v}))} style={[styles.number,{color:C.text,borderColor:C.border,backgroundColor:C.card}]}/><AdminButton label={saving===key?'Duke ruajtur…':'Ruaj'} disabled={saving===key} onPress={()=>void save(p,f,Number(draft[key]??qty))}/></View></View>})}
+  </AdminCard>)}
+ </OwnerAdminShell>;
+}
+const styles=StyleSheet.create({image:{width:58,height:58,borderRadius:13,backgroundColor:'#ddd'},editor:{borderWidth:1,borderRadius:14,padding:12,marginTop:12},label:{fontWeight:'800',fontSize:15},qty:{fontWeight:'900'},number:{width:72,minHeight:42,borderWidth:1,borderRadius:11,textAlign:'center'}});

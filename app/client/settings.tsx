@@ -85,14 +85,18 @@ export default function ClientSettingsScreen() {
       setUploading(true);
       const manipulated = await ImageManipulator.manipulateAsync(
         result.assets[0].uri,
-        [{ resize: { width: 512, height: 512 } }],
-        { compress: 0.85, format: ImageManipulator.SaveFormat.JPEG }
+        [{ resize: { width: 384, height: 384 } }],
+        { compress: 0.72, format: ImageManipulator.SaveFormat.JPEG }
       );
       const bytes = await fetch(manipulated.uri).then((response) => response.arrayBuffer());
       const filePath = `${user.id}.jpg`;
       const { error: uploadError } = await supabase.storage
         .from('avatars')
-        .upload(filePath, bytes, { upsert: true, contentType: 'image/jpeg' });
+        .upload(filePath, bytes, {
+          upsert: true,
+          contentType: 'image/jpeg',
+          cacheControl: '31536000',
+        });
 
       if (uploadError) throw uploadError;
 
