@@ -95,7 +95,7 @@ export default function ClientCartScreen() {
       return;
     }
     if (hasOutOfStockItems) {
-      Alert.alert('Hiqni produktet pa stok', 'Disa produkte nuk janë më në stok.');
+      Alert.alert('Hiqni produktet që nuk janë në stok', 'Disa produkte nuk janë më në stok.');
       return;
     }
     router.push('/client/checkout');
@@ -144,7 +144,7 @@ export default function ClientCartScreen() {
                       {price.toFixed(2)}€ x {item.quantity}
                     </Text>
                     {item.is_out_of_stock && (
-                      <Text style={[styles.outOfStock, { color: Colors.danger }]}>Pa stok</Text>
+                      <Text style={[styles.outOfStock, { color: Colors.danger }]}>Nuk ka në stok</Text>
                     )}
                     <View style={styles.qtyRow}>
                       <Pressable style={[styles.qtyBtn, { borderColor: Colors.border }]} onPress={() => decreaseQty(item.id)}>

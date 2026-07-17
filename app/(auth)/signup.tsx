@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import {
   View,
   Text,
@@ -14,6 +14,8 @@ import {
   Platform,
   Image,
   Modal,
+  Keyboard,
+  findNodeHandle,
 } from 'react-native';
 import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -61,9 +63,49 @@ export default function SignUpScreen() {
   const [city, setCity] = useState(COUNTRIES[0].cities[0]);
   const [openSelector, setOpenSelector] = useState<'country' | 'city' | 'prefix' | null>(null);
   const [loading, setLoading] = useState(false);
+  const [keyboardVisible, setKeyboardVisible] = useState(false);
+  const scrollRef = useRef<ScrollView>(null);
+  const fullNameRef = useRef<TextInput>(null);
+  const phoneRef = useRef<TextInput>(null);
+  const emailRef = useRef<TextInput>(null);
+  const passwordRef = useRef<TextInput>(null);
+  const confirmPasswordRef = useRef<TextInput>(null);
+  const revealTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const { theme } = useTheme();
   const Colors = theme === 'dark' ? DarkColors : LightColors;
+
+  useEffect(() => {
+    const showEvent = Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow';
+    const hideEvent = Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide';
+    const showSubscription = Keyboard.addListener(showEvent, () => setKeyboardVisible(true));
+    const hideSubscription = Keyboard.addListener(hideEvent, () => setKeyboardVisible(false));
+
+    return () => {
+      showSubscription.remove();
+      hideSubscription.remove();
+      if (revealTimerRef.current) clearTimeout(revealTimerRef.current);
+    };
+  }, []);
+
+  const revealInput = (input: TextInput | null) => {
+    if (!input) return;
+    if (revealTimerRef.current) clearTimeout(revealTimerRef.current);
+
+    // Wait for the keyboard resize/animation, then place the focused field
+    // just above it with a small readable margin.
+    revealTimerRef.current = setTimeout(() => {
+      if (!input.isFocused()) return;
+      const nodeHandle = findNodeHandle(input);
+      if (!nodeHandle) return;
+      scrollRef.current?.scrollResponderScrollNativeHandleToKeyboard(
+        nodeHandle,
+        24,
+        true
+      );
+      revealTimerRef.current = null;
+    }, Platform.OS === 'ios' ? 120 : 180);
+  };
 
   const handleSignUp = async () => {
     const cleanEmail = email.toLowerCase().trim();
@@ -131,20 +173,25 @@ export default function SignUpScreen() {
   return (
     <KeyboardAvoidingView
       style={[styles.flex, { backgroundColor: Colors.background }]}
-      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-      keyboardVerticalOffset={Platform.OS === 'ios' ? 30 : 0}
+      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      keyboardVerticalOffset={0}
     >
       <ScrollView
-        contentContainerStyle={styles.scrollContent}
+        ref={scrollRef}
+        style={styles.flex}
+        contentContainerStyle={[
+          styles.scrollContent,
+          keyboardVisible && styles.scrollContentKeyboard,
+        ]}
         keyboardShouldPersistTaps="handled"
-        keyboardDismissMode="on-drag"
+        keyboardDismissMode={Platform.OS === 'ios' ? 'interactive' : 'on-drag'}
         showsVerticalScrollIndicator={false}
       >
         <View style={styles.inner}>
-          <View style={styles.header}>
+          <View style={[styles.header, keyboardVisible && styles.headerKeyboard]}>
             <Image
               source={require('../../assets/images/logo.png')}
-              style={styles.logo}
+              style={[styles.logo, keyboardVisible && styles.logoKeyboard]}
               resizeMode="contain"
             />
             <Text style={[styles.title, { color: Colors.text }]}>
@@ -157,10 +204,14 @@ export default function SignUpScreen() {
 
           <View style={[styles.card, { backgroundColor: Colors.card }]}>
             <TextInput
+              ref={fullNameRef}
               placeholder="Emri i plotë"
               placeholderTextColor={Colors.muted}
               value={fullName}
               onChangeText={setFullName}
+              onFocus={() => revealInput(fullNameRef.current)}
+              onSubmitEditing={() => phoneRef.current?.focus()}
+              blurOnSubmit={false}
               returnKeyType="next"
               style={[
                 styles.input,
@@ -195,17 +246,22 @@ export default function SignUpScreen() {
                 <Ionicons name="chevron-down" size={17} color={Colors.primary} />
               </Pressable>
               <TextInput
+                ref={phoneRef}
                 placeholder="Numri i telefonit"
                 placeholderTextColor={Colors.muted}
                 keyboardType="phone-pad"
                 value={phone}
                 onChangeText={(value) => setPhone(value.replace(/[^0-9]/g, ''))}
+                onFocus={() => revealInput(phoneRef.current)}
+                onSubmitEditing={() => emailRef.current?.focus()}
+                blurOnSubmit={false}
                 returnKeyType="next"
                 style={[styles.phoneInput, { backgroundColor: Colors.background, color: Colors.text, borderColor: Colors.primary }]}
               />
             </View>
 
             <TextInput
+              ref={emailRef}
               placeholder="Adresa e emailit"
               placeholderTextColor={Colors.muted}
               autoCapitalize="none"
@@ -213,6 +269,9 @@ export default function SignUpScreen() {
               keyboardType="email-address"
               value={email}
               onChangeText={setEmail}
+              onFocus={() => revealInput(emailRef.current)}
+              onSubmitEditing={() => passwordRef.current?.focus()}
+              blurOnSubmit={false}
               returnKeyType="next"
               style={[
                 styles.input,
@@ -225,12 +284,16 @@ export default function SignUpScreen() {
             />
 
             <TextInput
+              ref={passwordRef}
               placeholder="Fjalëkalimi"
               placeholderTextColor={Colors.muted}
               secureTextEntry
               autoCorrect={false}
               value={password}
               onChangeText={setPassword}
+              onFocus={() => revealInput(passwordRef.current)}
+              onSubmitEditing={() => confirmPasswordRef.current?.focus()}
+              blurOnSubmit={false}
               returnKeyType="next"
               style={[
                 styles.input,
@@ -243,13 +306,16 @@ export default function SignUpScreen() {
             />
 
             <TextInput
+              ref={confirmPasswordRef}
               placeholder="Konfirmoni fjalëkalimin"
               placeholderTextColor={Colors.muted}
               secureTextEntry
               autoCorrect={false}
               value={confirmPassword}
               onChangeText={setConfirmPassword}
-              returnKeyType="next"
+              onFocus={() => revealInput(confirmPasswordRef.current)}
+              onSubmitEditing={Keyboard.dismiss}
+              returnKeyType="done"
               style={[styles.input, { backgroundColor: Colors.background, color: Colors.text, borderColor: Colors.primary }]}
             />
 
@@ -321,6 +387,12 @@ const styles = StyleSheet.create({
     flexGrow: 1,
     justifyContent: 'center',
     padding: 24,
+    paddingBottom: 36,
+  },
+  scrollContentKeyboard: {
+    justifyContent: 'flex-start',
+    paddingTop: 12,
+    paddingBottom: 28,
   },
   inner: {
     width: '100%',
@@ -330,10 +402,18 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: 32,
   },
+  headerKeyboard: {
+    marginBottom: 16,
+  },
   logo: {
     width: 120,
     height: 120,
     marginBottom: 16,
+  },
+  logoKeyboard: {
+    width: 64,
+    height: 64,
+    marginBottom: 8,
   },
   title: {
     fontSize: 28,

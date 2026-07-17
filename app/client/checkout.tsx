@@ -129,7 +129,7 @@ export default function ClientCheckoutScreen() {
       return;
     }
     if (hasOutOfStockItems) {
-      Alert.alert('Hiqni produktet pa stok', 'Disa produkte nuk janë më në stok.');
+      Alert.alert('Hiqni produktet që nuk janë në stok', 'Disa produkte nuk janë më në stok.');
       return;
     }
 
@@ -169,7 +169,7 @@ export default function ClientCheckoutScreen() {
     }
     if (latestCart.some((item) => item.is_out_of_stock)) {
       setLoading(false);
-      Alert.alert('Hiqni produktet pa stok', 'Disa produkte nuk janë më në stok.');
+      Alert.alert('Hiqni produktet që nuk janë në stok', 'Disa produkte nuk janë më në stok.');
       return;
     }
 
@@ -277,7 +277,7 @@ export default function ClientCheckoutScreen() {
       {hasOutOfStockItems && (
         <View style={[styles.warning, { borderColor: Colors.danger }]}>
           <Text style={[styles.warningText, { color: Colors.danger }]}>
-            Disa produkte janë pa stok. Kthehuni te shporta dhe hiqini para porosisë.
+            Disa produkte nuk janë në stok. Kthehuni te shporta dhe hiqini para porosisë.
           </Text>
         </View>
       )}

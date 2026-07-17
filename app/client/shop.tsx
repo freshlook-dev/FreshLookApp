@@ -152,7 +152,7 @@ export default function ClientShopScreen() {
                   )}
                   {isSoldOut && (
                     <View style={styles.stockBadge}>
-                      <Text style={styles.stockText}>Pa stok</Text>
+                      <Text style={styles.stockText}>Nuk ka në stok</Text>
                     </View>
                   )}
                 </View>
@@ -201,7 +201,7 @@ export default function ClientShopScreen() {
                     { backgroundColor: isSoldOut ? Colors.border : Colors.primary },
                   ]}
                 >
-                  <Text style={styles.addButtonText}>{isSoldOut ? 'Pa stok' : 'Shto në shportë'}</Text>
+                  <Text style={styles.addButtonText}>{isSoldOut ? 'Nuk ka në stok' : 'Shto në shportë'}</Text>
                 </Pressable>
               </View>
             );
